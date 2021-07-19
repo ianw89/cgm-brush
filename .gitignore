@@ -1,3 +1,14 @@
+#####
+# PROJECT SPECIFIC IGNORES
+#####
+
+# Simulations folder containing large n-body simulation files
+sims/
+
+#####
+# STANDARD PYTHON IGNORES
+#####
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
