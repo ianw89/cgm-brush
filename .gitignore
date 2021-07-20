@@ -5,9 +5,14 @@
 # Simulations folder containing large n-body simulation files
 sims/
 
+
+
 #####
-# STANDARD PYTHON IGNORES
+# STANDARD IGNORES
 #####
+
+# Visual Studio Code files
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
