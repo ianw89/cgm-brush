@@ -2,7 +2,6 @@
 from __future__ import print_function 
 import matplotlib.pyplot as plt
 import numpy as np
-%matplotlib inline
 import scipy.integrate as integrate
 from numpy import genfromtxt
 from random import randrange
