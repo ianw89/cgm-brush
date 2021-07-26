@@ -265,37 +265,41 @@ def RS_array_gen(z_max,L):
 
 
 # Function to import density and halo tables for a given redshift
-# TODO I think this should be made to work with 512 resolution too
-def import_density_field_256(redshift):
+def import_density_field(redshift, resolution):
     
+    if resolution != 256 and resolution != 512:
+        raise ValueError("Only resolution 256 or 512 is supported.")
+
+    resStr = str(resolution)
+
     # Have to hardcode z=0 table because of the unique column names
     if redshift == 0:
         # reading density field and halos data
-        file_path= os.path.join(sims_folder, 'dens256-z-0.csv.gz')
+        file_path= os.path.join(sims_folder, 'dens'+resStr+'-z-0.csv.gz')
         pdDens=pd.read_csv(file_path)
 
         # extracting columns
-        pdDensN=pdDens[['Bolshoi__Dens256_z0__ix','Bolshoi__Dens256_z0__iy','Bolshoi__Dens256_z0__iz','Bolshoi__Dens256_z0__dens']]
+        pdDensN=pdDens[['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz','Bolshoi__Dens'+resStr+'_z0__dens']]
 
         # 3D density array
-        pdDensN=pdDensN.sort_values(['Bolshoi__Dens256_z0__ix','Bolshoi__Dens256_z0__iy','Bolshoi__Dens256_z0__iz'])
-        tden = pdDensN['Bolshoi__Dens256_z0__dens'].values
-        tden2=np.reshape(tden,(256,256,256))
+        pdDensN=pdDensN.sort_values(['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz'])
+        tden = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
+        tden2 = np.reshape(tden,(resolution,resolution,resolution))
 
         return ((tden2+1).sum(2))*10**6* dx* elecD(z) /(1+z)**2
 
     else:
-        name = 'dens256-z-0.'+str(redshift)+'.csv.gz'
+        name = 'dens'+resStr+'-z-0.'+str(redshift)+'.csv.gz'
         den = pd.read_csv(name)
-        den2=den[['Bolshoi__Dens256__ix','Bolshoi__Dens256__iy','Bolshoi__Dens256__iz','Bolshoi__Dens256__dens']]
+        den2=den[['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz','Bolshoi__Dens'+resStr+'__dens']]
 
         # 3D density array
-        den_sorted=den2.sort_values(['Bolshoi__Dens256__ix','Bolshoi__Dens256__iy','Bolshoi__Dens256__iz'])
-        den_vals = den_sorted['Bolshoi__Dens256__dens'].values
-        den256=np.reshape(den_vals,(256,256,256))
+        den_sorted=den2.sort_values(['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz'])
+        den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
+        den = np.reshape(den_vals,(resolution,resolution,resolution))
         
-        return normDM((den256+1).sum(2),0)
-    #     return normDM((den256+1).sum(random.randint(0,1)),0)
+        return normDM((den+1).sum(2),0)
+        #return normDM((den+1).sum(random.randint(0,1)),0)
 
 
 # Create a single array of density fields for various redshifts
@@ -304,21 +308,14 @@ def extract_all_den_fields(RS_array,den_grid_size):
 
     all_den_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size])
 
-    if den_grid_size == 256:
-        all_den_fields[0,:,:] = import_density_field_256(0)
-    elif den_grid_size == 512:
-        all_den_fields[0,:,:] = import_density_field_512(0) # BUG This is undefined... generalize the above?
-
-    for i in range(1, len(RS_array)):
-        if den_grid_size == 256:
-            all_den_fields[i,:,:]=import_density_field_256(i)
-        elif den_grid_size == 512:
-            all_den_fields[i,:,:]=import_density_field_512(i)
+    for i in range(0, len(RS_array)):
+        all_den_fields[i,:,:]=import_density_field(i, den_grid_size)
     
     return all_den_fields 
     
     
 # Extract halos for a given redshift
+# TODO Bolshoi specific
 def extract_halos(redshift):
 
     name = 'halo-z-0.'+str(redshift)+'.csv.gz'    
@@ -1082,61 +1079,7 @@ def radial_profile_array(DM_halo_array,halos_per_mass_bin,len_rad_ar):
         rad_prof_mass_bin[i,:] = radial_profile(DM_mass_bin[i,:,:],center,center)
     
     return rad_prof_mass_bin,DM_mass_bin
-    
-# BUG Mean DM of single box is calculated in MainFile notebook but used here in the functions below
-#mean_DM=np.mean(import_density_field_256(0))
-# TODO These 3 functions have no callers right now? Dead code?
 
-# Function: plots radial profiles for different halo mass bins
-def plot_radial_profile(radial_profile_array,mass_array,radial_extent,num_of_plots):
-    
-    plt.figure(figsize=(10,10))
-    plot_x_dim = radial_profile_array.shape[1]
-    
-    for i in range(0,len(mass_array)-1,num_of_plots):
-        
-        plt.semilogx(np.linspace(0,radial_extent,plot_x_dim),radial_profile_array[i,:]-mean_DM, label= 'Mass = %.1E' % Decimal(mass_array[i]))
-        plt.legend(loc='upper right')
-        plt.xlabel('Radial distance (Mpc)')
-        plt.ylabel('DM - <DM>')
-    plt.savefig('DMvsRad_ImpactParam')
-
-# Function: plots radial profiles for different halo mass bins
-def plot_radial_profile_2(radial_profile_array_1,radial_profile_array_2,mass_array,radial_extent,num_of_plots):
-    
-    plt.figure(figsize=(10,10))
-    plot_x_dim_1 = radial_profile_array_1.shape[1]
-    print(plot_x_dim_1)
-    plot_x_dim_2 = radial_profile_array_2.shape[1]
-    print(plot_x_dim_2)
-    
-    for i in range(0,len(mass_array)-1,num_of_plots):
-        
-        plt.semilogx(np.linspace(0,radial_extent,plot_x_dim_1),radial_profile_array_1[i,:]-mean_DM, label= 'Mass = %.1E' % Decimal(mass_array[i]))
-        plt.semilogx(np.linspace(0,radial_extent,plot_x_dim_2),radial_profile_array_2[i,:], linestyle='--',label= 'Mass = %.1E' % Decimal(mass_array[i]))
-        plt.legend(loc='upper right')
-        plt.xlabel('Radial distance (Mpc)')
-        plt.ylabel('DM - <DM>')
-        plt.ylim(0,250)
-    plt.savefig('DMvsRad_ImpactParam')
-
-def plot_radial_profile_3(radial_profile_array_1,radial_profile_array_2,radial_profile_array_3,mass_array,radial_extent,num_of_plots):
-    
-    plt.figure(figsize=(10,10))
-    plot_x_dim_1 = radial_profile_array_1.shape[1]
-    plot_x_dim_2 = radial_profile_array_2.shape[1]
-    plot_x_dim_3 = radial_profile_array_3.shape[1]
-    
-    for i in range(0,len(mass_array)-1,num_of_plots):
-        
-        plt.semilogx(np.linspace(0,radial_extent,plot_x_dim_1),radial_profile_array_1[i,:]-75, label= 'Mass = %.1E' % Decimal(mass_array[i]))
-        plt.semilogx(np.linspace(0,radial_extent,plot_x_dim_2),radial_profile_array_2[i,:]-75, linestyle='--',label= 'Mass = %.1E' % Decimal(mass_array[i]))
-        plt.semilogx(np.linspace(0,radial_extent,plot_x_dim_3),radial_profile_array_3[i,:]-75, linestyle='-.',label= 'Mass = %.1E' % Decimal(mass_array[i]))
-        plt.legend(loc='upper right')
-        plt.xlabel('Radial distance (Mpc)')
-        plt.ylabel('DM - <DM>')
-        plt.ylim(0,300)
-    plt.savefig('DMvsRad_ImpactParam')
 
 # Single function for radial profile of DM for a given DM array and grid size
 def DM_vs_radius(DM_array,halo_data_frame,crop_grid_dim, mass_bins, hist_mass_bins):
