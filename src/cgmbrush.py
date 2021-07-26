@@ -696,17 +696,14 @@ def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,
 
             fine_mask=mask1
         
-        ## testing code to add Fire simulation halos
+        # testing code to add Fire simulation halos
         elif profile == "fire":
-        
-            %run gasProfile_Fire.ipynb
+            # TODO get gasProfile_Fire in this module
             fine_mask = rhogasFire(Mvir_avg[j],conv_rad[j], redshift, adjustmentfactor,resolution)[2]
         
         # Precipitation model
-        elif profile == "precipitation":
-        
-            %run gasProfile_precipitation.ipynb
-            
+        elif profile == "precipitation":       
+            # TODO get gasProfile_precipitation in this module
 #             fine_mask = rhogasFire(Mvir_avg[j],conv_rad[j], redshift, adjustmentfactor,resolution)[2]
             fine_mask = nePercipitation(np.log10(Mvir_avg[j]),1000*conv_rad[j],resolution,redshift)[1]
         
