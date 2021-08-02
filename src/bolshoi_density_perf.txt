@@ -1,0 +1,507 @@
+         451807 function calls (419753 primitive calls) in 23.072 seconds
+
+   Ordered by: internal time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1   10.510   10.510   13.942   13.942 {method 'read' of 'pandas._libs.parsers.TextReader' objects}
+    31968    2.816    0.000    2.816    0.000 {method 'decompress' of 'zlib.Decompress' objects}
+        7    2.479    0.354    2.479    0.354 {method 'argsort' of 'numpy.ndarray' objects}
+        1    2.207    2.207    2.207    2.207 {method 'get_labels_groupby' of 'pandas._libs.hashtable.Int64HashTable' objects}
+        1    1.353    1.353    1.353    1.353 {pandas._libs.algos.groupsort_indexer}
+        1    0.454    0.454    0.454    0.454 {pandas._libs.algos.take_2d_axis1_int64_int64}
+        2    0.419    0.210    0.420    0.210 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:5017(_stack_arrays)
+        1    0.407    0.407    0.407    0.407 {pandas._libs.algos.take_2d_axis0_float64_float64}
+        7    0.253    0.036    0.253    0.036 {pandas._libs.algos.take_1d_int64_int64}
+        1    0.230    0.230    0.230    0.230 {method 'put' of 'numpy.ndarray' objects}
+        3    0.224    0.075    0.224    0.075 {method 'get_labels' of 'pandas._libs.hashtable.Int64HashTable' objects}
+34891/2904    0.216    0.000    3.414    0.001 {method 'read' of '_io.BufferedReader' objects}
+        1    0.207    0.207    0.273    0.273 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:20(get_group_index)
+        5    0.169    0.034    0.169    0.034 {method 'take' of 'numpy.ndarray' objects}
+    31970    0.134    0.000    3.371    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/_compression.py:66(readinto)
+    31970    0.093    0.000    3.217    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:438(read)
+        1    0.073    0.073    0.073    0.073 {pandas._libs.algos.take_2d_axis0_int64_int64}
+        3    0.060    0.020    0.060    0.020 {built-in method numpy.core.multiarray.where}
+        3    0.059    0.020    0.066    0.022 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:55(maybe_lift)
+    31971    0.057    0.000    0.057    0.000 {built-in method zlib.crc32}
+        1    0.054    0.054    7.332    7.332 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:189(lexsort_indexer)
+        1    0.050    0.050   23.072   23.072 /Users/ianw89/Repos/cgm-brush/src/cgmbrush.py:351(extract_all_den_fields)
+        1    0.049    0.049    6.836    6.836 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:177(indexer_from_factorized)
+        1    0.048    0.048    0.048    0.048 {pandas._libs.algos.take_2d_axis1_float64_float64}
+        1    0.045    0.045   23.022   23.022 /Users/ianw89/Repos/cgm-brush/src/cgmbrush.py:313(import_density_field)
+        2    0.041    0.021    0.044    0.022 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexing.py:2441(maybe_convert_indices)
+        3    0.038    0.013    0.038    0.013 {built-in method pandas._libs.algos.ensure_int16}
+    31968    0.036    0.000    0.097    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:489(_add_read_data)
+        1    0.033    0.033   14.401   14.401 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:414(_read)
+        9    0.031    0.003    0.031    0.003 {built-in method numpy.core.multiarray.arange}
+    31988    0.029    0.000    0.202    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:80(read)
+        3    0.026    0.009    0.325    0.108 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:576(factorize)
+       22    0.025    0.001    0.025    0.001 {method 'reduce' of 'numpy.ufunc' objects}
+        1    0.019    0.019    5.162    5.162 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:348(compress_group_index)
+        1    0.019    0.019    2.935    2.935 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:369(_reorder_by_uniques)
+165698/165661    0.016    0.000    0.016    0.000 {built-in method builtins.len}
+        4    0.015    0.004    0.015    0.004 {method 'copy' of 'numpy.ndarray' objects}
+        2    0.013    0.007    0.013    0.007 {built-in method numpy.core.multiarray.putmask}
+       11    0.012    0.001    1.249    0.114 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:1548(take_nd)
+    31970    0.012    0.000    0.012    0.000 {method 'cast' of 'memoryview' objects}
+     2904    0.006    0.000    3.426    0.001 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:271(read)
+     5609    0.006    0.000    0.007    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:93(prepend)
+        1    0.005    0.005    8.442    8.442 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:4393(sort_values)
+     1025    0.004    0.000    0.008    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:811(is_integer_dtype)
+     2904    0.004    0.000    0.006    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/_compression.py:12(_check_not_closed)
+1241/1238    0.003    0.000    0.004    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1835(_get_dtype_type)
+     2905    0.002    0.000    0.002    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:298(closed)
+     2526    0.001    0.000    0.001    0.000 {built-in method builtins.isinstance}
+       45    0.001    0.000    0.001    0.000 {built-in method posix.stat}
+        4    0.001    0.000    0.996    0.249 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:1237(take_nd)
+        2    0.001    0.000    1.226    0.613 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4518(take)
+     2250    0.001    0.000    0.001    0.000 {built-in method builtins.issubclass}
+        3    0.000    0.000    0.225    0.075 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:449(_factorize_array)
+        1    0.000    0.000    0.003    0.003 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1685(__init__)
+       45    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap_external>:1356(find_spec)
+        1    0.000    0.000    0.000    0.000 {built-in method numpy.core.multiarray.zeros}
+       68    0.000    0.000    0.000    0.000 {built-in method numpy.core.multiarray.array}
+      132    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1527(is_float_dtype)
+      264    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}
+      139    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/base.py:61(is_dtype)
+      9/8    0.000    0.000    0.001    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:255(__new__)
+      307    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/generic.py:7(_check)
+      225    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:58(<listcomp>)
+       24    0.000    0.000    0.000    0.000 {built-in method numpy.core.multiarray.empty}
+      225    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:56(_path_join)
+      475    0.000    0.000    0.000    0.000 {built-in method builtins.getattr}
+       42    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1688(is_extension_array_dtype)
+      113    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1009(_handle_fromlist)
+        2    0.000    0.000    0.000    0.000 {built-in method posix.getcwd}
+        5    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap_external>:1240(_get_spec)
+        3    0.000    0.000    0.364    0.121 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/arrays/categorical.py:267(__init__)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/cast.py:257(maybe_promote)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3363(_rebuild_blknos_and_blklocs)
+       20    0.000    0.000    0.015    0.001 {method 'any' of 'numpy.ndarray' objects}
+        5    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap>:882(_find_spec)
+        5    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1569(is_unique)
+     13/5    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap>:978(_find_and_load)
+       25    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:707(is_dtype)
+      7/6    0.000    0.000    0.001    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:166(__init__)
+      450    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+      225    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/missing.py:189(_isna_ndarraylike)
+      225    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:222(_verbose_message)
+        1    0.000    0.000    0.000    0.000 {built-in method io.open}
+       54    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:513(is_categorical_dtype)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:157(_get_module_lock)
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.compile}
+       12    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:116(__init__)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:5020(_asarray_compat)
+       15    0.000    0.000    0.000    0.000 {method 'format' of 'str' objects}
+        1    0.000    0.000   23.072   23.072 <ipython-input-3-b1ee8be28213>:7(<module>)
+        1    0.000    0.000    0.420    0.420 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4880(form_blocks)
+       62    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:369(is_datetime64tz_dtype)
+        2    0.000    0.000    0.000    0.000 {pandas._libs.lib.clean_index_list}
+       18    0.000    0.000    0.001    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:4914(_ensure_index)
+       12    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3191(make_block)
+        1    0.000    0.000   14.401   14.401 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:542(parser_f)
+        5    0.000    0.000    0.123    0.025 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:2664(__getitem__)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/arrays/categorical.py:597(_get_codes)
+       10    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:473(_simple_new)
+        6    0.000    0.000    0.000    0.000 {pandas._libs.lib.infer_dtype}
+        1    0.000    0.000    1.353    1.353 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:321(get_group_index_sorter)
+       45    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:74(_path_stat)
+       45    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:433(asarray)
+     13/5    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap>:948(_find_and_load_unlocked)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:141(_reconstruct_data)
+       18    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:4378(__setattr__)
+       31    0.000    0.000    0.000    0.000 {method 'view' of 'numpy.ndarray' objects}
+       41    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:227(is_datetimetz)
+       12    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3307(shape)
+       23    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1784(_get_dtype)
+       11    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3148(get_block_type)
+       12    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:237(mgr_locs)
+       25    0.000    0.000    0.015    0.001 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:672(values)
+       20    0.000    0.000    0.015    0.001 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/_methods.py:42(_any)
+      132    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:630(require)
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:4019(_sanitize_array)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:298(validate_categories)
+        9    0.000    0.000    0.000    0.000 {method 'astype' of 'numpy.ndarray' objects}
+        3    0.000    0.000    0.000    0.000 {method 'to_array' of 'pandas._libs.hashtable.Int64Vector' objects}
+       11    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:1421(_get_take_nd_function)
+        1    0.000    0.000    0.122    0.122 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4431(_slice_take_blocks_ax0)
+        2    0.000    0.000    0.420    0.210 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4986(_multi_blockify)
+       47    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1203(_path_importer_cache)
+       74    0.000    0.000    0.000    0.000 {method 'rpartition' of 'str' objects}
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4137(iget)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexing.py:1225(_convert_to_indexer)
+        1    0.000    0.000   13.942   13.942 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1846(read)
+        9    0.000    0.000    0.000    0.000 {method 'get_loc' of 'pandas._libs.index.IndexEngine' objects}
+       34    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:477(is_interval_dtype)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1965(pandas_dtype)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:78(acquire)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:103(release)
+        2    0.000    0.000    0.000    0.000 {method 'close' of '_io.BufferedReader' objects}
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2033(__contains__)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/cast.py:971(maybe_cast_to_datetime)
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:278(validate_ordered)
+       16    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:481(__len__)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3488(_verify_integrity)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:401(__new__)
+       13    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:584(is_dtype)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/common.py:301(_asarray_tuplesafe)
+       10    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:124(__init__)
+        3    0.000    0.000    0.422    0.141 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:334(__init__)
+        2    0.000    0.000    0.185    0.092 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2179(take)
+       37    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:641(__len__)
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:156(_finalize)
+        5    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/numeric.py:35(__new__)
+       18    0.000    0.000    0.000    0.000 {built-in method _abc._abc_instancecheck}
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/cast.py:867(maybe_infer_to_datetimelike)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:459(construct_from_string)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4639(__init__)
+       18    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/inference.py:251(is_list_like)
+       13    0.000    0.000    0.000    0.000 {built-in method __new__ of type object at 0x109c23f70}
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/fromnumeric.py:2478(prod)
+        3    0.000    0.000    0.325    0.108 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/util/_decorators.py:136(wrapper)
+        5    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1935(_engine)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:1330(_get_label_or_level_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:848(_clean_options)
+       14    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:858(is_signed_integer_dtype)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3265(__init__)
+        2    0.000    0.000    0.997    0.498 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4388(reindex_indexer)
+       16    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:416(parent)
+       16    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:364(_get_axis_number)
+        2    0.000    0.000   23.072   11.536 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/IPython/core/interactiveshell.py:3230(run_code)
+       28    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:89(is_object_dtype)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:5208(_get_blkno_placements)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:58(__init__)
+       45    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:36(_relax_case)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:1264(_check_label_or_level_ambiguity)
+       32    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:122(is_sparse)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1170(is_datetime_or_timedelta_dtype)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:269(make_block_same_class)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:365(_set_axis)
+        2    0.000    0.000    0.002    0.001 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/common.py:121(_stringify_path)
+       46    0.000    0.000    0.000    0.000 {built-in method _imp.acquire_lock}
+       26    0.000    0.000    0.000    0.000 {built-in method _thread.allocate_lock}
+       20    0.000    0.000    0.000    0.000 {built-in method pandas._libs.algos.ensure_int64}
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:1203(_is_label_reference)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:2484(_get_item_cache)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:792(_get_options_with_defaults)
+        1    0.000    0.000   14.363   14.363 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1029(read)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:48(_ensure_data)
+       11    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1043(is_datetime64_any_dtype)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4108(get)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:147(__enter__)
+       14    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/compat/__init__.py:205(iteritems)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2445(equals)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:7644(_homogenize)
+        1    0.000    0.000    0.122    0.122 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:2783(_take)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/cast.py:1207(construct_1d_object_array_from_listlike)
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:692(is_dtype_equal)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/missing.py:376(array_equivalent)
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:401(name)
+        3    0.000    0.000    0.038    0.013 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/cast.py:600(coerce_indexer_dtype)
+       16    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:332(is_datetime64_dtype)
+       20    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1578(is_bool_dtype)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:260(_shallow_copy)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:405(_read_gzip_header)
+       20    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:4036(_try_cast)
+       11    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2067(__getitem__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:3219(get_indexer)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:3100(_box_col_values)
+        1    0.000    0.000    0.003    0.003 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:720(__init__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1236(__init__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1386(_maybe_dedup_names)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/_compression.py:59(close)
+       14    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:407(is_timedelta64_dtype)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:151(__exit__)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:176(cb)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:123(__init__)
+      8/4    0.000    0.000    0.002    0.001 {built-in method builtins.__import__}
+        1    0.000    0.000    0.000    0.000 {method 'get_indexer' of 'pandas._libs.index.IndexEngine' objects}
+        1    0.000    0.000    0.000    0.000 {method 'close' of 'pandas._libs.parsers.TextReader' objects}
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:3071(get_loc)
+        1    0.000    0.000    0.003    0.003 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1012(_make_engine)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/arrays/categorical.py:381(categories)
+       18    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}
+        6    0.000    0.000    0.000    0.000 {method 'fill' of 'numpy.ndarray' objects}
+        2    0.000    0.000    0.000    0.000 {built-in method pandas._libs.lib.array_equivalent_object}
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:701(<genexpr>)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:2491(seterr)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:3203(_reduce)
+        5    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1938(<lambda>)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:377(_get_axis_name)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/missing.py:112(_isna_new)
+       13    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:444(is_period_dtype)
+        1    0.000    0.000    0.875    0.875 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4423(<listcomp>)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4745(internal_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1779(close)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/posixpath.py:75(join)
+        7    0.000    0.000    0.000    0.000 {method 'search' of 're.Pattern' objects}
+        1    0.000    0.000    0.000    0.000 {pandas._libs.missing.isnaobj}
+       21    0.000    0.000    0.000    0.000 {built-in method pandas._libs.lib.is_scalar}
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:390(_get_axis)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:4362(__getattr__)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/urllib/parse.py:361(urlparse)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/codeop.py:132(__call__)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:356(ftype)
+       19    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3311(ndim)
+       26    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:233(mgr_locs)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:284(_init_dict)
+        5    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:369(__init__)
+       20    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:859(__exit__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:302(close)
+       11    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:635(_reset_identity)
+       46    0.000    0.000    0.000    0.000 {built-in method _imp.release_lock}
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/fromnumeric.py:64(_wrapreduction)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/sorting.py:47(_int64_cut_off)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/common.py:100(is_bool_indexer)
+       10    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:458(ndim)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:3647(reindex)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1077(_is_potential_multi_index)
+       10    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:195(is_categorical)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1629(is_extension_type)
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:137(__init__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:131(_simple_new)
+        1    0.000    0.000    0.421    0.421 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:426(_init_dict)
+        1    0.000    0.000    0.122    0.122 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:2707(_getitem_array)
+       36    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3309(<genexpr>)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3784(_consolidate_check)
+       12    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:127(_check_ndim)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1789(_set_noconvert_columns)
+       18    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/abc.py:137(__instancecheck__)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/base.py:789(_ndarray_values)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:405(name)
+      6/5    0.000    0.000    0.000    0.000 {built-in method builtins.all}
+       17    0.000    0.000    0.000    0.000 {built-in method builtins.iter}
+       16    0.000    0.000    0.000    0.000 {built-in method builtins.max}
+        2    0.000    0.000    0.000    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+        9    0.000    0.000    0.000    0.000 {built-in method pandas._libs.algos.ensure_platform_int}
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:1233(<genexpr>)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:2498(_set_as_cached)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/cast.py:853(maybe_castable)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/missing.py:32(isna)
+        1    0.000    0.000    0.420    0.420 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4869(create_block_manager_from_arrays)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:378(__init__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:68(__new__)
+        1    0.000    0.000    0.001    0.001 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/common.py:172(get_filepath_or_buffer)
+        1    0.000    0.000    0.001    0.001 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/common.py:246(_infer_compression)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:3093(_box_item_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/_compression.py:39(__init__)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:224(_get_data_algo)
+        1    0.000    0.000    0.015    0.015 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:169(_data)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:173(_int64index)
+       13    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:143(__init__)
+        5    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:873(_find_spec_legacy)
+        5    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap_external>:1272(find_spec)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/nanops.py:202(_get_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:520(_shallow_copy_with_infer)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:677(_values)
+       27    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+       18    0.000    0.000    0.000    0.000 {built-in method builtins.hash}
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.min}
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.sorted}
+        2    0.000    0.000    0.000    0.000 {built-in method zlib.decompressobj}
+        8    0.000    0.000    0.000    0.000 {pandas._libs.lib.values_from_object}
+        8    0.000    0.000    0.000    0.000 {built-in method pandas._libs.lib.is_float}
+       16    0.000    0.000    0.000    0.000 {built-in method pandas._libs.lib.is_bool}
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/IPython/core/hooks.py:142(__call__)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:2592(geterr)
+        5    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/common.py:395(_apply_if_callable)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1647(_convert_scalar_indexer)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:2893(xs)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/urllib/parse.py:394(urlsplit)
+       10    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/inference.py:415(is_hashable)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:266(construct_from_string)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:331(update_dtype)
+       12    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:363(categories)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3266(<listcomp>)
+        9    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3490(<genexpr>)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3785(<listcomp>)
+        5    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4101(_consolidate_inplace)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:9675(logical_func)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexing.py:255(_convert_scalar_indexer)
+        5    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:792(find_spec)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:510(_shallow_copy)
+        2    0.000    0.000   23.072   11.536 {built-in method builtins.exec}
+        5    0.000    0.000    0.000    0.000 {method 'ravel' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.011    0.011 {method 'sum' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.000    0.000 {pandas._libs.internals.get_blkno_indexers}
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/compat/__init__.py:211(itervalues)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/concat.py:105(_get_sliced_frame_result_type)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1976(is_all_dates)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:178(_init_mgr)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:317(_construct_axes_from_arguments)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:394(_get_block_manager_axis)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:4433(_consolidate_inplace)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:789(close)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1213(_validate_parse_dates_arg)
+        5    0.000    0.000    0.000    0.000 /Users/ianw89/Library/Python/3.7/lib/python/site-packages/six.py:184(find_module)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/urllib/parse.py:109(_coerce_args)
+        2    0.000    0.000    0.000    0.000 <string>:1(__new__)
+        1    0.000    0.000    0.000    0.000 <ipython-input-3-b1ee8be28213>:8(<module>)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/inference.py:119(is_iterator)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:907(is_unsigned_integer_dtype)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:2690(_getitem_column)
+       10    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:352(dtype)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:372(iget)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3776(is_consolidated)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4742(external_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1669(_do_date_conversions)
+        5    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:719(find_spec)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:385(_init_read)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:493(_read_eof)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/arrays/categorical.py:425(dtype)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/base.py:893(tolist)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/nanops.py:318(nanany)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:920(_get_attributes_dict)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/numeric.py:64(_shallow_copy)
+        3    0.000    0.000    0.000    0.000 {built-in method builtins.sum}
+        5    0.000    0.000    0.000    0.000 {built-in method _imp.is_frozen}
+        2    0.000    0.000    0.000    0.000 {built-in method _struct.unpack}
+        4    0.000    0.000    0.000    0.000 {built-in method numpy.core.umath.geterrobj}
+        4    0.000    0.000    0.000    0.000 {built-in method pandas._libs.missing.checknull}
+       25    0.000    0.000    0.000    0.000 {built-in method pandas._libs.lib.is_integer}
+        1    0.000    0.000    0.011    0.011 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/_methods.py:34(_sum)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1763(_convert_listlike_indexer)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2197(_assert_take_fillable)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2235(hasnans)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2465(identical)
+        1    0.000    0.000    0.000    0.000 /Users/ianw89/Repos/cgm-brush/src/cgmbrush.py:39(rhoB)
+        1    0.000    0.000    0.000    0.000 /Users/ianw89/Repos/cgm-brush/src/cgmbrush.py:46(elecD)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:4345(__finalize__)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:4436(f)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1092(<genexpr>)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1420(_make_index)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/IPython/utils/ipstruct.py:125(__getattr__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/inference.py:447(is_sequence)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:647(is_datetimelike)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:2298(__init__)
+       11    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3384(_get_items)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:203(internal_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexing.py:2321(convert_to_index_sliceable)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:229(fill_value)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:5891(_preprocess_slice_or_indexer)
+      8/4    0.000    0.000    0.002    0.001 <frozen importlib._bootstrap>:211(_call_with_frames_removed)
+       20    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:855(__enter__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/posixpath.py:41(_get_sep)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:615(is_)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:711(get_values)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:922(<dictcomp>)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:391(_set_subtyp)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:432(values)
+        8    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:465(_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/common.py:77(_is_url)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/common.py:95(_expand_user)
+       21    0.000    0.000    0.000    0.000 {method 'pop' of 'dict' objects}
+        3    0.000    0.000    0.000    0.000 {method 'lower' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 {built-in method _imp.is_builtin}
+        3    0.000    0.000    0.000    0.000 {built-in method posix.fspath}
+       26    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        2    0.000    0.000    0.000    0.000 {built-in method numpy.core.umath.seterrobj}
+        1    0.000    0.000    0.000    0.000 {built-in method pandas._libs.lib.is_datetime_array}
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:504(asanyarray)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:3323(reindex)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/series.py:3802(isnull)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1329(_get_names)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1581(is_integer)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1964(inferred_type)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:3389(_maybe_promote)
+        1    0.000    0.000    0.420    0.420 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:7349(_arrays_to_mgr)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:164(_validate_dtype)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:2603(_set_is_copy)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:3674(<genexpr>)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:4423(_protect_consolidate)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:358(_validate_integer)
+        1    0.000    0.000   23.072   23.072 /Users/ianw89/Repos/cgm-brush/src/cgmbrush.py:303(get_density_fields)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/inference.py:287(is_array_like)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/algorithms.py:172(_ensure_arraylike)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/cast.py:1232(construct_1d_ndarray_preserving_na)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:546(is_string_dtype)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1405(needs_i8_conversion)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:370(ordered)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/dtypes.py:675(construct_from_string)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:538(axes)
+        6    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:348(shape)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4085(consolidate)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:6224(isnull)
+       10    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4684(_block)
+        7    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4990(<lambda>)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:5026(_shape_compat)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1917(<listcomp>)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:3038(_process_date_conversion)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:74(__init__)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/gzip.py:389(_read_exact)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/util/_validators.py:221(validate_bool_kwarg)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/base.py:912(__iter__)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/missing.py:596(clean_reindex_fill_method)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/frame.py:320(_constructor)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:904(_coerce_to_ndarray)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/common.py:113(_validate_header_arg)
+        2    0.000    0.000    0.000    0.000 {method 'update' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 {method 'copy' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {method 'encode' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 {method 'upper' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 {method 'endswith' of 'str' objects}
+        3    0.000    0.000    0.000    0.000 {built-in method builtins.any}
+        6    0.000    0.000    0.000    0.000 {built-in method builtins.callable}
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.next}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        5    0.000    0.000    0.000    0.000 {built-in method pandas._libs.algos.ensure_object}
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:2896(__exit__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/fromnumeric.py:49(_wrapfunc)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/fromnumeric.py:185(reshape)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/common.py:154(_all_none)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1578(is_boolean)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1797(_convert_arr_indexer)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:2470(<genexpr>)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:349(<dictcomp>)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:831(_check_file_or_buffer)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1059(_create_index)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1171(_validate_usecols_arg)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/_compression.py:150(tell)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/inference.py:158(is_file_like)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:3351(_is_single_block)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1919(<dictcomp>)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:3000(_make_date_converter)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:3121(_clean_na_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/posixpath.py:232(expanduser)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/missing.py:74(clean_fill_method)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/nanops.py:256(_na_ok_dtype)
+        5    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:662(dtype)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:84(_ensure_int)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/common.py:164(is_s3_url)
+        2    0.000    0.000    0.000    0.000 {method 'extend' of 'list' objects}
+        1    0.000    0.000    0.000    0.000 {method 'setdefault' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {method 'values' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.ord}
+        1    0.000    0.000    0.000    0.000 {built-in method sys.getfilesystemencoding}
+        1    0.000    0.000    0.000    0.000 {function DecompressReader.close at 0x7fae800bbae8}
+        1    0.000    0.000    0.000    0.000 {method 'tolist' of 'numpy.ndarray' objects}
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/IPython/core/hooks.py:207(pre_run_code_hook)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:2887(__init__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/numpy/core/numeric.py:2891(__enter__)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/IPython/core/interactiveshell.py:1258(user_global_ns)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/compat/numpy/function.py:38(__call__)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:1833(_convert_list_indexer)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:1224(<listcomp>)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:1294(<listcomp>)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/generic.py:1368(<listcomp>)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:388(_validate_names)
+        3    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1073(_is_index_col)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1306(_has_complex_date_col)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/io/parsers.py:1414(_maybe_make_multi_index_columns)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/_compression.py:36(readable)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/urllib/parse.py:98(_noop)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:995(is_int_or_datetime_dtype)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/dtypes/common.py:1490(is_string_like_dtype)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/range.py:158(_validate_dtype)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:199(external_values)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexing.py:2540(is_nested_tuple)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexing.py:2553(is_list_like_indexer)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/internals.py:4768(is_consolidated)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/nanops.py:179(_get_fill_value)
+        1    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/nanops.py:260(_view_if_needed)
+        2    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/base.py:444(<genexpr>)
+        4    0.000    0.000    0.000    0.000 /Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/pandas/core/indexes/numeric.py:110(is_all_dates)
+
+

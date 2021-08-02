@@ -11,6 +11,7 @@ from IPython.display import Latex
 import pandas as pd
 import os
 from scipy.ndimage.filters import convolve
+import abc
 
 ########################################
 # Paramters, Constants, and Functions
@@ -52,7 +53,7 @@ def elecD(z):
 # Configuration of the simulation
 # ########################################
 
-
+# TODO Bolshoi specific?
 sims_folder= "../sims"
 L=250/h # length of box in Mpc
 Ncel= 256  # number of cells of density field
@@ -259,69 +260,117 @@ def RS_array_gen(z_max,L):
 
     
 
-########################################
-# This section extracts the density field of the 256 grid from the simulation tables
-########################################
 
 
-# Function to import density and halo tables for a given redshift
-def import_density_field(redshift, resolution):
+
+
+########################################
+# This section is the interface and code for extracting density fields and halos
+# from N-body simulations outputs for use in cgmbrush.
+########################################
+
+class SimulationProvider(metaclass=abc.ABCMeta):
+    """Interface used by cgmbrush to access information from the N-body simulation.
     
-    if resolution != 256 and resolution != 512:
-        raise ValueError("Only resolution 256 or 512 is supported.")
+    Users are expected to subclass this interface. See examples."""
 
-    resStr = str(resolution)
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        return (hasattr(subclass, 'get_density_fields') and
+        callable(subclass.get_density_fields) and 
+        hasattr(subclass, 'get_density_fields') and
+        callable(subclass.get_density_fields) or
+        NotImplemented)
 
-    # Have to hardcode z=0 table because of the unique column names
-    if redshift == 0:
-        # reading density field and halos data
-        file_path= os.path.join(sims_folder, 'dens'+resStr+'-z-0.csv.gz')
-        pdDens=pd.read_csv(file_path)
+    @abc.abstractmethod
+    def get_density_fields(self, redshift_array, den_grid_size):
+        """Gets the density field for the given redshifts and grid resolution."""
+        raise NotImplementedError
 
-        # extracting columns
-        pdDensN=pdDens[['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz','Bolshoi__Dens'+resStr+'_z0__dens']]
+    @abc.abstractmethod
+    def get_halos(self, redshift):
+        """Gets halo information for the given redshift."""
+        raise NotImplementedError
 
-        # 3D density array
-        pdDensN=pdDensN.sort_values(['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz'])
-        tden = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
-        tden2 = np.reshape(tden,(resolution,resolution,resolution))
 
-        return ((tden2+1).sum(2))*10**6* dx* elecD(z) /(1+z)**2
+class BolshoiProvider(SimulationProvider):
+    """SimulationProvider implementation for Bolshoi simulations."""
 
-    else:
-        name = 'dens'+resStr+'-z-0.'+str(redshift)+'.csv.gz'
-        den = pd.read_csv(name)
-        den2=den[['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz','Bolshoi__Dens'+resStr+'__dens']]
+    # TODO pass in filename in constructor?
+    def __init__(self):
+        pass  
 
-        # 3D density array
-        den_sorted=den2.sort_values(['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz'])
-        den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
-        den = np.reshape(den_vals,(resolution,resolution,resolution))
+    def get_density_fields(self, redshift_array, den_grid_size):
+        # TODO be smart about loading data only once
+        return self.extract_all_den_fields(redshift_array, den_grid_size)
+
+    def get_halos(self, redshift):
+        # TODO be smart about loading data only once; 
+        # TODO multiple redshifts to match above?
+        return self.extract_halos(redshift)
+
+    # Function to import density and halo tables for a given redshift
+    def import_density_field(self, redshift, resolution):
         
-        return normDM((den+1).sum(2),0)
-        #return normDM((den+1).sum(random.randint(0,1)),0)
+        if resolution != 256 and resolution != 512:
+            raise ValueError("Only resolution 256 or 512 is supported.")
+
+        resStr = str(resolution)
+
+        # Have to hardcode z=0 table because of the unique column names
+        if redshift == 0:
+            # reading density field and halos data
+            file_path= os.path.join(sims_folder, 'dens'+resStr+'-z-0.csv.gz')
+            pdDens=pd.read_csv(file_path)
+
+            # extracting columns
+            pdDensN=pdDens[['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz','Bolshoi__Dens'+resStr+'_z0__dens']]
+
+            # 3D density array
+            pdDensN=pdDensN.sort_values(['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz'])
+            tden = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
+            tden2 = np.reshape(tden,(resolution,resolution,resolution))
+
+            return ((tden2+1).sum(2))*10**6* dx* elecD(z) /(1+z)**2
+
+        else:
+            name = 'dens'+resStr+'-z-0.'+str(redshift)+'.csv.gz'
+            den = pd.read_csv(name)
+            den2=den[['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz','Bolshoi__Dens'+resStr+'__dens']]
+
+            # 3D density array
+            den_sorted=den2.sort_values(['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz'])
+            den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
+            den = np.reshape(den_vals,(resolution,resolution,resolution))
+            
+            return normDM((den+1).sum(2),0)
+            #return normDM((den+1).sum(random.randint(0,1)),0)
+
+    # Create a single array of density fields for various redshifts
+    # Density fields: Choose 256 or 512 field
+    def extract_all_den_fields(self, RS_array, den_grid_size):
+
+        all_den_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size])
+
+        for i in range(0, len(RS_array)):
+            all_den_fields[i,:,:] = self.import_density_field(i, den_grid_size)
+        
+        return all_den_fields 
+        
+    # Extract halos for a given redshift
+    def extract_halos(self, redshift):
+        # TODO filenaming issues? Adnan had a mismatch and just called files 0.1, 0.2, etc
+        name = 'halo-z-0.'+str(redshift)+'.csv.gz'    
+        file_path= os.path.join(sims_folder, name)
+        halos = pd.read_csv(file_path)
+        return halos
 
 
-# Create a single array of density fields for various redshifts
-# Density fields: Choose 256 or 512 field
-def extract_all_den_fields(RS_array,den_grid_size):
 
-    all_den_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size])
 
-    for i in range(0, len(RS_array)):
-        all_den_fields[i,:,:]=import_density_field(i, den_grid_size)
-    
-    return all_den_fields 
-    
-    
-# Extract halos for a given redshift
-# TODO Bolshoi specific
-def extract_halos(redshift):
 
-    name = 'halo-z-0.'+str(redshift)+'.csv.gz'    
-    file_path= os.path.join(sims_folder, name)
-    halos = pd.read_csv(file_path)
-    return halos
+
+
 
 
 
@@ -938,7 +987,7 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
 
 
 # Multiple Redshift Convolution
-def halo_subtraction_addition(all_den_fields,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile,
+def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile,
                              addition_halo_profile,scaling_radius,resolution):
 
     # Details of halo profiles
@@ -956,11 +1005,13 @@ def halo_subtraction_addition(all_den_fields,den_grid_size,RS_array,min_mass,max
     halo_masks = np.zeros([len(RS_array),int(log_bins-1),20*resolution,20*resolution]) # This should be the same as fine_mask_len in add_halos function
     halos_removed_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size]) # This should be the same as fine_mask_len in add_halos function
     
+    all_den_fields = sim_provider.get_density_fields(RS_array, den_grid_size)
     
     
     for i in range(0, len(RS_array)):
-#         current_halo_file = extract_halos(RS_array[i])
-        current_halo_file = extract_halos(i)
+        
+        current_halo_file = sim_provider.get_halos(RS_array[i])
+
         halos_removed = halos_removed_field(current_halo_file,min_mass,max_mass,all_den_fields[i,:,:],den_grid_size,RS_array[i],log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
         
                 
@@ -985,12 +1036,12 @@ def halo_subtraction_addition(all_den_fields,den_grid_size,RS_array,min_mass,max
 #
 # Outputs:histograms,halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, 
          #halos removed field, stacked halo field
-def hist_profile(all_den_fields,den_grid_size,RS_array,min_mass,max_mass,
+def hist_profile(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,
                                        log_bins,subtraction_halo_profile,addition_halo_profile,scaling_radius,resolution):
     
     
     # halo array
-    t = halo_subtraction_addition(all_den_fields,den_grid_size,RS_array,min_mass,max_mass,
+    t = halo_subtraction_addition(sim_provider,den_grid_size,RS_array,min_mass,max_mass,
                                        log_bins,subtraction_halo_profile,addition_halo_profile,scaling_radius,resolution)
     # Halos-readded field
     t1=t[0]
@@ -1021,6 +1072,7 @@ def hist_profile(all_den_fields,den_grid_size,RS_array,min_mass,max_mass,
     # Outputs: 
     # 1s,halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, stacked halo field
     return t7,t1,t2,t3,t4,t5,t6,t8,t9
+
 
 
 ####################################
@@ -1188,3 +1240,84 @@ def create_histograms(halos_reAdded_translated,resolution):
 #     hist = histArray(sum(halos_reAdded_translated[:,:,:]),nbin,int(1024*resolution))
 
 #     return hist
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###########################################
+# Utils. These are to help run the code. 
+# TODO Perhaps they will go in a different part of the package.
+###########################################
+
+varFolder = "../var"
+
+# Intermediate numpy arrays get can be saved into var folder outside version control
+def saveArray(filename, *arrays):
+    file_path = os.path.join(varFolder, filename)
+    
+    if not(os.path.exists(varFolder)):
+        os.makedirs(varFolder)
+
+    np.save(file_path, arrays)
+    
+def loadArray(filename):
+    file_path = os.path.join(varFolder, filename)
+    return np.load(file_path, allow_pickle=True)
+
+
+# Configuration for a run
+class Configuration:
+
+    # Default options
+    def __init__(self, addition_halo_profile, scaling_radius, resolution=1, file_prefix=None, den_grid_size=256, RS_array=[0], load_from_files=False):
+        
+        # Profile to use for adding in CGM
+        self.addition_halo_profile = addition_halo_profile
+        self.file_prefix = file_prefix
+        if (self.file_prefix == None):
+            self.file_prefix = self.addition_halo_profile
+
+        self.scaling_radius = scaling_radius
+
+        # Resolution: choose between 256 and 512 grid
+        if den_grid_size != 256 and den_grid_size != 512:
+            raise ValueError("Only resolutions 256 and 512 are allowed")
+        self.den_grid_size = den_grid_size 
+
+        # User provides a redshift array
+        self.RS_array = RS_array # For a single box, we only use the redshift 0 box
+
+        # Profile used for subtracting halos from the density field
+        self.subtraction_halo_profile = 'NFW'
+
+        # Resolution
+        self.resolution = resolution # x1024
+
+        self.load_from_files = load_from_files
+        self.results = None
