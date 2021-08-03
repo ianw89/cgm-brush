@@ -276,19 +276,19 @@ class SimulationProvider(metaclass=abc.ABCMeta):
 
     @classmethod
     def __subclasshook__(cls, subclass):
-        return (hasattr(subclass, 'get_density_fields') and
-        callable(subclass.get_density_fields) and 
-        hasattr(subclass, 'get_density_fields') and
-        callable(subclass.get_density_fields) or
+        return (hasattr(subclass, 'get_density_field') and
+        callable(subclass.get_density_field) and 
+        hasattr(subclass, 'get_halos') and
+        callable(subclass.get_halos) or
         NotImplemented)
 
     @abc.abstractmethod
-    def get_density_fields(self, redshift_array, den_grid_size):
-        """Gets the density field for the given redshifts and grid resolution."""
+    def get_density_field(self, redshift: float, resolution: int):
+        """Gets the density field for the given redshift and grid resolution."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_halos(self, redshift):
+    def get_halos(self, redshift : int):
         """Gets halo information for the given redshift."""
         raise NotImplementedError
 
@@ -298,16 +298,61 @@ class BolshoiProvider(SimulationProvider):
 
     # TODO pass in filename in constructor?
     def __init__(self):
-        pass  
+        # Associative array of (redshift, resolution) => 3D numpy grid 
+        # This works very well with np.savez, which is much faster to read
+        # than the Bolshoi density files
+        self.density_fields = {}  
+        self.halos = {}
 
-    def get_density_fields(self, redshift_array, den_grid_size):
-        # TODO be smart about loading data only once
-        return self.extract_all_den_fields(redshift_array, den_grid_size)
+    def get_density_field(self, redshift: float, resolution: int):
+        """Gets the density field for the given redshift and grid resolution."""
 
-    def get_halos(self, redshift):
-        # TODO be smart about loading data only once; 
-        # TODO multiple redshifts to match above?
-        return self.extract_halos(redshift)
+        # If in memory, use it
+        if (redshift, resolution) in self.density_fields:
+            return self.density_fields[(redshift, resolution)]
+
+        # If not, try fast reading from saved off numpy array            
+        filename = "bol_den_field_" + str(redshift) + '_' + str(resolution) + ".npy"
+        result = []
+        try:
+            result = loadArray(filename)
+        except IOError:
+            pass 
+        
+        # Do the slow reading from the bolshoi file and save off fast copy
+        if len(result) == 0:
+            result = self.import_density_field(redshift, resolution)
+            if len(result) == 0:
+                raise IOError("There was a problem importing the Bolshoi density field for (" + str(redshift) + ", " + str(resolution) + ")")
+            saveArray(filename, result)
+
+        self.density_fields[(redshift, resolution)] = result
+        return result
+
+    def get_halos(self, redshift: float):
+        """Gets halo information for the given redshift."""
+
+        # If in memory, use it
+        if redshift in self.halos:
+            return self.halos[redshift]
+
+        # If not, try fast reading from saved off numpy array            
+        #filename = "bol_halos_" + str(redshift) + ".npy"
+        result = []
+        #try:
+        #    result = loadArray(filename)
+        #except IOError:
+        #    pass 
+        
+        # Do the slow reading from the bolshoi file and save off fast copy
+        if len(result) == 0:
+            result = self.extract_halos(redshift)
+            if len(result) == 0:
+                raise IOError("There was a problem importing the Bolshoi halos for redshift" + str(redshift))
+            #saveArray(filename, result)
+
+        self.halos[redshift] = result
+        return result
 
     # Function to import density and halo tables for a given redshift
     def import_density_field(self, redshift, resolution):
@@ -975,6 +1020,7 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
     roll_by = int((addition_profile.shape[0]/den_grid_size)/2)
     halosremoved_fine = np.roll(halosremoved_fine, -1*roll_by, axis=0)
     halosremoved_fine = np.roll(halosremoved_fine, -1*roll_by, axis=1)
+    print(str(addition_profile.shape) + " and " + str(halosremoved_fine.shape))
     halos_added = addition_profile +  halosremoved_fine
     
     t8 = time.time()
@@ -1005,17 +1051,15 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     halo_masks = np.zeros([len(RS_array),int(log_bins-1),20*resolution,20*resolution]) # This should be the same as fine_mask_len in add_halos function
     halos_removed_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size]) # This should be the same as fine_mask_len in add_halos function
     
-    all_den_fields = sim_provider.get_density_fields(RS_array, den_grid_size)
-    
-    
     for i in range(0, len(RS_array)):
         
-        current_halo_file = sim_provider.get_halos(RS_array[i])
+        redshift = RS_array[i]
+        density_field = sim_provider.get_density_field(redshift, den_grid_size)
+        halos = sim_provider.get_halos(redshift)
 
-        halos_removed = halos_removed_field(current_halo_file,min_mass,max_mass,all_den_fields[i,:,:],den_grid_size,RS_array[i],log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
-        
-                
-        conv_all_steps = convolution_all_steps_final(current_halo_file,min_mass,max_mass,all_den_fields[i,:,:],den_grid_size,RS_array[i],log_bins,halos_removed[0],
+        halos_removed = halos_removed_field(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
+              
+        conv_all_steps = convolution_all_steps_final(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed[0],
                            addition_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
         
         
