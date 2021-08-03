@@ -375,7 +375,6 @@ class BolshoiProvider(SimulationProvider):
             pdDensN=pdDensN.sort_values(['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz'])
             tden = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
             tden2 = np.reshape(tden,(resolution,resolution,resolution))
-
             return ((tden2+1).sum(2))*10**6* dx* elecD(z) /(1+z)**2
 
         else:
@@ -1016,15 +1015,10 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
     t7 = time.time()
     
     # add halos to the subtracted field
-    print("Coarse: " + str(halos_removed_coarse.shape))
     halosremoved_fine = (np.repeat((np.repeat(halos_removed_coarse,(1024/den_grid_size)*resolution,axis=0)),(1024/den_grid_size)*resolution,axis=1))
-    print(halosremoved_fine.shape)
     roll_by = int((addition_profile.shape[0]/den_grid_size)/2)
-    print(roll_by)
     halosremoved_fine = np.roll(halosremoved_fine, -1*roll_by, axis=0)
-    print(halosremoved_fine.shape)
     halosremoved_fine = np.roll(halosremoved_fine, -1*roll_by, axis=1)
-    print(str(addition_profile.shape) + " and " + str(halosremoved_fine.shape)) # BUG
     halos_added = addition_profile +  halosremoved_fine
     
     t8 = time.time()
@@ -1059,7 +1053,6 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         
         redshift = RS_array[i]
         density_field = sim_provider.get_density_field(redshift, den_grid_size)
-        print(density_field.shape)
         halos = sim_provider.get_halos(redshift)
 
         halos_removed = halos_removed_field(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
@@ -1326,6 +1319,7 @@ def create_histograms(halos_reAdded_translated,resolution):
 
 varFolder = "../var"
 
+
 # Intermediate numpy arrays get can be saved into var folder outside version control
 def saveArray(filename, *arrays):
     file_path = os.path.join(varFolder, filename)
@@ -1333,7 +1327,10 @@ def saveArray(filename, *arrays):
     if not(os.path.exists(varFolder)):
         os.makedirs(varFolder)
 
-    np.save(file_path, arrays)
+    if len(arrays) == 1:
+        np.save(file_path, arrays[0]) # unwrap it out of tuple or it will not round-trip
+    else:
+        np.save(file_path, arrays) # it will wrap the tuple in an array... savez?
     
 def loadArray(filename):
     file_path = os.path.join(varFolder, filename)
