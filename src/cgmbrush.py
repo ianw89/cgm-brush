@@ -155,9 +155,9 @@ def plothist2(arr,nbin,xmin,xmax,title):
 ########################################
 
 # min, max in solar masses
-def haloArray_minmax(pdHalosN,min, max):
-    pdHalosN=pdHalosN.drop(pdHalosN[pdHalosN.Mvir < min].index)
-    pdHalosN=pdHalosN.drop(pdHalosN[pdHalosN.Mvir > max].index)
+def haloArray_minmax(pdHalosN, min, max):
+    pdHalosN = pdHalosN.drop(pdHalosN[pdHalosN.Mvir < min].index)
+    pdHalosN = pdHalosN.drop(pdHalosN[pdHalosN.Mvir > max].index)
     return pdHalosN
 
 
@@ -288,7 +288,7 @@ class SimulationProvider(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_halos(self, redshift : int):
+    def get_halos(self, redshift : int) -> pd.DataFrame:
         """Gets halo information for the given redshift."""
         raise NotImplementedError
 
@@ -329,7 +329,7 @@ class BolshoiProvider(SimulationProvider):
         self.density_fields[(redshift, resolution)] = result
         return result
 
-    def get_halos(self, redshift: float):
+    def get_halos(self, redshift: float) -> pd.DataFrame:
         """Gets halo information for the given redshift."""
 
         # If in memory, use it
@@ -337,19 +337,21 @@ class BolshoiProvider(SimulationProvider):
             return self.halos[redshift]
 
         # If not, try fast reading from saved off numpy array            
-        #filename = "bol_halos_" + str(redshift) + ".npy"
+        filename = "bol_halos_" + str(redshift) + ".npy"
         result = []
-        #try:
-        #    result = loadArray(filename)
-        #except IOError:
-        #    pass 
+        try:
+            result = loadArray(filename)
+            # The rest of the code expects this to be a DataFrame, so convert it back
+            result = pd.DataFrame(result, columns = ['row_id','x','y','z','Mvir','Mtot','Rvir','ix','iy','iz'])
+        except IOError:
+            pass 
         
         # Do the slow reading from the bolshoi file and save off fast copy
         if len(result) == 0:
             result = self.extract_halos(redshift)
             if len(result) == 0:
                 raise IOError("There was a problem importing the Bolshoi halos for redshift" + str(redshift))
-            #saveArray(filename, result)
+            saveArray(filename, result)
 
         self.halos[redshift] = result
         return result
@@ -425,7 +427,7 @@ class BolshoiProvider(SimulationProvider):
 
 
 # Create halo array from halo table for convolution
-def create_halo_array_for_convolution(pdHalos,M_min,M_max,logchunks):
+def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     halos = haloArray_minmax(pdHalos,M_min,M_max)
     df = halos.sort_values(by='Mvir',ascending=True)
     sorted_haloMasses = df['Mvir'].values
