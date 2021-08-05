@@ -428,6 +428,11 @@ class BolshoiProvider(SimulationProvider):
 # Convolution Functions
 ########################################
 
+def my_convolve(a, b):
+    """FFT convolve. Assumes a is the bigger 2D array and b is the smaller 2D mask."""
+    halfwidth = int(b.shape[0] / 2)
+    a2 = np.roll(np.roll(a, -halfwidth, axis=0), -halfwidth, axis=1)
+    return np.fft.irfft2(np.fft.rfft2(a2) * np.fft.rfft2(b, a2.shape))
 
 # Create halo array from halo table for convolution
 def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
@@ -518,8 +523,8 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
     Rvir_avg = np.zeros(chunks)
 
     # convolution mask array
-    convolution = np.zeros([chunks,no_cells,no_cells])
-    #new_conv = np.zeros([chunks,no_cells,no_cells])
+    convolution = np.zeros([chunks,no_cells,no_cells])    
+    new_conv = np.zeros([chunks,no_cells,no_cells])
     # creating a coarse map out of a fine mask
     
     # fine mask
@@ -651,8 +656,9 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
         halo_cell_pos[xy] += 1
         
         # convolve the mask and the halo positions
-        #new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*sig.convolve(halo_cell_pos,coarse_mask)
-        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*convolve(halo_cell_pos,coarse_mask)
+        #new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
+        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * convolve(halo_cell_pos,coarse_mask, mode='wrap')
+        #assert (np.allclose(new_conv[j,:,:], convolution[j,:,:])), "New convolution is not equivalent to old (in wrap mode)"
         
         
     
@@ -672,7 +678,6 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
 # scaling_radius: scale radius for tophat halos
 
 def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,redshift):
-    print("add_halos. chuncks: " + str(chunks))
     df = haloArray
     no_cells = 1024* resolution
     cellsize = L/(1024*resolution) 
@@ -684,7 +689,8 @@ def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,
 
     # convolution mask array
     convolution =np.zeros([chunks,no_cells,no_cells])
-    
+    new_conv = np.zeros([chunks,no_cells,no_cells])
+
     # creating a coarse map out of a fine mask
     
     # fine mask
@@ -947,12 +953,12 @@ def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,
         # Generating coarse grid from fine grid: reshape method
         nsmall = int(nbig/scale_down)
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
-        print("Shape of fine_mask: " + str(fine_mask.shape))
-        print("Shape of coarse_mask: " + str(coarse_mask.shape))
-        #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=3):
-            #if j > (chunks - 3):
-                #print(fine_mask)
-                #print(coarse_mask)
+        #print("Shape of fine_mask: " + str(fine_mask.shape))
+        #print("Shape of coarse_mask: " + str(coarse_mask.shape))
+        #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=2):
+        #    if j == 9:
+        #        #print(fine_mask)
+        #        print(coarse_mask)
 
         # Area of cells needed for normalization
         totalcellArea4=0
@@ -967,16 +973,23 @@ def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,
         
         
         xy=(ix,iy)
-        print(str(len(ix)) + " and " + str(len(iy)))
+        #print(str(len(ix)) + " and " + str(len(iy)))
 
         # issue: the method does not add repeated coordinates BUG is that right?
         halo_cell_pos[xy] += 1
-        print("Shape of halo_cell_pos: " + str(halo_cell_pos.shape))
+        #print("Shape of halo_cell_pos: " + str(halo_cell_pos.shape))
         
         # convolve the mask and the halo positions
-        #print((Mvir_avg[j]/(totalcellArea4)))
-        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*convolve(halo_cell_pos,coarse_mask)
-        
+        c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
+        c2 = my_convolve(halo_cell_pos,coarse_mask)
+        #if j==9:
+        #    np.save('problem halos', halo_cell_pos)
+        #    np.save('problem mask', coarse_mask)
+        assert (np.allclose(c1, c2)), "New convolution is not equivalent to old (in wrap mode) for j = " + str(j)
+
+        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c1
+        new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c2
+
         # store addition masks
         addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
         
