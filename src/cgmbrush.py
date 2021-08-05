@@ -1,6 +1,7 @@
 from __future__ import print_function 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import core
 import scipy.integrate as integrate
 from numpy import genfromtxt
 from random import randrange
@@ -11,7 +12,9 @@ from IPython.display import Latex
 import pandas as pd
 import os
 from scipy.ndimage.filters import convolve
+import scipy.signal as sig
 import abc
+import sys
 
 ########################################
 # Paramters, Constants, and Functions
@@ -515,8 +518,8 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
     Rvir_avg = np.zeros(chunks)
 
     # convolution mask array
-    convolution =np.zeros([chunks,no_cells,no_cells])
-    
+    convolution = np.zeros([chunks,no_cells,no_cells])
+    #new_conv = np.zeros([chunks,no_cells,no_cells])
     # creating a coarse map out of a fine mask
     
     # fine mask
@@ -648,6 +651,7 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
         halo_cell_pos[xy] += 1
         
         # convolve the mask and the halo positions
+        #new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*sig.convolve(halo_cell_pos,coarse_mask)
         convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*convolve(halo_cell_pos,coarse_mask)
         
         
@@ -668,7 +672,7 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
 # scaling_radius: scale radius for tophat halos
 
 def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,redshift):
-    
+    print("add_halos. chuncks: " + str(chunks))
     df = haloArray
     no_cells = 1024* resolution
     cellsize = L/(1024*resolution) 
@@ -943,7 +947,13 @@ def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,
         # Generating coarse grid from fine grid: reshape method
         nsmall = int(nbig/scale_down)
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
-        
+        print("Shape of fine_mask: " + str(fine_mask.shape))
+        print("Shape of coarse_mask: " + str(coarse_mask.shape))
+        #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=3):
+            #if j > (chunks - 3):
+                #print(fine_mask)
+                #print(coarse_mask)
+
         # Area of cells needed for normalization
         totalcellArea4=0
         totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
@@ -957,11 +967,14 @@ def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,
         
         
         xy=(ix,iy)
+        print(str(len(ix)) + " and " + str(len(iy)))
 
-        # issue: the method does not add repeated coordinates
+        # issue: the method does not add repeated coordinates BUG is that right?
         halo_cell_pos[xy] += 1
+        print("Shape of halo_cell_pos: " + str(halo_cell_pos.shape))
         
         # convolve the mask and the halo positions
+        #print((Mvir_avg[j]/(totalcellArea4)))
         convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*convolve(halo_cell_pos,coarse_mask)
         
         # store addition masks
