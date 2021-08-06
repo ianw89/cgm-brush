@@ -685,10 +685,10 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
 
-def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,redshift):
+def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
     df = haloArray
-    no_cells = 1024* resolution
-    cellsize = L/(1024*resolution) 
+    no_cells = 1024 * resolution
+    cellsize = L / no_cells
     
     # array of halo masses and radii
     Mvir_avg = np.zeros(chunks)
@@ -998,7 +998,7 @@ def add_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,
         addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
         
     
-    return (new_conv.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, fine_mask, coarse_mask,halo_cell_pos,addition_masks,Mvir_avg
+    return (new_conv.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, addition_masks, Mvir_avg
 
 
 # Halos removed field
@@ -1027,23 +1027,16 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
 # Function subtracts and adds halos
 def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed_coarse,
                        addition_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc):
-    t1 = time.time()
     
     # setup inputs for convolution
-    
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
     df= halo_array_for_convolution[0]
     binz= halo_array_for_convolution[1]
-    mass_binz = halo_array_for_convolution[2]
-    
-    t2 = time.time()
     
     # convolve halos for adding back
-    addition_profile_initial=add_halos(df,mass_binz,resolution,len(binz)-1,binz,addition_halo_profile,scaling_radius,redshift)
+    addition_profile_initial=add_halos(df,resolution,len(binz)-1,binz,addition_halo_profile,scaling_radius,redshift)
     addition_profile = addition_profile_initial[0]
-    addition_profile_masks=addition_profile_initial[6]
-    
-    t7 = time.time()
+    addition_profile_masks=addition_profile_initial[3]
     
     # add halos to the subtracted field
     halosremoved_fine = (np.repeat((np.repeat(halos_removed_coarse,(1024/den_grid_size)*resolution,axis=0)),(1024/den_grid_size)*resolution,axis=1))
@@ -1052,10 +1045,8 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
     halosremoved_fine = np.roll(halosremoved_fine, -1*roll_by, axis=1)
     halos_added = addition_profile +  halosremoved_fine
     
-    t8 = time.time()
-    
     virial_rad = addition_profile_initial[1]
-    halo_masses = addition_profile_initial[7]
+    halo_masses = addition_profile_initial[4]
     
     return halos_added, halosremoved_fine,addition_profile,addition_profile_masks,halos_removed_coarse,virial_rad,halo_masses
     
@@ -1105,45 +1096,46 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
 
 
 
-# This function runs all the functions above functions at once
-#
-# Outputs:histograms,halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, 
-         #halos removed field, stacked halo field
-def hist_profile(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,
-                                       log_bins,subtraction_halo_profile,addition_halo_profile,scaling_radius,resolution):
-    
+def hist_profile(sim_provider : SimulationProvider, den_grid_size, RS_array, min_mass, max_mass,
+                                       log_bins, subtraction_halo_profile, addition_halo_profile, scaling_radius, resolution):
+    """
+    This function runs everything needed apply cgmbrush.
+
+    Outputs: histograms, halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, 
+    halos removed field, stacked halo field, virial radii, halo masses
+    """
     
     # halo array
     t = halo_subtraction_addition(sim_provider,den_grid_size,RS_array,min_mass,max_mass,
                                        log_bins,subtraction_halo_profile,addition_halo_profile,scaling_radius,resolution)
     # Halos-readded field
-    t1=t[0]
+    t1 = t[0]
     
     # Halo addition masks
-    t2=t[1]
+    t2 = t[1]
     
     # Halos subtraction coarse
-    t3=t[2]
+    t3 = t[2]
     
     # Halo addition field
-    t4=t[3]
+    t4 = t[3]
     
     # Halos removed field
     t5 = t[4]
     
     if len(RS_array)==1:
-        t6=t1
+        t6 = t1
     
     else:
-        t6= stack_all_arrays(t1,RS_array)
+        t6 = stack_all_arrays(t1,RS_array)
         
-    t7= create_histograms(t6,resolution)
+    t7 = create_histograms(t6,resolution) # TODO turn off?
     
     t8 = t[5]
     t9 = t[6]
     
     # Outputs: 
-    # 1s,halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, stacked halo field
+    # histograms, halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, stacked halo field, virial radii, halo masses
     return t7,t1,t2,t3,t4,t5,t6,t8,t9
 
 
