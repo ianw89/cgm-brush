@@ -684,7 +684,6 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
 # bins: array cumulative sum of halos in different mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
-
 def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
     df = haloArray
     no_cells = 1024 * resolution
