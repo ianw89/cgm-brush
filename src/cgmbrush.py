@@ -1,20 +1,19 @@
 from __future__ import print_function 
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy import core
 import scipy.integrate as integrate
 from numpy import genfromtxt
 from random import randrange
 import random
-import time
 from numpy.polynomial import Polynomial as P
-from IPython.display import Latex
 import pandas as pd
 import os
 from scipy.ndimage.filters import convolve
-import scipy.signal as sig
 import abc
-import sys
+import multiprocessing as mp
+from multiprocessing.sharedctypes import RawArray, Array
+from multiprocessing.shared_memory import SharedMemory
+
 
 ########################################
 # Paramters, Constants, and Functions
@@ -28,6 +27,8 @@ Yhe =.25
 nPS=msun/mprot*(1-Yhe/2) # accounts for the fact that some mass is in helium
 lightspeed = 3e5 #km/s
 pi=np.pi
+
+multiprocess = False
 
 # Cosmological parameters
 z=0
@@ -654,9 +655,9 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
         # issue: the method does not add repeated coordinates
         halo_cell_pos[xy] += 1
 
-        if j==20:
-            np.save('../var/problem 3 halos', halo_cell_pos)
-            np.save('../var/problem 3 mask', coarse_mask)
+        #if j==20:
+        #    np.save('../var/problem 3 halos', halo_cell_pos)
+        #    np.save('../var/problem 3 mask', coarse_mask)
         
         # convolve the mask and the halo positions
         c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
@@ -667,12 +668,319 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
         #new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c2
         #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=2):
         #    assert (np.allclose(c1, c2, rtol=1e-04, atol=1e-04)), "New convolution is not equivalent to old (in wrap mode) during subtract_halos for j=" + str(j) + ".\n" + str(coarse_mask)
-        
-        
     
+    print(convolution)
     return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, fine_mask, coarse_mask,halo_cell_pos
 
+
+
+
+
+
+
+
+
+
+
+
+
+def add_halo_for_mass_bin(conv_info, add_masks_info, df, Mvir_avg, conv_rad, cellsize, resolution,
+ profile, scaling_radius, redshift, scale_down, nbig, no_cells, bin_number, bins, fine_mask_len):
+    """Parallelizable function for convolving CGM halos for a single mass bin."""
+
+    #print("Adding CGM halos for bin " + str(bin_number), flush=True)
+
+    # Create numpy array references from the shared memory arrays. They use the shared memory.
+    #new_conv = np.ctypeslib.as_array(shared_new_conv)
+    #addition_masks = np.ctypeslib.as_array(shared_addition_masks)
+    conv_shm = SharedMemory(name=conv_info[0])
+    new_conv = np.ndarray(shape=conv_info[1], dtype=conv_info[2], buffer=conv_shm.buf)
+    am_shm = SharedMemory(name=add_masks_info[0])
+    addition_masks = np.ndarray(shape=add_masks_info[1], dtype=add_masks_info[2], buffer=am_shm.buf)
+
+    fine_mask = np.zeros([fine_mask_len,fine_mask_len])
+    fine_lower = -1*fine_mask_len
+    fine_upper = fine_mask_len
+    y,x = np.ogrid[fine_lower: fine_upper, fine_lower:fine_upper]
+
+    # NFW 
+    # add redshift to the function above
+    R_s=0
+    rho_nought=0
     
+    R_s= conv_rad/(halo_conc(redshift, Mvir_avg)*cellsize)  
+    rho_nought = rho_0(redshift,Mvir_avg,R_s)
+    
+    # Why are we multiplying by scale_down
+    if profile == 'tophat':
+        r = (x**2+y**2)**.5
+        fine_mask = r <= (scaling_radius*scale_down*conv_rad/cellsize) 
+        fine_mask=fine_mask.astype(float)
+
+    # spherical tophat
+    elif profile == 'tophat_spherical':
+        r = (x**2+y**2)**.5
+        fine_mask = r <= (scaling_radius*scale_down*conv_rad/cellsize)
+        
+        fine_mask=fine_mask.astype(float)
+#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
+        
+        Rv= (scaling_radius*scale_down*conv_rad/cellsize)
+        fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
+        
+    elif profile == 'NFW':
+        
+        vec_integral = np.vectorize(NFW2D)
+        fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
+        
+        r=(x**2+y**2)**.5 # * scale_down
+        
+        fine_mask=fine_mask.astype(float)
+        fine_mask[r> scale_down*conv_rad/cellsize] =0 
+        
+    elif profile == 'custom':
+        
+        # Functions for profile
+        # Currently hardcoded but should allow the user to provide the function as inputs
+        
+        f1_1 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)**.5
+        f1_2 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)
+        
+        # Radius of first profile:
+        R= (scaling_radius*scale_down*conv_rad/cellsize)/2 
+        
+        vec_integral = np.vectorize(func3Dto2D)
+        
+        mask1 = x**2+y**2 < (R/2)**2
+        mask1 = mask1.astype(float)*vec_integral(f1_1,x,y,R/2)
+
+        mask2_1 = x**2+y**2 >= (R/2)**2
+        mask2_1= mask2_1.astype(float)
+        mask2_2 = x**2+y**2 <= (R)**2
+        mask2_2= mask2_2.astype(float)
+        mask2=mask2_1*mask2_2
+        mask2 = mask2*vec_integral(f1_2,x,y,R)
+
+
+        fine_mask=mask1+mask2
+        
+    elif profile == 'custom_tophat':
+        
+        # Functions for profile
+        # Currently hardcoded but should allow the user to provide the function as inputs
+        
+        # Radius of first profile:
+        R= (scaling_radius*scale_down*conv_rad/cellsize)
+        
+        f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
+        
+        vec_integral = np.vectorize(func3Dto2D)
+        
+        mask1 = vec_integral(f1_1,x,y,R)
+
+        fine_mask=mask1
+    
+    # testing code to add Fire simulation halos
+    elif profile == "fire":
+        # TODO get gasProfile_Fire in this module
+        fine_mask = rhogasFire(Mvir_avg,conv_rad, redshift, adjustmentfactor,resolution)[2]
+    
+    # Precipitation model
+    elif profile == "precipitation":       
+        # TODO get gasProfile_precipitation in this module
+#             fine_mask = rhogasFire(Mvir_avg,conv_rad, redshift, adjustmentfactor,resolution)[2]
+        fine_mask = nePercipitation(np.log10(Mvir_avg),1000*conv_rad,resolution,redshift)[1]
+    
+    elif profile == "2RVSTH_and_NFW_13.5":
+        if Mvir_avg <= 10**13.5:
+            
+            r = (x**2+y**2)**.5
+            
+            # Don't hardcode scaling radius, change later
+            fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad/cellsize)
+        
+            fine_mask=fine_mask.astype(float)
+#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
+        
+            Rv= (scaling_radius*scale_down*conv_rad/cellsize)
+            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
+        
+        elif Mvir_avg > 10**13.5:
+            vec_integral = np.vectorize(NFW2D)
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
+
+            r=(x**2+y**2)**.5 # * scale_down
+
+            fine_mask=fine_mask.astype(float)
+            fine_mask[r> scale_down*conv_rad/cellsize] =0 
+    
+    elif profile == "2RVSTH_and_NFW_13":
+        if Mvir_avg <= 10**13:
+            
+            r = (x**2+y**2)**.5
+            
+            # Don't hardcode scaling radius, change later
+            fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad/cellsize)
+        
+            fine_mask=fine_mask.astype(float)
+#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
+        
+            Rv= (scaling_radius*scale_down*conv_rad/cellsize)
+            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
+        
+        elif Mvir_avg > 10**13:
+            vec_integral = np.vectorize(NFW2D)
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
+
+            r=(x**2+y**2)**.5 # * scale_down
+
+            fine_mask=fine_mask.astype(float)
+            fine_mask[r> scale_down*conv_rad/cellsize] =0 
+    
+    elif profile == "2RVSTH_and_NFW_12.5":
+        if Mvir_avg <= 10**12.5:
+            
+            r = (x**2+y**2)**.5
+            
+            # Don't hardcode scaling radius, change later
+            fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad/cellsize)
+        
+            fine_mask=fine_mask.astype(float)
+#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
+        
+            Rv= (scaling_radius*scale_down*conv_rad/cellsize)
+            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
+        
+        elif Mvir_avg > 10**12.5:
+            vec_integral = np.vectorize(NFW2D)
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
+
+            r=(x**2+y**2)**.5 # * scale_down
+
+            fine_mask=fine_mask.astype(float)
+            fine_mask[r> scale_down*conv_rad/cellsize] =0 
+    
+    
+    elif profile == "2RVSTH_and_NFW_12":
+        if Mvir_avg <= 10**12:
+            
+            r = (x**2+y**2)**.5
+            
+            # Don't hardcode scaling radius, change later
+            fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad/cellsize)
+        
+            fine_mask=fine_mask.astype(float)
+#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
+        
+            Rv= (scaling_radius*scale_down*conv_rad/cellsize)
+            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
+        
+        elif Mvir_avg > 10**12:
+            vec_integral = np.vectorize(NFW2D)
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
+
+            r=(x**2+y**2)**.5 # * scale_down
+
+            fine_mask=fine_mask.astype(float)
+            fine_mask[r> scale_down*conv_rad/cellsize] =0 
+    
+    elif profile == "2RVSTH_and_NFW_11.5":
+        if Mvir_avg <= 10**11.5:
+            
+            r = (x**2+y**2)**.5
+            
+            # Don't hardcode scaling radius, change later
+            fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad/cellsize)
+        
+            fine_mask=fine_mask.astype(float)
+#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
+        
+            Rv= (scaling_radius*scale_down*conv_rad/cellsize)
+            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
+        
+        elif Mvir_avg > 10**11.5:
+            vec_integral = np.vectorize(NFW2D)
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
+
+            r=(x**2+y**2)**.5 # * scale_down
+
+            fine_mask=fine_mask.astype(float)
+            fine_mask[r> scale_down*conv_rad/cellsize] =0 
+    
+    elif profile == "2RVSTH_and_NFW_11":
+        if Mvir_avg <= 10**11:
+            
+            r = (x**2+y**2)**.5
+            
+            # Don't hardcode scaling radius, change later
+            fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad/cellsize)
+        
+            fine_mask=fine_mask.astype(float)
+#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
+        
+            Rv= (scaling_radius*scale_down*conv_rad/cellsize)
+            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
+        
+        elif Mvir_avg > 10**11:
+            vec_integral = np.vectorize(NFW2D)
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
+
+            r=(x**2+y**2)**.5 # * scale_down
+
+            fine_mask=fine_mask.astype(float)
+            fine_mask[r> scale_down*conv_rad/cellsize] =0        
+            
+    
+    # Smoothing method: reshaping
+    # Generating coarse grid from fine grid: reshape method
+    nsmall = int(nbig/scale_down)
+    coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
+    #print("Shape of fine_mask: " + str(fine_mask.shape))
+    #print("Shape of coarse_mask: " + str(coarse_mask.shape))
+    #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=2):
+    #    if j == 9:
+    #        #print(fine_mask)
+    #        print(coarse_mask)
+
+    # Area of cells needed for normalization
+    totalcellArea4 = 0
+    totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
+    
+    # populate array with halos
+    halo_cell_pos = np.zeros([no_cells,no_cells])    
+    
+    # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
+    ix = ((((np.around(4*resolution*((df[bins[bin_number]:bins[bin_number+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
+    iy = ((((np.around(4*resolution*((df[bins[bin_number]:bins[bin_number+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
+    
+    xy=(ix,iy)
+    #print(str(len(ix)) + " and " + str(len(iy)))
+
+    # issue: the method does not add repeated coordinates BUG is that right?
+    halo_cell_pos[xy] += 1
+    #print("Shape of halo_cell_pos: " + str(halo_cell_pos.shape))
+    
+    # convolve the mask and the halo positions
+    #c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
+    c2 = my_convolve(halo_cell_pos,coarse_mask)
+    #if j==9:
+    #    np.save('problem halos', halo_cell_pos)
+    #    np.save('problem mask', coarse_mask)
+    #assert (np.allclose(c1, c2)), "New convolution is not equivalent to old (in wrap mode) for j = " + str(j)
+
+    #convolution[j,:,:] = (Mvir_avg/(totalcellArea4)) * c1
+    new_conv[bin_number,:,:] = (Mvir_avg/(totalcellArea4)) * c2
+
+    # store addition masks
+    addition_masks[bin_number,:,:]= (Mvir_avg/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
+    
+    # Mark that this process is done accessing the shared memory
+    if multiprocess:
+        conv_shm.close()
+        am_shm.close()
+
+
+
 # Status: This is the latest convolution function
 
 # The function add halos
@@ -692,312 +1000,96 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
     # array of halo masses and radii
     Mvir_avg = np.zeros(chunks)
     conv_rad = np.zeros(chunks)
-    Rvir_avg = np.zeros(chunks)
+    Rvir_avg = np.zeros(chunks) # TODO dead code
 
     # convolution mask array
     #convolution =np.zeros([chunks,no_cells,no_cells])
-    new_conv = np.zeros([chunks,no_cells,no_cells])
+    #new_conv = np.ctypeslib.as_ctypes(np.zeros([chunks,no_cells,no_cells]))
+    #shared_new_conv = Array(new_conv._type_, new_conv)
+
+    d_shape = (chunks, no_cells, no_cells)
+    d_type = np.double
+    d_size = np.dtype(d_type).itemsize * np.prod(d_shape)
+
+    # In main process
+    # allocate new shared memory
+    shared_new_conv = mp.shared_memory.SharedMemory(create=True, size=d_size)
+    conv_mem_name = shared_new_conv.name
+    # numpy array on shared memory buffer
+    new_conv = np.ndarray(shape=d_shape, dtype=np.double, buffer=shared_new_conv.buf)
+    new_conv[:,:,:] = np.zeros(d_shape)[:,:,:]
 
     # creating a coarse map out of a fine mask
     
     # fine mask
     # fine mask size has to correspond to the size of the mask that I eventually trim
     fine_mask_len = 20*resolution  
-    fine_lower= -1*fine_mask_len
-    fine_upper= fine_mask_len
-    y,x = np.ogrid[fine_lower: fine_upper, fine_lower:fine_upper]
     
     # coarse mask
     scale_down = 2  # making the grid coarser    
     
-#     coarse_mask_len = int(fine_mask_len/scale_down)
-    fine_mask= np.zeros([fine_mask_len,fine_mask_len])
-# #     fine_mask= np.zeros([2*coarse_mask_len,2*coarse_mask_len])
-    
     # store all profile masks
     nbig = fine_mask_len*2
     nsmall = int(nbig/scale_down)
-    addition_masks =np.zeros([chunks,nsmall,nsmall])
+    am_shape = (chunks, nsmall, nsmall)
+    am_type = np.double
+    am_size = np.dtype(am_type).itemsize * np.prod(am_shape)
+    shared_addition_masks = mp.shared_memory.SharedMemory(create=True, size=am_size)
+    am_mem_name = shared_addition_masks.name
+    addition_masks = np.ndarray(shape=am_shape, dtype=am_type, buffer=shared_addition_masks.buf)
+    addition_masks[:,:,:] = np.zeros(am_shape)[:,:,:]
+
+    #addition_masks = np.ctypeslib.as_ctypes(np.zeros([chunks,nsmall,nsmall]))
+    #print(addition_masks._type_, flush=True)
+    #shared_addition_masks = Array(addition_masks._type_, addition_masks)
     
-    # loops through the list of dataframes each ordered by ascending mass
-    
+    # Compute some simple properties needed for the convolution
     for j in range(0,chunks):
         Mvir_avg[j] = np.mean((df['Mvir'][bins[j]:bins[j+1]]))/h
         conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
       
-        # NFW 
-        # add redshift to the function above
-        R_s=0
-        rho_nought=0
-        
-        R_s= conv_rad[j]/(halo_conc(redshift,Mvir_avg[j])*cellsize)  
-        rho_nought = rho_0(redshift,Mvir_avg[j],R_s)
-        
-        # Why are we multiplying by scale_down
-        if profile == 'tophat':
-            r = (x**2+y**2)**.5
-            fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize) 
-            fine_mask=fine_mask.astype(float)
+    # Use multiprocessing to parallelize the convolution for each mass bin
+    print("Starting async tasks", flush=True)
+    cpus = mp.cpu_count()
+    #pool = mp.Pool(processes=1) # cpus
 
-        # spherical tophat
-        elif profile == 'tophat_spherical':
-            r = (x**2+y**2)**.5
-            fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            
-            fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-            Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-        elif profile == 'NFW':
-            
-            vec_integral = np.vectorize(NFW2D)
-            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-            
-            r=(x**2+y**2)**.5 # * scale_down
-            
-            fine_mask=fine_mask.astype(float)
-            fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-            
-        elif profile == 'custom':
-            
-            # Functions for profile
-            # Currently hardcoded but should allow the user to provide the function as inputs
-            
-            f1_1 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)**.5
-            f1_2 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)
-            
-            # Radius of first profile:
-            R= (scaling_radius*scale_down*conv_rad[j]/cellsize)/2 
-            
-            vec_integral = np.vectorize(func3Dto2D)
-            
-            mask1 = x**2+y**2 < (R/2)**2
-            mask1 = mask1.astype(float)*vec_integral(f1_1,x,y,R/2)
+    #multiple_results = [pool.apply_async(add_halo_for_mass_bin, (shared_new_conv, shared_addition_masks, df, Mvir_avg[i], conv_rad[i], cellsize, resolution, profile, scaling_radius, redshift, scale_down, nbig, no_cells, i, bins, fine_mask_len)) for i in range(0,chunks)]
 
-            mask2_1 = x**2+y**2 >= (R/2)**2
-            mask2_1= mask2_1.astype(float)
-            mask2_2 = x**2+y**2 <= (R)**2
-            mask2_2= mask2_2.astype(float)
-            mask2=mask2_1*mask2_2
-            mask2 = mask2*vec_integral(f1_2,x,y,R)
+    for i in range(0,chunks):
+        add_halo_for_mass_bin((conv_mem_name, d_shape, d_type, d_size), (am_mem_name, am_shape, am_type, am_size), df, Mvir_avg[i], conv_rad[i], cellsize, resolution, profile, scaling_radius, redshift, scale_down, nbig, no_cells, i, bins, fine_mask_len)
 
 
-            fine_mask=mask1+mask2
-            
-        elif profile == 'custom_tophat':
-            
-            # Functions for profile
-            # Currently hardcoded but should allow the user to provide the function as inputs
-            
-            # Radius of first profile:
-            R= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            
-            f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
-            
-            vec_integral = np.vectorize(func3Dto2D)
-            
-            mask1 = vec_integral(f1_1,x,y,R)
+    # Block until all bins are processed. 
+    # They will have written the results into shared memory; they do not return anything.
+    #for async_result in multiple_results:
+    #    async_result.get(timeout=3600) # 1 hour timeout
 
-            fine_mask=mask1
-        
-        # testing code to add Fire simulation halos
-        elif profile == "fire":
-            # TODO get gasProfile_Fire in this module
-            fine_mask = rhogasFire(Mvir_avg[j],conv_rad[j], redshift, adjustmentfactor,resolution)[2]
-        
-        # Precipitation model
-        elif profile == "precipitation":       
-            # TODO get gasProfile_precipitation in this module
-#             fine_mask = rhogasFire(Mvir_avg[j],conv_rad[j], redshift, adjustmentfactor,resolution)[2]
-            fine_mask = nePercipitation(np.log10(Mvir_avg[j]),1000*conv_rad[j],resolution,redshift)[1]
-        
-        elif profile == "2RVSTH_and_NFW_13.5":
-            if Mvir_avg[j] <= 10**13.5:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**13.5:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
+    print("All async tasks complete", flush=True)
 
-                r=(x**2+y**2)**.5 # * scale_down
+    # TODO ensure addition_masks and new_conv have updated values?
 
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_13":
-            if Mvir_avg[j] <= 10**13:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**13:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
+    # Go back to numpy land for the arrays that are in shared memory
+    #new_conv = np.ctypeslib.as_array(shared_new_conv)
+    #addition_masks = np.ctypeslib.as_array(shared_addition_masks)
 
-                r=(x**2+y**2)**.5 # * scale_down
+    # Shared Memeory requires manual freeing. Hard copy to local memory and free shared memory.
+    new_conv_local = new_conv.copy()
+    addition_masks_local = addition_masks.copy()
 
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_12.5":
-            if Mvir_avg[j] <= 10**12.5:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**12.5:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
+    print (new_conv.shape)
+    print (new_conv[1][10][10])
+    print (new_conv_local.shape)
+    print (new_conv_local[1][10][10])
 
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        
-        elif profile == "2RVSTH_and_NFW_12":
-            if Mvir_avg[j] <= 10**12:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**12:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_11.5":
-            if Mvir_avg[j] <= 10**11.5:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**11.5:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_11":
-            if Mvir_avg[j] <= 10**11:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**11:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0        
-                
-        
-        # Smoothing method: reshaping
-        # Generating coarse grid from fine grid: reshape method
-        nsmall = int(nbig/scale_down)
-        coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
-        #print("Shape of fine_mask: " + str(fine_mask.shape))
-        #print("Shape of coarse_mask: " + str(coarse_mask.shape))
-        #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=2):
-        #    if j == 9:
-        #        #print(fine_mask)
-        #        print(coarse_mask)
-
-        # Area of cells needed for normalization
-        totalcellArea4=0
-        totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
-        
-        # populate array with halos
-        halo_cell_pos = np.zeros([no_cells,no_cells])    
-        
-        # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
-        ix = ((((np.around(4*resolution*((df[bins[j]:bins[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
-        iy = ((((np.around(4*resolution*((df[bins[j]:bins[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
-        
-        xy=(ix,iy)
-        #print(str(len(ix)) + " and " + str(len(iy)))
-
-        # issue: the method does not add repeated coordinates BUG is that right?
-        halo_cell_pos[xy] += 1
-        #print("Shape of halo_cell_pos: " + str(halo_cell_pos.shape))
-        
-        # convolve the mask and the halo positions
-        #c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
-        c2 = my_convolve(halo_cell_pos,coarse_mask)
-        #if j==9:
-        #    np.save('problem halos', halo_cell_pos)
-        #    np.save('problem mask', coarse_mask)
-        #assert (np.allclose(c1, c2)), "New convolution is not equivalent to old (in wrap mode) for j = " + str(j)
-
-        #convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c1
-        new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c2
-
-        # store addition masks
-        addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
-        
+    shared_new_conv.close()
+    shared_new_conv.unlink()
+    shared_addition_masks.close()
+    shared_addition_masks.unlink()
     
-    return (new_conv.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, addition_masks, Mvir_avg
+    # TODO broadcasting perf for large arrays. 
+    # Is looping faster than broadcasting a number to a big 3d array?
+
+    return (new_conv_local.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, addition_masks_local, Mvir_avg
 
 
 # Halos removed field
@@ -1012,8 +1104,10 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
     
     # convolve halos
     subtraction_profile = subtract_halos(df,mass_binz,resolution,len(binz)-1,binz,subtraction_halo_profile,scaling_radius,redshift)[0]
+    print("subtraction_profile: ")
+    print(subtraction_profile)
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1)
-    
+
     # create coarse grid
     subtracted_coarse= smoothfield(subtraction_profile_smooth,1024,den_grid_size)
     
@@ -1026,7 +1120,6 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
 # Function subtracts and adds halos
 def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed_coarse,
                        addition_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc):
-    
     # setup inputs for convolution
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
     df= halo_array_for_convolution[0]
@@ -1036,13 +1129,22 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
     addition_profile_initial=add_halos(df,resolution,len(binz)-1,binz,addition_halo_profile,scaling_radius,redshift)
     addition_profile = addition_profile_initial[0]
     addition_profile_masks=addition_profile_initial[3]
+    #print("Addition profiles after add_halos returned: ")
+    #print(addition_profile)
     
     # add halos to the subtracted field
+    #print("halos_removed_coarse: ")
+    #print(halos_removed_coarse)
     halosremoved_fine = (np.repeat((np.repeat(halos_removed_coarse,(1024/den_grid_size)*resolution,axis=0)),(1024/den_grid_size)*resolution,axis=1))
     roll_by = int((addition_profile.shape[0]/den_grid_size)/2)
+    #print("roll by " + str(roll_by))
     halosremoved_fine = np.roll(halosremoved_fine, -1*roll_by, axis=0)
     halosremoved_fine = np.roll(halosremoved_fine, -1*roll_by, axis=1)
+    #print("halosremoved_fine: ")
+    #print(halosremoved_fine)
     halos_added = addition_profile +  halosremoved_fine
+    #print("halos_added: ")
+    #print(halos_added)
     
     virial_rad = addition_profile_initial[1]
     halo_masses = addition_profile_initial[4]
@@ -1077,7 +1179,8 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         halos = sim_provider.get_halos(redshift)
 
         halos_removed = halos_removed_field(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
-              
+        #print("halos_removed[0]: ")
+        #print(halos_removed[0])
         conv_all_steps = convolution_all_steps_final(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed[0],
                            addition_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
         
@@ -1089,7 +1192,8 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         halo_masks[i,:,:,:]= conv_all_steps[3]
         halos_removed_fields[i,:,:] =  halos_removed[0]
         
-        
+    #print("halos_reAdded: ")    
+    #print(halos_reAdded)
     # returns halo array and masks used to add halos back
     return halos_reAdded,halo_masks,halos_subtraction_coarse,halo_field,halos_removed_fields, conv_all_steps[5],conv_all_steps[6]
 
@@ -1291,8 +1395,10 @@ def stack_all_arrays(halos_reAdded,RS_array):
     return halos_reAdded_translated
 
 def create_histograms(halos_reAdded_translated,resolution):
-    nbin=80
-    hist = histArray(sum(halos_reAdded_translated[:,:,:]),nbin,int(resolution),0,3*np.mean(sum(halos_reAdded_translated[:,:,:])))
+    nbin = 80
+    print(halos_reAdded_translated)
+    end = 3 * np.mean(sum(halos_reAdded_translated[:,:,:]))
+    hist = histArray(sum(halos_reAdded_translated[:,:,:]), nbin, int(resolution), 0, end)
 
     return hist
 
