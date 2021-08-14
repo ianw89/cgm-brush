@@ -12,7 +12,6 @@ from scipy.ndimage.filters import convolve
 import abc
 import multiprocessing as mp
 from multiprocessing.sharedctypes import RawArray, Array
-from multiprocessing.shared_memory import SharedMemory
 
 
 ########################################
@@ -678,25 +677,26 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
 
 
 
+var_dict = {}
+
+def init_worker(convolutions, convolutions_shape, add_masks, add_mask_shape):
+    # Using a dictionary is not strictly necessary. You can also
+    # use global variables.
+    var_dict['convolutions'] = convolutions
+    var_dict['convolutions_shape'] = convolutions_shape
+    var_dict['add_masks'] = add_masks
+    var_dict['add_mask_shape'] = add_mask_shape
 
 
-
-
-
-
-def add_halo_for_mass_bin(conv_info, add_masks_info, df, Mvir_avg, conv_rad, cellsize, resolution,
+def add_halo_for_mass_bin(df, Mvir_avg, conv_rad, cellsize, resolution,
  profile, scaling_radius, redshift, scale_down, nbig, no_cells, bin_number, bins, fine_mask_len):
     """Parallelizable function for convolving CGM halos for a single mass bin."""
 
-    #print("Adding CGM halos for bin " + str(bin_number), flush=True)
+    print("Adding CGM halos for bin " + str(bin_number), flush=True)
 
     # Create numpy array references from the shared memory arrays. They use the shared memory.
-    #new_conv = np.ctypeslib.as_array(shared_new_conv)
-    #addition_masks = np.ctypeslib.as_array(shared_addition_masks)
-    conv_shm = SharedMemory(name=conv_info[0])
-    new_conv = np.ndarray(shape=conv_info[1], dtype=conv_info[2], buffer=conv_shm.buf)
-    am_shm = SharedMemory(name=add_masks_info[0])
-    addition_masks = np.ndarray(shape=add_masks_info[1], dtype=add_masks_info[2], buffer=am_shm.buf)
+    new_conv = np.frombuffer(var_dict['convolutions']).reshape(var_dict['convolutions_shape'])    
+    addition_masks = np.frombuffer(var_dict['add_masks']).reshape(var_dict['add_mask_shape'])
 
     fine_mask = np.zeros([fine_mask_len,fine_mask_len])
     fine_lower = -1*fine_mask_len
@@ -721,64 +721,44 @@ def add_halo_for_mass_bin(conv_info, add_masks_info, df, Mvir_avg, conv_rad, cel
     elif profile == 'tophat_spherical':
         r = (x**2+y**2)**.5
         fine_mask = r <= (scaling_radius*scale_down*conv_rad/cellsize)
-        
         fine_mask=fine_mask.astype(float)
 #             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
-        
         Rv= (scaling_radius*scale_down*conv_rad/cellsize)
         fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
         
     elif profile == 'NFW':
-        
         vec_integral = np.vectorize(NFW2D)
         fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
-        
         r=(x**2+y**2)**.5 # * scale_down
-        
         fine_mask=fine_mask.astype(float)
         fine_mask[r> scale_down*conv_rad/cellsize] =0 
         
     elif profile == 'custom':
-        
         # Functions for profile
         # Currently hardcoded but should allow the user to provide the function as inputs
-        
         f1_1 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)**.5
         f1_2 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)
-        
         # Radius of first profile:
         R= (scaling_radius*scale_down*conv_rad/cellsize)/2 
-        
         vec_integral = np.vectorize(func3Dto2D)
-        
         mask1 = x**2+y**2 < (R/2)**2
         mask1 = mask1.astype(float)*vec_integral(f1_1,x,y,R/2)
-
         mask2_1 = x**2+y**2 >= (R/2)**2
         mask2_1= mask2_1.astype(float)
         mask2_2 = x**2+y**2 <= (R)**2
         mask2_2= mask2_2.astype(float)
         mask2=mask2_1*mask2_2
         mask2 = mask2*vec_integral(f1_2,x,y,R)
-
-
         fine_mask=mask1+mask2
         
     elif profile == 'custom_tophat':
-        
         # Functions for profile
         # Currently hardcoded but should allow the user to provide the function as inputs
-        
         # Radius of first profile:
         R= (scaling_radius*scale_down*conv_rad/cellsize)
-        
         f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
-        
         vec_integral = np.vectorize(func3Dto2D)
-        
-        mask1 = vec_integral(f1_1,x,y,R)
-
-        fine_mask=mask1
+        fine_mask = vec_integral(f1_1,x,y,R)
     
     # testing code to add Fire simulation halos
     elif profile == "fire":
@@ -909,24 +889,18 @@ def add_halo_for_mass_bin(conv_info, add_masks_info, df, Mvir_avg, conv_rad, cel
     
     elif profile == "2RVSTH_and_NFW_11":
         if Mvir_avg <= 10**11:
-            
             r = (x**2+y**2)**.5
-            
             # Don't hardcode scaling radius, change later
             fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad/cellsize)
-        
             fine_mask=fine_mask.astype(float)
 #             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad/cellsize)**2-(r**2))**2)**.25)
-        
             Rv= (scaling_radius*scale_down*conv_rad/cellsize)
             fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
         
         elif Mvir_avg > 10**11:
             vec_integral = np.vectorize(NFW2D)
             fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad/cellsize)
-
             r=(x**2+y**2)**.5 # * scale_down
-
             fine_mask=fine_mask.astype(float)
             fine_mask[r> scale_down*conv_rad/cellsize] =0        
             
@@ -935,12 +909,6 @@ def add_halo_for_mass_bin(conv_info, add_masks_info, df, Mvir_avg, conv_rad, cel
     # Generating coarse grid from fine grid: reshape method
     nsmall = int(nbig/scale_down)
     coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
-    #print("Shape of fine_mask: " + str(fine_mask.shape))
-    #print("Shape of coarse_mask: " + str(coarse_mask.shape))
-    #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=2):
-    #    if j == 9:
-    #        #print(fine_mask)
-    #        print(coarse_mask)
 
     # Area of cells needed for normalization
     totalcellArea4 = 0
@@ -954,30 +922,15 @@ def add_halo_for_mass_bin(conv_info, add_masks_info, df, Mvir_avg, conv_rad, cel
     iy = ((((np.around(4*resolution*((df[bins[bin_number]:bins[bin_number+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
     
     xy=(ix,iy)
-    #print(str(len(ix)) + " and " + str(len(iy)))
 
     # issue: the method does not add repeated coordinates BUG is that right?
     halo_cell_pos[xy] += 1
-    #print("Shape of halo_cell_pos: " + str(halo_cell_pos.shape))
     
     # convolve the mask and the halo positions
-    #c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
-    c2 = my_convolve(halo_cell_pos,coarse_mask)
-    #if j==9:
-    #    np.save('problem halos', halo_cell_pos)
-    #    np.save('problem mask', coarse_mask)
-    #assert (np.allclose(c1, c2)), "New convolution is not equivalent to old (in wrap mode) for j = " + str(j)
-
-    #convolution[j,:,:] = (Mvir_avg/(totalcellArea4)) * c1
-    new_conv[bin_number,:,:] = (Mvir_avg/(totalcellArea4)) * c2
+    new_conv[bin_number,:,:] = (Mvir_avg/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
 
     # store addition masks
     addition_masks[bin_number,:,:]= (Mvir_avg/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
-    
-    # Mark that this process is done accessing the shared memory
-    if multiprocess:
-        conv_shm.close()
-        am_shm.close()
 
 
 
@@ -1003,24 +956,11 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
     Rvir_avg = np.zeros(chunks) # TODO dead code
 
     # convolution mask array
-    #convolution =np.zeros([chunks,no_cells,no_cells])
-    #new_conv = np.ctypeslib.as_ctypes(np.zeros([chunks,no_cells,no_cells]))
-    #shared_new_conv = Array(new_conv._type_, new_conv)
+    convolution_shape = (chunks,no_cells,no_cells)
+    shared_new_conv = RawArray('d', convolution_shape[0]*convolution_shape[1]*convolution_shape[2])
+    convolution_np = np.frombuffer(shared_new_conv).reshape(convolution_shape)
+    np.copyto(convolution_np, np.zeros(convolution_shape))
 
-    d_shape = (chunks, no_cells, no_cells)
-    d_type = np.double
-    d_size = np.dtype(d_type).itemsize * np.prod(d_shape)
-
-    # In main process
-    # allocate new shared memory
-    shared_new_conv = mp.shared_memory.SharedMemory(create=True, size=d_size)
-    conv_mem_name = shared_new_conv.name
-    # numpy array on shared memory buffer
-    new_conv = np.ndarray(shape=d_shape, dtype=np.double, buffer=shared_new_conv.buf)
-    new_conv[:,:,:] = np.zeros(d_shape)[:,:,:]
-
-    # creating a coarse map out of a fine mask
-    
     # fine mask
     # fine mask size has to correspond to the size of the mask that I eventually trim
     fine_mask_len = 20*resolution  
@@ -1031,18 +971,12 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
     # store all profile masks
     nbig = fine_mask_len*2
     nsmall = int(nbig/scale_down)
-    am_shape = (chunks, nsmall, nsmall)
-    am_type = np.double
-    am_size = np.dtype(am_type).itemsize * np.prod(am_shape)
-    shared_addition_masks = mp.shared_memory.SharedMemory(create=True, size=am_size)
-    am_mem_name = shared_addition_masks.name
-    addition_masks = np.ndarray(shape=am_shape, dtype=am_type, buffer=shared_addition_masks.buf)
-    addition_masks[:,:,:] = np.zeros(am_shape)[:,:,:]
 
-    #addition_masks = np.ctypeslib.as_ctypes(np.zeros([chunks,nsmall,nsmall]))
-    #print(addition_masks._type_, flush=True)
-    #shared_addition_masks = Array(addition_masks._type_, addition_masks)
-    
+    addition_masks_shape = (chunks,nsmall,nsmall)
+    shared_addition_masks = RawArray('d', addition_masks_shape[0]*addition_masks_shape[1]*addition_masks_shape[2])
+    addition_masks_np = np.frombuffer(shared_addition_masks).reshape(addition_masks_shape)
+    np.copyto(addition_masks_np, np.zeros(addition_masks_shape))
+
     # Compute some simple properties needed for the convolution
     for j in range(0,chunks):
         Mvir_avg[j] = np.mean((df['Mvir'][bins[j]:bins[j+1]]))/h
@@ -1050,46 +984,30 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
       
     # Use multiprocessing to parallelize the convolution for each mass bin
     print("Starting async tasks", flush=True)
-    cpus = mp.cpu_count()
-    #pool = mp.Pool(processes=1) # cpus
+    with mp.Pool(processes=mp.cpu_count(), initializer=init_worker, initargs=(shared_new_conv, convolution_shape, shared_addition_masks, addition_masks_shape)) as pool:
 
-    #multiple_results = [pool.apply_async(add_halo_for_mass_bin, (shared_new_conv, shared_addition_masks, df, Mvir_avg[i], conv_rad[i], cellsize, resolution, profile, scaling_radius, redshift, scale_down, nbig, no_cells, i, bins, fine_mask_len)) for i in range(0,chunks)]
+        multiple_results = [pool.apply_async(add_halo_for_mass_bin, (df, Mvir_avg[i], conv_rad[i], cellsize, resolution, profile, scaling_radius, redshift, scale_down, nbig, no_cells, i, bins, fine_mask_len)) for i in range(0,chunks)]
 
-    for i in range(0,chunks):
-        add_halo_for_mass_bin((conv_mem_name, d_shape, d_type, d_size), (am_mem_name, am_shape, am_type, am_size), df, Mvir_avg[i], conv_rad[i], cellsize, resolution, profile, scaling_radius, redshift, scale_down, nbig, no_cells, i, bins, fine_mask_len)
+        # Block until all bins are processed. 
+        # They will have written the results into shared memory; they do not return anything.
+        for async_result in multiple_results:
+            async_result.get(timeout=3600) # 1 hour timeout
 
+    #for i in range(0,chunks):
+    #    add_halo_for_mass_bin(shared_new_conv, shared_addition_masks, df, Mvir_avg[i], conv_rad[i], cellsize, resolution, profile, scaling_radius, redshift, scale_down, nbig, no_cells, i, bins, fine_mask_len)
 
-    # Block until all bins are processed. 
-    # They will have written the results into shared memory; they do not return anything.
-    #for async_result in multiple_results:
-    #    async_result.get(timeout=3600) # 1 hour timeout
-
-    print("All async tasks complete", flush=True)
+        print("All async tasks complete", flush=True)
 
     # TODO ensure addition_masks and new_conv have updated values?
 
-    # Go back to numpy land for the arrays that are in shared memory
-    #new_conv = np.ctypeslib.as_array(shared_new_conv)
-    #addition_masks = np.ctypeslib.as_array(shared_addition_masks)
-
     # Shared Memeory requires manual freeing. Hard copy to local memory and free shared memory.
-    new_conv_local = new_conv.copy()
-    addition_masks_local = addition_masks.copy()
-
-    print (new_conv.shape)
-    print (new_conv[1][10][10])
-    print (new_conv_local.shape)
-    print (new_conv_local[1][10][10])
-
-    shared_new_conv.close()
-    shared_new_conv.unlink()
-    shared_addition_masks.close()
-    shared_addition_masks.unlink()
+    #new_conv_local = new_conv.copy()
+    #addition_masks_local = addition_masks.copy()
     
     # TODO broadcasting perf for large arrays. 
     # Is looping faster than broadcasting a number to a big 3d array?
 
-    return (new_conv_local.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, addition_masks_local, Mvir_avg
+    return (convolution_np.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, addition_masks_np, Mvir_avg
 
 
 # Halos removed field
@@ -1104,8 +1022,8 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
     
     # convolve halos
     subtraction_profile = subtract_halos(df,mass_binz,resolution,len(binz)-1,binz,subtraction_halo_profile,scaling_radius,redshift)[0]
-    print("subtraction_profile: ")
-    print(subtraction_profile)
+    #print("subtraction_profile: ")
+    #print(subtraction_profile)
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1)
 
     # create coarse grid
@@ -1396,7 +1314,7 @@ def stack_all_arrays(halos_reAdded,RS_array):
 
 def create_histograms(halos_reAdded_translated,resolution):
     nbin = 80
-    print(halos_reAdded_translated)
+    #print(halos_reAdded_translated)
     end = 3 * np.mean(sum(halos_reAdded_translated[:,:,:]))
     hist = histArray(sum(halos_reAdded_translated[:,:,:]), nbin, int(resolution), 0, end)
 
