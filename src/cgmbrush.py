@@ -1341,6 +1341,15 @@ def create_histograms(halos_reAdded_translated,resolution):
 
 varFolder = "../var"
 
+# Intermediate numpy arrays get can be saved into var folder outside version control
+def saveFig(filename, fig):
+    file_path = os.path.join(varFolder, filename)
+    
+    if not(os.path.exists(varFolder)):
+        os.makedirs(varFolder)
+
+    fig.savefig(file_path + '_images')
+
 
 # Intermediate numpy arrays get can be saved into var folder outside version control
 def saveArray(filename, *arrays):
