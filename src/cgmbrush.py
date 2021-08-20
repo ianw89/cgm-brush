@@ -8,13 +8,14 @@ from random import randrange
 import random
 import time
 from numpy.polynomial import Polynomial as P
-from IPython.display import Latex
 import pandas as pd
 import os
 from scipy.ndimage.filters import convolve
-import scipy.signal as sig
 import abc
-import sys
+import cProfile
+import io
+import pstats
+import datetime
 
 ########################################
 # Paramters, Constants, and Functions
@@ -653,10 +654,6 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
 
         # issue: the method does not add repeated coordinates
         halo_cell_pos[xy] += 1
-
-        if j==20:
-            np.save('../var/problem 3 halos', halo_cell_pos)
-            np.save('../var/problem 3 mask', coarse_mask)
         
         # convolve the mask and the halo positions
         c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
@@ -671,6 +668,30 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
         
     
     return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, fine_mask, coarse_mask,halo_cell_pos
+
+
+class CGMProfile(metaclass=abc.ABCMeta):
+    """Interface used by cgmbrush that handles creating a CGM profile to convolve."""
+
+    @classmethod
+    def __subclasshook__(cls, subclass):
+        return (hasattr(subclass, 'get_mask') and
+        callable(subclass.get_mask) or 
+        NotImplemented)
+
+    @abc.abstractmethod
+    def get_mask(self, mass: float, virial_radius: float, redshift: float, resolution: int, *args):
+        """Constructs and returns a 2D mask to convolve with the halo locations
+           for the specified halo parameters and redshift."""
+        raise NotImplementedError
+
+class TophatProfile(CGMProfile):
+
+    def get_mask(self, mass: float, virial_radius: float, redshift: float, resolution: int, *args):
+        raise NotImplementedError
+        #r = (x**2+y**2)**.5
+        #fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize) 
+        #fine_mask=fine_mask.astype(float)
 
     
 # Status: This is the latest convolution function
@@ -695,7 +716,6 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
     Rvir_avg = np.zeros(chunks)
 
     # convolution mask array
-    #convolution =np.zeros([chunks,no_cells,no_cells])
     new_conv = np.zeros([chunks,no_cells,no_cells])
 
     # creating a coarse map out of a fine mask
@@ -957,12 +977,6 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
         # Generating coarse grid from fine grid: reshape method
         nsmall = int(nbig/scale_down)
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
-        #print("Shape of fine_mask: " + str(fine_mask.shape))
-        #print("Shape of coarse_mask: " + str(coarse_mask.shape))
-        #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=2):
-        #    if j == 9:
-        #        #print(fine_mask)
-        #        print(coarse_mask)
 
         # Area of cells needed for normalization
         totalcellArea4=0
@@ -976,22 +990,12 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
         iy = ((((np.around(4*resolution*((df[bins[j]:bins[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
         
         xy=(ix,iy)
-        #print(str(len(ix)) + " and " + str(len(iy)))
 
         # issue: the method does not add repeated coordinates BUG is that right?
         halo_cell_pos[xy] += 1
-        #print("Shape of halo_cell_pos: " + str(halo_cell_pos.shape))
         
         # convolve the mask and the halo positions
-        #c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
-        c2 = my_convolve(halo_cell_pos,coarse_mask)
-        #if j==9:
-        #    np.save('problem halos', halo_cell_pos)
-        #    np.save('problem mask', coarse_mask)
-        #assert (np.allclose(c1, c2)), "New convolution is not equivalent to old (in wrap mode) for j = " + str(j)
-
-        #convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c1
-        new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c2
+        new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
 
         # store addition masks
         addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
@@ -1342,8 +1346,8 @@ def create_histograms(halos_reAdded_translated,resolution):
 varFolder = "../var"
 
 # Intermediate numpy arrays get can be saved into var folder outside version control
-def saveFig(filename, fig):
-    file_path = os.path.join(varFolder, filename)
+def saveFig(filename_base, fig):
+    file_path = os.path.join(varFolder, filename_base)
     
     if not(os.path.exists(varFolder)):
         os.makedirs(varFolder)
@@ -1368,8 +1372,8 @@ def loadArray(filename):
     return np.load(file_path, allow_pickle=True)
 
 
-# Configuration for a run
 class Configuration:
+    """Configuration for a run of cgmbrush."""
 
     # Default options
     def __init__(self, addition_halo_profile, scaling_radius, resolution=1, file_prefix=None, den_grid_size=256, RS_array=[0], load_from_files=False):
@@ -1393,8 +1397,73 @@ class Configuration:
         # Profile used for subtracting halos from the density field
         self.subtraction_halo_profile = 'NFW'
 
-        # Resolution
+        self.min_mass = 10**10 # TODO into config
+        self.max_mass = 10**14.5
+        self.log_bins = 30
+
         self.resolution = resolution # x1024
 
         self.load_from_files = load_from_files
         self.results = None
+        self.figure = None
+    
+
+    def run(self, plots=False, trace=False):
+        """Run this configuration."""
+
+        filename = self.file_prefix + str(self.resolution) + '_' + str(self.den_grid_size) + "_" + str(datetime.date.today())
+
+        if self.load_from_files:
+            try:
+                self.results = loadArray(filename + ".npy")
+            
+            except IOError:
+                print("Cache miss: " + filename)
+                #pass # File cache doesn't exist, swallow and compute it instead
+
+        if self.results == None:
+            print("Performing Calculations for " + filename)
+                                   
+            if trace:
+                pr = cProfile.Profile()
+                pr.enable()
+
+            self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
+                                                self.max_mass, self.log_bins, self.subtraction_halo_profile, 
+                                                self.addition_halo_profile, self.scaling_radius, self.resolution)
+            saveArray(filename, *self.results)
+            
+            if trace:
+                pr.disable()
+                s = io.StringIO()
+                ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
+                ps.print_stats()
+
+                version = 1
+                # TODO auto version incrementing
+                perf_file_path = os.path.join(varFolder, 'perf_convo_' + filename + '_v%s.txt' % version)
+                with open(perf_file_path, 'w') as f:
+                    f.write(s.getvalue())
+
+        if plots:
+            original = self.provider.get_density_field(0, self.den_grid_size)
+            background_dm = self.results[5][0]
+            cgm_only = self.results[4][0]
+            density_final = self.results[1][0]
+
+            fig, axes = plt.subplots(1,4,figsize=(18, 4))
+            pos = axes[0].imshow(original) 
+            fig.colorbar(pos, ax=axes[0])
+            axes[0].title.set_text('Original Density Field')
+            pos = axes[1].imshow(background_dm) 
+            fig.colorbar(pos, ax=axes[1])
+            axes[1].title.set_text('Density minus halos')
+            pos = axes[2].imshow(cgm_only) 
+            fig.colorbar(pos, ax=axes[2])
+            axes[2].title.set_text('CGM Profile to add')
+            pos = axes[3].imshow(density_final) 
+            fig.colorbar(pos, ax=axes[3])
+            axes[3].title.set_text('Final Product')
+
+            self.figure = fig
+            saveFig(filename, fig)
