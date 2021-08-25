@@ -16,6 +16,7 @@ import cProfile
 import io
 import pstats
 import datetime
+import math
 
 ########################################
 # Paramters, Constants, and Functions
@@ -84,18 +85,13 @@ def rho_0(redshift,halo_mass,R_s):
 def q(z):
     return OmegaL/ ((OmegaM*(1+z)**3)+ OmegaL)  
 
+# BUG isn't it + 82, not - 82?
 def rho_vir(z):
     return (18*pi**2 - 82*q(z) - 39*q(z)**2)*(rho_c*(OmegaL + OmegaM *(1+z)**3))
 
 
 def Rvir_den(z):
     return (4/3 * np.pi * rho_vir(z))**(1/3) # physical, units in 1/r**3
-
-# q = OmegaL/ ((OmegaM*(1+z)**3)+ OmegaL)  
-# rho_vir = (18*pi**2 - 82*q - 39*q**2)*(rho_c*(OmegaL + OmegaM *(1+z)**3))
-
-#print(18*pi**2 - 82*q - 39*q**2, z)
-# Rvir_den = (4/3 * np.pi * rho_vir)**(1/3) # physical, units in 1/r**3
 
 
 
@@ -437,13 +433,24 @@ def my_convolve(a, b):
 
 # Create halo array from halo table for convolution
 def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
+    """Creates an array of indexes corresponding to indexes in pdHalos at the edges of logarithmic mass bins.
+
+    The length will be up to logchunks, but may be smaller due to removed bins (if a mass bin would be empty)."""
     halos = haloArray_minmax(pdHalos,M_min,M_max)
     df = halos.sort_values(by='Mvir',ascending=True)
     sorted_haloMasses = df['Mvir'].values
     histH, binsH = np.histogram(sorted_haloMasses,bins=np.logspace(np.log10(M_min),np.log10(M_max), logchunks))
-    binz=np.append(0,histH.cumsum())
+    bins=np.append([0],histH.cumsum()).tolist()
+
+    # Remove any empty bins
+    i = 0
+    while i < len(bins) - 1:
+        if bins[i] == bins[i+1]:
+            del bins[i+1]
+        else:
+            i += 1
     
-    return df,binz,binsH
+    return df,bins
 
 # Convert custom 3D function to 2D by integrating over z
 def func3Dto2D(f,x,y,Rvir):
@@ -506,17 +513,17 @@ def gauss_sinc_smoothing(smoothing_array,sigma_gauss,width_sinc,resolution):
 # This function subtracts the halos from the density field
 
 # arguments: 
-# haloArray: array of halos
+# haloArray: dataframe of halos, sorted by mass.
 # resolution: 1024 or 2048
-# chunks: no of chunks the halo array has been divided into -1
-# bins: array cumulative sum of halos in different mass bins
+# bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
-def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_radius,redshift):
+def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
     
     df = haloArray
     no_cells = 1024
     cellsize = L/(1024) 
+    chunks = len(bin_markers) - 1
     
     # array of halo masses and radii
     Mvir_avg = np.zeros(chunks)
@@ -544,9 +551,8 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
     # loops through the list of dataframes each ordered by ascending mass
     
     for j in range(0,chunks):
-        Mvir_avg[j] = np.mean((df['Mvir'][bins[j]:bins[j+1]]))/h
+        Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/h
         conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
-        
         
         # NFW 
         # add redshift to the function above
@@ -647,8 +653,8 @@ def subtract_halos(haloArray,mass_binz,resolution,chunks,bins,profile,scaling_ra
         halo_cell_pos = np.zeros([no_cells,no_cells])   
         
         # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
-        ix = ((((np.around(4*((df[bins[j]:bins[j+1]]['x'].values)/(250/256))))))%(1024)).astype(int)
-        iy = ((((np.around(4*((df[bins[j]:bins[j+1]]['y'].values)/(250/256))))))%(1024)).astype(int)
+        ix = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(1024)).astype(int)
+        iy = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(1024)).astype(int)
         
         xy=(ix,iy)
 
@@ -699,13 +705,13 @@ class TophatProfile(CGMProfile):
 # The function add halos
 
 # arguments: 
-# haloArray: array of halos
-# resolution: 1024 or 2048
-# chunks: no of chunks the halo array has been divided into -1
-# bins: array cumulative sum of halos in different mass bins
+# haloArray: dataframe of halos, sorted by mass.
+# resolution: int of resolution, will be multiplied by 1024
+# bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
-def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
+def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
+    chunks = len(bin_markers) - 1
     df = haloArray
     no_cells = 1024 * resolution
     cellsize = L / no_cells
@@ -742,9 +748,9 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
     # loops through the list of dataframes each ordered by ascending mass
     
     for j in range(0,chunks):
-        Mvir_avg[j] = np.mean((df['Mvir'][bins[j]:bins[j+1]]))/h
+        Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / h
         conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
-      
+              
         # NFW 
         # add redshift to the function above
         R_s=0
@@ -986,14 +992,13 @@ def add_halos(haloArray,resolution,chunks,bins,profile,scaling_radius,redshift):
         halo_cell_pos = np.zeros([no_cells,no_cells])    
         
         # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
-        ix = ((((np.around(4*resolution*((df[bins[j]:bins[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
-        iy = ((((np.around(4*resolution*((df[bins[j]:bins[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
-        
+        ix = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
+        iy = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
         xy=(ix,iy)
 
         # issue: the method does not add repeated coordinates BUG is that right?
         halo_cell_pos[xy] += 1
-        
+
         # convolve the mask and the halo positions
         new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
 
@@ -1011,11 +1016,10 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
     
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
     df= halo_array_for_convolution[0]
-    binz= halo_array_for_convolution[1]
-    mass_binz = halo_array_for_convolution[2]
+    bin_markers= halo_array_for_convolution[1]
     
     # convolve halos
-    subtraction_profile = subtract_halos(df,mass_binz,resolution,len(binz)-1,binz,subtraction_halo_profile,scaling_radius,redshift)[0]
+    subtraction_profile = subtract_halos(df,resolution,bin_markers,subtraction_halo_profile,scaling_radius,redshift)[0]
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1)
     
     # create coarse grid
@@ -1034,10 +1038,10 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
     # setup inputs for convolution
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
     df= halo_array_for_convolution[0]
-    binz= halo_array_for_convolution[1]
+    bin_markers= halo_array_for_convolution[1]
     
     # convolve halos for adding back
-    addition_profile_initial=add_halos(df,resolution,len(binz)-1,binz,addition_halo_profile,scaling_radius,redshift)
+    addition_profile_initial=add_halos(df,resolution,bin_markers,addition_halo_profile,scaling_radius,redshift)
     addition_profile = addition_profile_initial[0]
     addition_profile_masks=addition_profile_initial[3]
     
@@ -1451,19 +1455,20 @@ class Configuration:
             cgm_only = self.results[4][0]
             density_final = self.results[1][0]
 
-            fig, axes = plt.subplots(1,4,figsize=(18, 4))
-            pos = axes[0].imshow(original) 
-            fig.colorbar(pos, ax=axes[0])
-            axes[0].title.set_text('Original Density Field')
-            pos = axes[1].imshow(background_dm) 
-            fig.colorbar(pos, ax=axes[1])
-            axes[1].title.set_text('Density minus halos')
-            pos = axes[2].imshow(cgm_only) 
-            fig.colorbar(pos, ax=axes[2])
-            axes[2].title.set_text('CGM Profile to add')
-            pos = axes[3].imshow(density_final) 
-            fig.colorbar(pos, ax=axes[3])
-            axes[3].title.set_text('Final Product')
+            fig, axes = plt.subplots(2,2,figsize=(24, 24))
+            plt.tight_layout()
+            pos = axes[0][0].imshow(original) 
+            fig.colorbar(pos, ax=axes[0][0])
+            axes[0][0].title.set_text('Original Density Field')
+            pos = axes[0][1].imshow(background_dm) 
+            fig.colorbar(pos, ax=axes[0][1])
+            axes[0][1].title.set_text('Density minus halos')
+            pos = axes[1][0].imshow(cgm_only) 
+            fig.colorbar(pos, ax=axes[1][0])
+            axes[1][0].title.set_text('CGM Profile to add')
+            pos = axes[1][1].imshow(density_final) 
+            fig.colorbar(pos, ax=axes[1][1])
+            axes[1][1].title.set_text('Final Product')
 
             self.figure = fig
             saveFig(filename, fig)
