@@ -725,19 +725,37 @@ class CGMProfile(metaclass=abc.ABCMeta):
         callable(subclass.get_mask) or 
         NotImplemented)
 
+    def get_fine_mask_len(self, resolution: int):
+        """Gets the length of the fine mask this profile will use. TODO But actually it is double this..."""
+        return 20*resolution
+
     @abc.abstractmethod
-    def get_mask(self, mass: float, virial_radius: float, redshift: float, resolution: int, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
         """Constructs and returns a 2D mask to convolve with the halo locations
            for the specified halo parameters and redshift."""
         raise NotImplementedError
 
 class TophatProfile(CGMProfile):
 
-    def get_mask(self, mass: float, virial_radius: float, redshift: float, resolution: int, *args):
-        raise NotImplementedError
-        #r = (x**2+y**2)**.5
-        #fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize) 
-        #fine_mask=fine_mask.astype(float)
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+
+        # fine mask
+        # fine mask size has to correspond to the size of the mask that I eventually trim
+        fine_mask_len = self.get_fine_mask_len(resolution)
+        fine_lower= -1*fine_mask_len
+        fine_upper= fine_mask_len
+        y,x = np.ogrid[fine_lower: fine_upper, fine_lower:fine_upper] # shape is (1,40*res) and (40*res,1)
+
+        # TODO delete this line?
+        fine_mask= np.zeros([fine_mask_len,fine_mask_len]) # This isn't even what it ends up being
+
+
+        scale_down = 2  # making the grid coarser    
+        
+        # TODO Why are we multiplying by scale_down
+        r = (x**2+y**2)**.5
+        fine_mask = r <= (scaling_radius * scale_down * comoving_radius / cellsize) 
+        return fine_mask.astype(float)
 
     
 # From rhogas Fire, TODO reorganize
@@ -758,7 +776,7 @@ def fire_func(r, rmax, Rinterp, rho0, cellsize):
 # bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
-def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
+def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
     chunks = len(bin_markers) - 1
     df = haloArray
     no_cells = 1024 * resolution
@@ -770,24 +788,12 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
 
     # convolution mask array
     new_conv = np.zeros([chunks,no_cells,no_cells])
-
-    # creating a coarse map out of a fine mask
-    
-    # fine mask
-    # fine mask size has to correspond to the size of the mask that I eventually trim
-    fine_mask_len = 20*resolution  
-    fine_lower= -1*fine_mask_len
-    fine_upper= fine_mask_len
-    y,x = np.ogrid[fine_lower: fine_upper, fine_lower:fine_upper]
     
     # coarse mask
     scale_down = 2  # making the grid coarser    
     
-#     coarse_mask_len = int(fine_mask_len/scale_down)
-    fine_mask= np.zeros([fine_mask_len,fine_mask_len])
-# #     fine_mask= np.zeros([2*coarse_mask_len,2*coarse_mask_len])
-    
     # store all profile masks
+    fine_mask_len = profile.get_fine_mask_len(resolution)
     nbig = fine_mask_len*2
     nsmall = int(nbig/scale_down)
     addition_masks =np.zeros([chunks,nsmall,nsmall])
@@ -799,21 +805,15 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
         conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
               
         # NFW 
-        # add redshift to the function above
-        R_s=0
-        rho_nought=0
-        
+        # add redshift to the function above    
         R_s= conv_rad[j]/(halo_conc(redshift,Mvir_avg[j])*cellsize)  
         rho_nought = rho_0(redshift,Mvir_avg[j],R_s)
+
+        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize)
         
-        # Why are we multiplying by scale_down
-        if profile == 'tophat':
-            r = (x**2+y**2)**.5
-            fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize) 
-            fine_mask=fine_mask.astype(float)
 
         # spherical tophat
-        elif profile == 'tophat_spherical':
+        if profile == 'tophat_spherical':
             r = (x**2+y**2)**.5
             fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize)
             
@@ -1187,7 +1187,7 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
 
         # Area of cells needed for normalization
-        totalcellArea4=0
+        totalcellArea4 = 0
         totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
         
         # populate array with halos
@@ -1235,7 +1235,7 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
 
 # Function subtracts and adds halos
 def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed_coarse,
-                       addition_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc):
+                       addition_halo_profile: CGMProfile,scaling_radius,resolution,sigma_gauss,width_sinc):
     
     # setup inputs for convolution
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
@@ -1263,7 +1263,7 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
 
 # Multiple Redshift Convolution
 def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile,
-                             addition_halo_profile,scaling_radius,resolution):
+                             addition_profile: CGMProfile,scaling_radius,resolution):
 
     # Details of halo profiles
 
@@ -1289,7 +1289,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         halos_removed = halos_removed_field(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
               
         conv_all_steps = convolution_all_steps_final(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed[0],
-                           addition_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
+                           addition_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
         
         
         halos_reAdded[i,:,:] = conv_all_steps[0]
@@ -1305,8 +1305,8 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
 
 
 
-def hist_profile(sim_provider : SimulationProvider, den_grid_size, RS_array, min_mass, max_mass,
-                                       log_bins, subtraction_halo_profile, addition_halo_profile, scaling_radius, resolution):
+def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_array, min_mass, max_mass,
+                                       log_bins, subtraction_halo_profile, addition_profile: CGMProfile, scaling_radius, resolution):
     """
     This function runs everything needed apply cgmbrush.
 
@@ -1316,7 +1316,7 @@ def hist_profile(sim_provider : SimulationProvider, den_grid_size, RS_array, min
     
     # halo array
     t = halo_subtraction_addition(sim_provider,den_grid_size,RS_array,min_mass,max_mass,
-                                       log_bins,subtraction_halo_profile,addition_halo_profile,scaling_radius,resolution)
+                                       log_bins,subtraction_halo_profile,addition_profile,scaling_radius,resolution)
     # Halos-readded field
     t1 = t[0]
     
