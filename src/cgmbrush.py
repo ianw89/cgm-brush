@@ -746,10 +746,6 @@ class TophatProfile(CGMProfile):
         fine_upper= fine_mask_len
         y,x = np.ogrid[fine_lower: fine_upper, fine_lower:fine_upper] # shape is (1,40*res) and (40*res,1)
 
-        # TODO delete this line?
-        fine_mask= np.zeros([fine_mask_len,fine_mask_len]) # This isn't even what it ends up being
-
-
         scale_down = 2  # making the grid coarser    
         
         # TODO Why are we multiplying by scale_down
