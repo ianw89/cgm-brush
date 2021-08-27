@@ -312,7 +312,7 @@ class BolshoiProvider(SimulationProvider):
             return self.density_fields[(redshift, resolution)]
 
         # If not, try fast reading from saved off numpy array            
-        filename = "bol_den_field_" + str(redshift) + '_' + str(resolution) + ".npy"
+        filename = "bol_den_field_" + str(redshift) + '_' + str(resolution) 
         result = []
         try:
             result = loadArray(filename)
@@ -337,7 +337,7 @@ class BolshoiProvider(SimulationProvider):
             return self.halos[redshift]
 
         # If not, try fast reading from saved off numpy array            
-        filename = "bol_halos_" + str(redshift) + ".npy"
+        filename = "bol_halos_" + str(redshift)
         result = []
         try:
             result = loadArray(filename)
@@ -786,47 +786,50 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
             fine_mask=fine_mask.astype(float)
             fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
             
-        elif profile == 'custom':
+       # elif profile == 'custom':
             
+            # TODO the 'custom' profile I got from Adnan was broken when handed to me. Not sure what it was supposed to do. 
+
             # Functions for profile
             # Currently hardcoded but should allow the user to provide the function as inputs
             
-            f1_1 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)**.5
-            f1_2 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)
+            #f1_1 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)**.5
+            #f1_2 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)
             
             # Radius of first profile:
-            R= (scaling_radius*scale_down*conv_rad[j]/cellsize)/2 
+            #R= (scaling_radius*scale_down*conv_rad[j]/cellsize)/2 
             
-            vec_integral = np.vectorize(func3Dto2D)
+            #vec_integral = np.vectorize(func3Dto2D)
             
-            mask1 = x**2+y**2 < (R/2)**2
-            mask1 = mask1.astype(float)*vec_integral(f1_1,x,y,R/2)
+            #mask1 = x**2+y**2 < (R/2)**2
+            #mask1 = mask1.astype(float)*vec_integral(f1_1,x,y,R/2)
 
-            mask2_1 = x**2+y**2 >= (R/2)**2
-            mask2_1= mask2_1.astype(float)
-            mask2_2 = x**2+y**2 <= (R)**2
-            mask2_2= mask2_2.astype(float)
-            mask2=mask2_1*mask2_2
-            mask2 = mask2*vec_integral(f1_2,x,y,R)
+            #mask2_1 = x**2+y**2 >= (R/2)**2
+            #mask2_1= mask2_1.astype(float)
+            #mask2_2 = x**2+y**2 <= (R)**2
+            #mask2_2= mask2_2.astype(float)
+            #mask2=mask2_1*mask2_2
+            #mask2 = mask2*vec_integral(f1_2,x,y,R)
 
+            #fine_mask=mask1+mask2
+            
+        #elif profile == 'custom_tophat':
+            
+            # TODO the 'custom_tophat' profile I got from Adnan was broken when handed to me. Not sure what it was supposed to do. 
 
-            fine_mask=mask1+mask2
-            
-        elif profile == 'custom_tophat':
-            
             # Functions for profile
             # Currently hardcoded but should allow the user to provide the function as inputs
             
             # Radius of first profile:
-            R= (scaling_radius*scale_down*conv_rad[j]/cellsize)
+            #R= (scaling_radius*scale_down*conv_rad[j]/cellsize)
             
-            f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
+            #f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
             
-            vec_integral = np.vectorize(func3Dto2D)
+            #vec_integral = np.vectorize(func3Dto2D)
             
-            mask1 = vec_integral(f1_1,x,y,R)
+            #mask1 = vec_integral(f1_1,x,y,R)
 
-            fine_mask=mask1
+            #fine_mask=mask1
         
         # testing code to add Fire simulation halos
         elif profile == "fire":
@@ -976,7 +979,9 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
                 r=(x**2+y**2)**.5 # * scale_down
 
                 fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0        
+                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0      
+        else:
+            raise ValueError("Not valid profile provided")
                 
         
         # Smoothing method: reshaping
@@ -1348,6 +1353,7 @@ def create_histograms(halos_reAdded_translated,resolution):
 ###########################################
 
 varFolder = "../var"
+testFolder = "test"
 
 # Intermediate numpy arrays get can be saved into var folder outside version control
 def saveFig(filename_base, fig):
@@ -1360,19 +1366,19 @@ def saveFig(filename_base, fig):
 
 
 # Intermediate numpy arrays get can be saved into var folder outside version control
-def saveArray(filename, *arrays):
-    file_path = os.path.join(varFolder, filename)
+def saveArray(filename, *arrays, folder = varFolder):
+    file_path = os.path.join(folder, filename)
     
-    if not(os.path.exists(varFolder)):
-        os.makedirs(varFolder)
+    if not(os.path.exists(folder)):
+        os.makedirs(folder)
 
     if len(arrays) == 1:
         np.save(file_path, arrays[0]) # unwrap it out of tuple or it will not round-trip
     else:
         np.save(file_path, arrays) # it will wrap the tuple in an array... savez?
     
-def loadArray(filename):
-    file_path = os.path.join(varFolder, filename)
+def loadArray(filename, folder = varFolder):
+    file_path = os.path.join(folder, filename + ".npy")
     return np.load(file_path, allow_pickle=True)
 
 
@@ -1419,7 +1425,7 @@ class Configuration:
 
         if self.load_from_files:
             try:
-                self.results = loadArray(filename + ".npy")
+                self.results = loadArray(filename)
             
             except IOError:
                 print("Cache miss: " + filename)
