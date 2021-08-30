@@ -1,4 +1,5 @@
 from __future__ import print_function 
+from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import core
@@ -17,6 +18,7 @@ import io
 import pstats
 import datetime
 import math
+from scipy.interpolate import interp1d
 
 ########################################
 # Paramters, Constants, and Functions
@@ -24,21 +26,22 @@ import math
 
 # Constants
 Mpc = 3.096*10**24 # cm
-msun=1.9891 * 10**30 #kilograms
-mprot= 1.6726219 * 10**-27 #kilograms
+msun =1.9891 * 10**30 #kilograms
+mprot = 1.6726219 * 10**-27 #kilograms
 Yhe =.25
-nPS=msun/mprot*(1-Yhe/2) # accounts for the fact that some mass is in helium
+nPS = msun/mprot*(1-Yhe/2) # accounts for the fact that some mass is in helium
 lightspeed = 3e5 #km/s
-pi=np.pi
+pi = np.pi
+mp = 1.6726216e-24  #proton mass in gr
 
 # Cosmological parameters
-z=0
-h=.7
+z = 0
+h = .7
 rho_c = 9.31000324385361 *10**(-30) * (Mpc**3 / (msun*1000))*(h/.7)**2 # M./Mpc^3 from #pcrit = 9.31000324385361e-30 g / cm3
 OmegaM = 0.27
 OmegaL = 1- OmegaM #assumes flat universe
-OmegaB= 0.0469 
-rho_m=OmegaM*rho_c
+OmegaB = 0.0469 
+rho_m = OmegaM*rho_c
 fd = 1 # fraction of baryons in diffused ionized gas (FRB paper)
 
 def rhoB(z):
@@ -93,7 +96,11 @@ def rho_vir(z):
 def Rvir_den(z):
     return (4/3 * np.pi * rho_vir(z))**(1/3) # physical, units in 1/r**3
 
-
+#radius that is 200 times the matter density in Mpc  (very similar to rvir)
+def r200Mz(Mhalo, z):
+    rhocrit = 2.7755e11*h*h
+    rhomatter = rhocrit*OmegaM
+    return (Mhalo/((4*np.pi/3)*200.*rhomatter))**(1./3.)
 
 
 ########################################
@@ -456,6 +463,11 @@ def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
 def func3Dto2D(f,x,y,Rvir):
     return integrate.quad(f,-(Rvir**2-(x**2+y**2))**.5,(Rvir**2-(x**2+y**2))**.5,args=(x,y))[0]
 
+# TODO dedupe
+def fire3Dto2D(f,x,y,Rvir):
+    return integrate.quad(f,-1*np.real((Rvir**2-(x**2+y**2))**.5),np.real((Rvir**2-(x**2+y**2))**.5),args=(x,y))[0] 
+    
+
 # Project NFW profile from 3D to 2D
 def NFW2D(x,y,rho_nought,R_s,Rvir):
     offset=float(.1)
@@ -700,6 +712,14 @@ class TophatProfile(CGMProfile):
         #fine_mask=fine_mask.astype(float)
 
     
+# From rhogas Fire, TODO reorganize
+# The user can create their own function
+# All length scales have to be converted into units of cellsize
+def my_func(r, rmax,Rinterp,rho0,cellsize):
+    R1 = rmax/cellsize  # Convert length scale into units of cellsize
+    R2 = Rinterp/cellsize
+    return rho0*np.exp(-r/R1)*  ((r+.5)/R2)**-2
+
 # Status: This is the latest convolution function
 
 # The function add halos
@@ -833,8 +853,61 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
         
         # testing code to add Fire simulation halos
         elif profile == "fire":
-            # TODO get gasProfile_Fire in this module
-            fine_mask = rhogasFire(Mvir_avg[j],conv_rad[j], redshift, adjustmentfactor,resolution)[2]
+            #fundamental constants
+            # KPCTOCM = 3.086e21
+            MPCTOCM = 3.086e24
+            Msun =  1.9889e33  # gr 
+
+            #cosmology "constants"
+            fb = OmegaB/OmegaM #fraction of matter in baryons
+            YHE = 0.25 #helium mass fraction
+            mu = 1/((1-YHE) + 2.*YHE/4)  #mean molecular weight to give number of electrons assuming helium doubly ionized
+  
+            # This is FIRE simulation profile (from eyeballing https://arxiv.org/pdf/1811.11753.pdf and using their $r^{-2}$ scaling)
+            #  I'm using the $r^{-2}$ profile they find, with an exponetial cutoff at rmax, where we use conservation of mass to determine rmax.  So
+            #
+            #$$\rho = \rho_{0}\left(\frac{r}{r_*} \right)^{-2} \exp[-r/r_{\rm max}]$$
+            #
+            #They results technically hold for $10^{10} - 10^{12} M_\odot$ and $z=0$, but I think it's reasonable to assume they extrapolate to other moderate redshifts and somewhat more massive halos.
+            #
+            #To normalize things we are using that 
+            #$$M_{\rm gas} = \int 4 \pi r^2 dr \rho_{0} \left(\frac{r}{r_*} \right)^{-2} \exp[-r/r_{\rm max}] = 4 \pi r_{\rm max} \rho_0 r_*^2$$
+            #
+            #Note that sometimes I'm working with number densities and sometimes mass densities
+            #
+
+            adjustmentfactor = 1  #probably we want to range between 0.5-2 as the numbers look sensible in this range
+            
+            #These are specifications taken from the fire simulations
+            RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
+            logMinterp = np.array([10., 11., 12.])  # these are log10 of the halo masses they consider
+            nHinterp = np.array([0.5e-4, 0.8e-4, 1e-4])  #these are their number densities in cubic cm
+                
+            nHinterp = interp1d(logMinterp, nHinterp, fill_value="extrapolate")
+            Mhalo = Mvir_avg[j]
+            Rvir = conv_rad[j]
+
+            rho0 = adjustmentfactor*nHinterp(np.log10(Mhalo))
+            Rinterp = RinterpinRvir* Rvir #rvir(Mhalo, z)
+            
+            Ntot = Mhalo*Msun*fb/(mu*mp)/(MPCTOCM**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
+            rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
+            
+            # TODO these two lines are dead code, they were returned but not used before.
+            rarr = np.logspace(-2, np.log10(5*rmax), 100) # Cut off at 5 times exponential cutoff
+            rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
+            
+            ## creating a mask
+            f1 = lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
+            
+            vec_integral = np.vectorize(fire3Dto2D)   
+
+            mask1 = vec_integral(f1,x,y,rmax/cellsize)
+            r = (x**2+y**2)**.5 # * scale_down
+            mask1 = mask1.astype(float)
+             
+            fine_mask = mask1
+
         
         # Precipitation model
         elif profile == "precipitation":       
