@@ -465,28 +465,6 @@ def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     return df,bins
 
 
-# The user can create their own function
-# All length scales have to be converted into units of cellsize
-
-def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift):
-        
-    #final_ar = np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc)**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/100)**-xi2)**2)])# + neconstant
-    x = (np.array(r) <= XRvir*Rvirkpc)
-
-    # TODO I got this line broken from Adnan and had to guess where the ) goes to make it valid
-    final_ar =   np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc/(1+redshift))**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/(100*(1+redshift))**-xi2)**2)) + x.astype(int)*neconstant])
-       
-
-    return final_ar
-
-
-
-# nePercipitation(10)
-
-# pass rkpc 
-
-
-
 # Convert custom 3D function to 2D by integrating over z
 def func3Dto2D(f,x,y,Rvir):
     return integrate.quad(f,-(Rvir**2-(x**2+y**2))**.5,(Rvir**2-(x**2+y**2))**.5,args=(x,y))[0]
@@ -719,6 +697,9 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
 class CGMProfile(metaclass=abc.ABCMeta):
     """Interface used by cgmbrush that handles creating a CGM profile to convolve."""
 
+    def __init__(self):
+        self.name = type(self).__name__
+
     @classmethod
     def __subclasshook__(cls, subclass):
         return (hasattr(subclass, 'get_mask') and
@@ -736,6 +717,9 @@ class CGMProfile(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 class TophatProfile(CGMProfile):
+
+    def __init__(self):
+        self.name = "tophat"
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
 
@@ -761,6 +745,18 @@ def fire_func(r, rmax, Rinterp, rho0, cellsize):
     R1 = rmax/cellsize  # Convert length scale into units of cellsize
     R2 = Rinterp/cellsize
     return rho0*np.exp(-r/R1)*  ((r+.5)/R2)**-2
+
+# The user can create their own function
+# All length scales have to be converted into units of cellsize
+def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift):
+        
+    #final_ar = np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc)**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/100)**-xi2)**2)])# + neconstant
+    x = (np.array(r) <= XRvir*Rvirkpc)
+
+    # TODO I got this line broken from Adnan and had to guess where the ) goes to make it valid
+    final_ar =   np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc/(1+redshift))**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/(100*(1+redshift))**-xi2)**2)) + x.astype(int)*neconstant])
+
+    return final_ar
 
 # Status: This is the latest convolution function
 
@@ -795,7 +791,6 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
     addition_masks =np.zeros([chunks,nsmall,nsmall])
     
     # loops through the list of dataframes each ordered by ascending mass
-    
     for j in range(0,chunks):
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / h
         conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
@@ -808,6 +803,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize)
         
 
+        # TODO refactor into classes
         # spherical tophat
         if profile == 'tophat_spherical':
             r = (x**2+y**2)**.5
@@ -971,16 +967,9 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
                 [120, 3.2e11, 20, 0.3, 7.9,  0.70, 9.5e-4, 1.2, 1.5e-6, 2.2],\
                 [120, 3.2e11, 20, 0.1, 4.9,  0.71, 1.9e-3, 1.2, 2.7e-6, 2.2]])
 
-
             #chooses metalicity and cooling criterion parameters we will interpolate on
             reducedarr = fitarray[(fitarray[:, 3] == Zmetal) & (fitarray[:, 2] ==  tratcrit)]
-            reducedarr = reducedarr[::-1] #reverses array
-            
-            #old interpolation
-            #n1 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 6])
-            #xi1 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 7])
-            #n2 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 8])
-            #xi2 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 9])                  
+            reducedarr = reducedarr[::-1] #reverses array           
             
             #better interpolation
             logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo)   
@@ -1023,7 +1012,6 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
                      
             vec_integral=np.vectorize(fire3Dto2D)
             
-        #     mask1 = vec_integral(f1,x,y,XRvir*Rvirkpc/cellsize_kpc)
             mask1 = vec_integral(f1,x,y,XRvir*Rvirkpc/cellsize_kpc)
             r=(x**2+y**2)**.5 # * scale_down
             mask1=mask1.astype(float)
@@ -1173,8 +1161,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
 
                 fine_mask=fine_mask.astype(float)
                 fine_mask[r> scale_down*conv_rad[j]/cellsize] =0      
-        else:
-            raise ValueError("Not valid profile provided")
+
                 
         
         # Smoothing method: reshaping
@@ -1583,13 +1570,13 @@ class Configuration:
     """Configuration for a run of cgmbrush."""
 
     # Default options
-    def __init__(self, addition_halo_profile, scaling_radius, resolution=1, file_prefix=None, den_grid_size=256, RS_array=[0], load_from_files=False):
+    def __init__(self, addition_profile: CGMProfile, scaling_radius, resolution=1, file_prefix=None, den_grid_size=256, RS_array=[0], load_from_files=False):
         
         # Profile to use for adding in CGM
-        self.addition_halo_profile = addition_halo_profile
+        self.addition_profile = addition_profile
         self.file_prefix = file_prefix
         if (self.file_prefix == None):
-            self.file_prefix = self.addition_halo_profile
+            self.file_prefix = self.addition_profile
 
         self.scaling_radius = scaling_radius
 
@@ -1637,7 +1624,7 @@ class Configuration:
 
             self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
-                                                self.addition_halo_profile, self.scaling_radius, self.resolution)
+                                                self.addition_profile, self.scaling_radius, self.resolution)
             saveArray(filename, *self.results)
             
             if trace:
