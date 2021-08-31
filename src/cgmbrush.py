@@ -33,6 +33,10 @@ nPS = msun/mprot*(1-Yhe/2) # accounts for the fact that some mass is in helium
 lightspeed = 3e5 #km/s
 pi = np.pi
 mp = 1.6726216e-24  #proton mass in gr
+            
+KPCTOCM = 3.086e21
+MPCTOCM = 3.086e24
+mu = 1/((1-Yhe) + 2.*Yhe/4)  #mean molecular weight to give number of electrons assuming helium doubly ionized
 
 # Cosmological parameters
 z = 0
@@ -43,6 +47,7 @@ OmegaL = 1- OmegaM #assumes flat universe
 OmegaB = 0.0469 
 rho_m = OmegaM*rho_c
 fd = 1 # fraction of baryons in diffused ionized gas (FRB paper)
+fb = OmegaB/OmegaM #fraction of matter in baryons
 
 def rhoB(z):
     return OmegaB*rho_c*(1+z)**3
@@ -459,6 +464,29 @@ def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     
     return df,bins
 
+
+# The user can create their own function
+# All length scales have to be converted into units of cellsize
+
+def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift):
+        
+    #final_ar = np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc)**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/100)**-xi2)**2)])# + neconstant
+    x = (np.array(r) <= XRvir*Rvirkpc)
+
+    # TODO I got this line broken from Adnan and had to guess where the ) goes to make it valid
+    final_ar =   np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc/(1+redshift))**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/(100*(1+redshift))**-xi2)**2)) + x.astype(int)*neconstant])
+       
+
+    return final_ar
+
+
+
+# nePercipitation(10)
+
+# pass rkpc 
+
+
+
 # Convert custom 3D function to 2D by integrating over z
 def func3Dto2D(f,x,y,Rvir):
     return integrate.quad(f,-(Rvir**2-(x**2+y**2))**.5,(Rvir**2-(x**2+y**2))**.5,args=(x,y))[0]
@@ -715,7 +743,7 @@ class TophatProfile(CGMProfile):
 # From rhogas Fire, TODO reorganize
 # The user can create their own function
 # All length scales have to be converted into units of cellsize
-def my_func(r, rmax,Rinterp,rho0,cellsize):
+def fire_func(r, rmax, Rinterp, rho0, cellsize):
     R1 = rmax/cellsize  # Convert length scale into units of cellsize
     R2 = Rinterp/cellsize
     return rho0*np.exp(-r/R1)*  ((r+.5)/R2)**-2
@@ -853,15 +881,8 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
         
         # testing code to add Fire simulation halos
         elif profile == "fire":
-            #fundamental constants
-            # KPCTOCM = 3.086e21
-            MPCTOCM = 3.086e24
             Msun =  1.9889e33  # gr 
 
-            #cosmology "constants"
-            fb = OmegaB/OmegaM #fraction of matter in baryons
-            YHE = 0.25 #helium mass fraction
-            mu = 1/((1-YHE) + 2.*YHE/4)  #mean molecular weight to give number of electrons assuming helium doubly ionized
   
             # This is FIRE simulation profile (from eyeballing https://arxiv.org/pdf/1811.11753.pdf and using their $r^{-2}$ scaling)
             #  I'm using the $r^{-2}$ profile they find, with an exponetial cutoff at rmax, where we use conservation of mass to determine rmax.  So
@@ -898,22 +919,126 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
             rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
             
             ## creating a mask
-            f1 = lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
+            # TODO perf bottleneck is here
+            f1 = lambda x, y, z: fire_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
             
             vec_integral = np.vectorize(fire3Dto2D)   
 
             mask1 = vec_integral(f1,x,y,rmax/cellsize)
-            r = (x**2+y**2)**.5 # * scale_down
-            mask1 = mask1.astype(float)
-             
-            fine_mask = mask1
-
+            fine_mask = mask1.astype(float)
         
         # Precipitation model
         elif profile == "precipitation":       
-            # TODO get gasProfile_precipitation in this module
-#             fine_mask = rhogasFire(Mvir_avg[j],conv_rad[j], redshift, adjustmentfactor,resolution)[2]
-            fine_mask = nePercipitation(np.log10(Mvir_avg[j]),1000*conv_rad[j],resolution,redshift)[1]
+            logMhalo = np.log10(Mvir_avg[j])
+            Rvirkpc = 1000*conv_rad[j]
+            XRvir = 2 # XRvir is how many virial radii to go out
+            #Zmetal is the metalicity; tratcrit is the coolin crieteria -- both of these don't need to change
+            Zmetal = 0.3
+            tratcrit = 10
+    
+            fbaryon=0.2 #put in correct value TODO
+        #     Rvirkpc = 300 #put in correct value here
+            
+            fitarray = np.array([[350, 8e12, 10, 0.5, 2.7,  0.73, 1.2e-1, 1.2, 3.8e-4,  2.1], \
+                [350, 8e12, 10, 0.3, 2.4,  0.74, 1.5e-1, 1.2, 4.2e-4, 2.1], \
+            # [350, 8e12, 10 &  $Z_{\rm grad}$ & 3.6  &  0.68 &  $8.6 \times 10^{-2}$ & 1.1 & $4.1 \times 10^{-4}$ & 2.0 \\
+            # [300, 5.1e12,  & 10 &  1.0 & 3.3  &  0.71 & 5.6 \times 10^{-2}$  & 1.2 & $1.7 \times 10^{-4}$ & 2.1 \\
+                [300, 5.1e12,  10,  0.5, 2.6,  0.72, 8.0e-2, 1.2, 2.3e-4,  2.1], \
+                [300, 5.1e12,  10,  0.3, 2.3, 0.73,  9.6e-2, 1.2, 2.6e-4,  2.1], \
+            #300 &  $5.1 \times 10^{12}$  & 10 &  $Z_{\rm grad}$ & 3.4  &  0.67 &  $5.8 \times 10^{-2}$ & 1.1 & $2.6 \times 10^{-4}$ & 2.1 \\
+            #[300, 5.1e12,  20, 1.0,  5.2, 0.70, 2.9e-2, 1.1, 1.0e-4, 2.1],
+                [300, 5.1e12, 20, 0.5,  4.1,  0.71, 4.3e-2, 1.1, 1.4e-4, 2.1], \
+                [300, 5.1e12, 20, 0.3, 3.6,  0.71, 5.1e-2, 1.2, 1.6e-4, 2.1], \
+            #300 &  $5.1 \times 10^{12}$  & 20 &  $Z_{\rm grad}$ & 5.4  &  0.65 &  $3.0 \times 10^{-3}$ & 1.1 & $1.6 \times 10^{-4}$ & 2.1 \\
+            # 250 &  $2.9 \times 10^{12}$  & 10 &  1.0 & 3.7  &  0.71 &  $2.8 \times 10^{-2}$ & 1.2 & $8.1 \times 10^{-5}$ & 2.2 \\
+                [250, 2.9e12, 10,  0.5, 2.8, 0.72, 4.2e-2, 1.2, 1.1e-4, 2.2], \
+                [250, 2.9e12, 10,  0.3, 2.4,  0.72, 5.1e-3, 1.2, 1.3e-4, 2.2], \
+            #250 &  $2.9 \times 10^{12}$  & 10 &  $Z_{\rm grad}$ & 3.7 &  0.66  &  $2.9 \times 10^{-2}$ & 1.1 & $1.3 \times 10^{-4}$ & 2.1 \\
+            #220 &  $2.0 \times 10^{12}$  & 10 &  1.0 & 4.0  &  0.70    &  $1.7 \times 10^{-2}$ & 1.2 & $4.2 \times 10^{-5}$ & 2.3 \\
+                [220, 2.0e12,  10,  0.5, 3.0,  0.71, 2.5e-2, 1.2, 6.1e-5, 2.2], \
+                [220, 2.0e12,  10, 0.3, 2.6,  0.71, 3.1e-2, 1.2, 7.2e-5, 2.2], \
+            #220 &  $2.0 \times 10^{12}$  & 10 &  $Z_{\rm grad}$ & 4.1  &  0.65 &  $1.8 \times 10^{-2}$ & 1.1 & $7.4 \times 10^{-5}$ & 2.2 \\
+            #220 &  $2.0 \times 10^{12}$  & 20 &  1.0 & 6.3  &  0.69  &  $8.6 \times 10^{-3}$ & 1.1 & $2.3 \times 10^{-5}$ & 2.3 \\
+                [220, 2.0e12,  20,  0.5, 4.8, 0.70, 1.3e-2, 1.1, 3.4e-5, 2.2], \
+                [220, 2.0e12,  20,  0.3, 4.1,  0.70, 1.6e-2, 1.1, 4.2e-5, 2.2], \
+            #220 &  $2.0 \times 10^{12}$  & 20 &  $Z_{\rm grad}$ & 6.5  &  0.63 &  $9.2 \times 10^{-3}$ & 1.1 & $4.3 \times 10^{-4}$ & 2.1 \\
+            # 180 &  $1.1 \times 10^{12}$  & 10 &  1.0 & 5.6  &  0.71  &  $5.4 \times 10^{-3}$ & 1.2 & $9.6 \times 10^{-6}$ & 2.2 \\
+                [180, 1.1e12, 10,  0.5, 4.0,  0.71, 8.7e-3, 1.2, 1.6e-5, 2.2], \
+                [180, 1.1e12, 10,  0.3, 3.4,  0.71, 1.1e-2, 1.2, 2.1e-5, 2.2], \
+            #180 &  $1.1 \times 10^{12}$  & 10 &  $Z_{\rm grad}$ & 5.7  &  0.63 &  $5.9 \times 10^{-3}$ & 1.1 & $2.3 \times 10^{-5}$ & 2.2 \\
+                [150, 6.3e11, 10,  0.5, 6.1,  0.68, 2.8e-3, 1.2, 7.4e-6, 2.3], \
+                [150, 6.3e11, 10, 0.3, 4.9,  0.68, 3.4e-3, 1.1, 9.8e-6, 2.2], \
+                [150, 6.3e11, 10, 0.1, 3.0, 0.69, 8.1e-3, 1.2, 1.9e-5, 2.2], \
+                [120, 3.2e11, 10, 0.5, 6.1,  0.69, 1.4e-3, 1.2, 2.3e-6, 2.2], \
+                [120, 3.2e11, 10, 0.3, 5.0,  0.70, 1.9e-3, 1.2, 2.9e-6, 2.2], \
+                [120, 3.2e11, 10, 0.1, 3.1,  0.71, 3.7e-3, 1.2, 5.1e-6, 2.2], \
+                [120, 3.2e11, 20, 0.5, 9.6,  0.69, 7.0e-4, 1.2, 1.2e-6, 2.2],\
+                [120, 3.2e11, 20, 0.3, 7.9,  0.70, 9.5e-4, 1.2, 1.5e-6, 2.2],\
+                [120, 3.2e11, 20, 0.1, 4.9,  0.71, 1.9e-3, 1.2, 2.7e-6, 2.2]])
+
+
+            #chooses metalicity and cooling criterion parameters we will interpolate on
+            reducedarr = fitarray[(fitarray[:, 3] == Zmetal) & (fitarray[:, 2] ==  tratcrit)]
+            reducedarr = reducedarr[::-1] #reverses array
+            
+            #old interpolation
+            #n1 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 6])
+            #xi1 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 7])
+            #n2 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 8])
+            #xi2 = np.interp(logMhalo, np.log10(reducedarr[:, 1]), reducedarr[:, 9])                  
+            
+            #better interpolation
+            logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo)   
+            n1 = 10**logn1
+            xi1 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(logMhalo) 
+            logn2 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(logMhalo)   
+            n2 = 10**logn2
+            xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(logMhalo) 
+                
+            #print(logMhalo, n1, xi1, n2, xi2)
+
+            rkpc = np.logspace(0, np.log10(Rvirkpc*XRvir), 300)#number of radial bins
+
+            #Voit 2018 fitting formulae
+            rhoarr = np.array([rkpc, 1/np.sqrt(1/(n1*(rkpc)**-xi1+ 1e-20)**2 + 1/(n2*(rkpc/100)**-xi2 + 1e-20)**2)])
+            
+            #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
+            rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
+            conv = (1.989e33/(1.67e-24))/(3.086e21)**3  #constants: use your values TODO
+            mtotal = integrate.quad(rhointerp, 0, 3*np.log(10))[0]/conv
+            
+            #add in rest of mass 
+            neconstant =(10**logMhalo*fbaryon-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
+        #     print(neconstant)
+            length = len(rkpc)
+        #     print("shape = ", length)
+            for i in range(length):
+                if rhoarr[0,  i] < XRvir*Rvirkpc:
+        #             rhoarr[1, i] = np.array([1/np.sqrt(1/(n1*(rkpc)**-xi1+ 1e-20)**2 + 1/(n2*(rkpc/100)**-xi2 + 1e-20)**2)])[1,i] + neconstant
+                    rhoarr[1, i] = rhoarr[1, i] + neconstant
+            
+            #print("ftotal =", mtotal/10**logMhalo/fbaryon, neconstant) #.2 is fraction of baryons
+            cellsize_kpc = cellsize * 1000 # kpc
+            
+        #     x = np.ogrid[-10*resolution: 10*resolution]
+            y,x = np.ogrid[-20*resolution: 20*resolution, -20*resolution:20*resolution]
+
+        #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
+            f1= lambda x, y, z: precipitation_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift)
+                     
+            vec_integral=np.vectorize(fire3Dto2D)
+            
+        #     mask1 = vec_integral(f1,x,y,XRvir*Rvirkpc/cellsize_kpc)
+            mask1 = vec_integral(f1,x,y,XRvir*Rvirkpc/cellsize_kpc)
+            r=(x**2+y**2)**.5 # * scale_down
+            mask1=mask1.astype(float)
+            mask1[r > (XRvir*Rvirkpc/cellsize_kpc)]=0         
+
+        #     mask1[r <= (XRvir*Rvirkpc/cellsize_kpc)] =+ neconstant 
+               
+            fine_mask = mask1
+
+
         
         elif profile == "2RVSTH_and_NFW_13.5":
             if Mvir_avg[j] <= 10**13.5:
