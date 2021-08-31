@@ -767,7 +767,6 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
     # array of halo masses and radii
     Mvir_avg = np.zeros(chunks)
     conv_rad = np.zeros(chunks)
-    Rvir_avg = np.zeros(chunks)
 
     # convolution mask array
     new_conv = np.zeros([chunks,no_cells,no_cells])
@@ -1209,7 +1208,7 @@ def add_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
         addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
         
     
-    return (new_conv.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, addition_masks, Mvir_avg
+    return (new_conv.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, addition_masks, Mvir_avg
 
 
 # Halos removed field
@@ -1246,7 +1245,7 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
     # convolve halos for adding back
     addition_profile_initial=add_halos(df,resolution,bin_markers,addition_halo_profile,scaling_radius,redshift)
     addition_profile = addition_profile_initial[0]
-    addition_profile_masks=addition_profile_initial[3]
+    addition_profile_masks=addition_profile_initial[2]
     
     # add halos to the subtracted field
     halosremoved_fine = (np.repeat((np.repeat(halos_removed_coarse,(1024/den_grid_size)*resolution,axis=0)),(1024/den_grid_size)*resolution,axis=1))
@@ -1256,7 +1255,7 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
     halos_added = addition_profile +  halosremoved_fine
     
     virial_rad = addition_profile_initial[1]
-    halo_masses = addition_profile_initial[4]
+    halo_masses = addition_profile_initial[3]
     
     return halos_added, halosremoved_fine,addition_profile,addition_profile_masks,halos_removed_coarse,virial_rad,halo_masses
     
@@ -1570,14 +1569,18 @@ def saveArray(filename, *arrays, folder = varFolder):
     if not(os.path.exists(folder)):
         os.makedirs(folder)
 
-    if len(arrays) == 1:
-        np.save(file_path, arrays[0]) # unwrap it out of tuple or it will not round-trip
+    if len(arrays) == 1: # unwrap it out of tuple or it will not round-trip
+        np.save(file_path, arrays[0]) 
     else:
-        np.save(file_path, arrays) # it will wrap the tuple in an array... savez?
+        np.save(file_path, arrays) 
     
 def loadArray(filename, folder = varFolder):
     file_path = os.path.join(folder, filename + ".npy")
-    return np.load(file_path, allow_pickle=True)
+    try:
+        return np.load(file_path, allow_pickle=True)
+    except FileNotFoundError:
+        file_path = os.path.join(folder, filename + ".txt")
+        return np.load(file_path, allow_pickle=True)
 
 
 class Configuration:
