@@ -1,5 +1,6 @@
 from __future__ import print_function 
 from __future__ import division
+from operator import countOf
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import core
@@ -716,6 +717,22 @@ class CGMProfile(metaclass=abc.ABCMeta):
            for the specified halo parameters and redshift."""
         raise NotImplementedError
 
+class MassDependentProfile(CGMProfile):
+    """Profile to use when you want to use different profiles for different mass ranges."""
+
+    def __init__(self, lower_profile: CGMProfile, higher_profile: CGMProfile, cutoff_mass: float):
+        self.name = lower_profile.name + "_and_" + higher_profile.name + "_{:.1f}".format(math.log10(cutoff_mass))
+        self.lower_profile = lower_profile
+        self.higher_profile = higher_profile
+        self.cutoff_mass = cutoff_mass
+
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+        if mass <= self.cutoff_mass:
+            return self.lower_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, *args)
+        else:
+            return self.higher_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, *args)
+
+
 class TophatProfile(CGMProfile):
 
     def __init__(self):
@@ -737,8 +754,9 @@ class TophatProfile(CGMProfile):
 
 class SphericalTophatProfile(CGMProfile):
 
-    def __init__(self):
+    def __init__(self, extra=1):
         self.name = "tophat_spherical"
+        self.extra = extra
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
 
@@ -748,7 +766,10 @@ class SphericalTophatProfile(CGMProfile):
         scale_down = 2  # making the grid coarser    
 
         r = (x**2+y**2)**.5
-        fine_mask = r <= (scaling_radius * scale_down * comoving_radius / cellsize)
+
+        # TODO this 'extra' thing I added was for compatibility with the 2RVSTH_and_NFW_X profiles, which for some reason have an extra *2 in the fine mask line below. 
+        # I think it's a BUG, but all the profiles like 2RVSTH_and_NFW_13.5 had it in their spherical tophat code (not the NFW side, curiosuly)
+        fine_mask = r <= (self.extra * scaling_radius * scale_down * comoving_radius / cellsize)
         fine_mask=fine_mask.astype(float)
         
         Rv = (scaling_radius * scale_down * comoving_radius / cellsize)
@@ -954,6 +975,7 @@ class PrecipitationProfile(CGMProfile):
     #     mask1[r <= (XRvir*Rvirkpc/cellsize_kpc)] =+ neconstant 
             
         return mask1
+
 
 
 # The user can create their own function
