@@ -1065,156 +1065,11 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
             
             # Radius of first profile:
             #R= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            
             #f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
-            
             #vec_integral = np.vectorize(func3Dto2D)
-            
             #mask1 = vec_integral(f1_1,x,y,R)
-
             #fine_mask=mask1
-        
-    
-        if profile == "2RVSTH_and_NFW_13.5":
-            if Mvir_avg[j] <= 10**13.5:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**13.5:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_13":
-            if Mvir_avg[j] <= 10**13:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**13:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_12.5":
-            if Mvir_avg[j] <= 10**12.5:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**12.5:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        
-        elif profile == "2RVSTH_and_NFW_12":
-            if Mvir_avg[j] <= 10**12:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**12:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_11.5":
-            if Mvir_avg[j] <= 10**11.5:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**11.5:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-        
-        elif profile == "2RVSTH_and_NFW_11":
-            if Mvir_avg[j] <= 10**11:
-                
-                r = (x**2+y**2)**.5
-                
-                # Don't hardcode scaling radius, change later
-                fine_mask = r <= ((2*scaling_radius)*scale_down*conv_rad[j]/cellsize)
-            
-                fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
-            
-                Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-                fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-            elif Mvir_avg[j] > 10**11:
-                vec_integral = np.vectorize(NFW2D)
-                fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize)
-
-                r=(x**2+y**2)**.5 # * scale_down
-
-                fine_mask=fine_mask.astype(float)
-                fine_mask[r> scale_down*conv_rad[j]/cellsize] =0      
-
-                
+                 
         
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
@@ -1628,7 +1483,7 @@ class Configuration:
         self.addition_profile = addition_profile
         self.file_prefix = file_prefix
         if (self.file_prefix == None):
-            self.file_prefix = self.addition_profile
+            self.file_prefix = self.addition_profile.name
 
         self.scaling_radius = scaling_radius
 
@@ -1643,7 +1498,7 @@ class Configuration:
         # Profile used for subtracting halos from the density field
         self.subtraction_halo_profile = 'NFW'
 
-        self.min_mass = 10**10 # TODO into config
+        self.min_mass = 10**10
         self.max_mass = 10**14.5
         self.log_bins = 30
 
