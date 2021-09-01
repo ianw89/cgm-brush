@@ -533,12 +533,13 @@ def gauss_sinc_smoothing(smoothing_array,sigma_gauss,width_sinc,resolution):
 
 # arguments: 
 # haloArray: dataframe of halos, sorted by mass.
-# resolution: 1024 or 2048
+# resolution: 1024 or 2048 TODO 
 # bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
 def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
     
+    # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
     df = haloArray
     no_cells = 1024
     cellsize = L/(1024) 
@@ -562,7 +563,6 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
     
     # coarse mask
     scale_down = 2  # making the grid coarser
-    smooth_r=2
     
     coarse_mask_len = int(fine_mask_len/scale_down)
     fine_mask= np.zeros([2*coarse_mask_len,2*coarse_mask_len])
@@ -707,12 +707,8 @@ class CGMProfile(metaclass=abc.ABCMeta):
         callable(subclass.get_mask) or 
         NotImplemented)
 
-    def get_fine_mask_len(self, resolution: int):
-        """Gets the length of the fine mask this profile will use. TODO But actually it is double this..."""
-        return 20*resolution
-
     @abc.abstractmethod
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
         """Constructs and returns a 2D mask to convolve with the halo locations
            for the specified halo parameters and redshift."""
         raise NotImplementedError
@@ -726,11 +722,11 @@ class MassDependentProfile(CGMProfile):
         self.higher_profile = higher_profile
         self.cutoff_mass = cutoff_mass
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
         if mass <= self.cutoff_mass:
-            return self.lower_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, *args)
+            return self.lower_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
         else:
-            return self.higher_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, *args)
+            return self.higher_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
 
 
 class TophatProfile(CGMProfile):
@@ -738,13 +734,11 @@ class TophatProfile(CGMProfile):
     def __init__(self):
         self.name = "tophat"
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
         # fine mask
         # fine mask size has to correspond to the size of the mask that I eventually trim
-        fine_mask_len = self.get_fine_mask_len(resolution)
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
-
         scale_down = 2  # making the grid coarser    
         
         # TODO Why are we multiplying by scale_down
@@ -758,11 +752,9 @@ class SphericalTophatProfile(CGMProfile):
         self.name = "STH"
         self.extra = extra
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        fine_mask_len = self.get_fine_mask_len(resolution)
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
-
         scale_down = 2  # making the grid coarser    
 
         r = (x**2+y**2)**.5
@@ -781,14 +773,13 @@ class NFWProfile(CGMProfile):
     def __init__(self):
         self.name = "NFW"
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
         # TODO ? add redshift to the function above ?
         R_s= comoving_radius/(halo_conc(redshift,mass)*cellsize)  
         rho_nought = rho_0(redshift,mass,R_s)
         scale_down = 2  # making the grid coarser    
 
-        fine_mask_len = self.get_fine_mask_len(resolution)
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
         vec_integral = np.vectorize(NFW2D)
@@ -819,9 +810,8 @@ class FireProfile(CGMProfile):
     def __init__(self):
         self.name = "fire"
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        fine_mask_len = self.get_fine_mask_len(resolution)
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
         Msun =  1.9889e33  # gr 
@@ -870,9 +860,8 @@ class PrecipitationProfile(CGMProfile):
     def __init__(self):
         self.name = "precipitation"
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
+    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        fine_mask_len = self.get_fine_mask_len(resolution)
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
         logMhalo = np.log10(mass)
@@ -1017,7 +1006,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
     scale_down = 2  # making the grid coarser    
     
     # store all profile masks
-    fine_mask_len = profile.get_fine_mask_len(resolution)
+    fine_mask_len = 20*resolution # TODO CGMBrush is forcing this mask size scheme. Should implementers get to choose?
     nbig = fine_mask_len*2
     nsmall = int(nbig/scale_down)
     addition_masks =np.zeros([chunks,nsmall,nsmall])
@@ -1027,7 +1016,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / h
         conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
 
-        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize)
+        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
             
        # elif profile == 'custom':
             
