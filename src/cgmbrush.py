@@ -700,7 +700,6 @@ class CGMProfile(metaclass=abc.ABCMeta):
 
     def __init__(self):
         self.name = type(self).__name__
-        self.shortname = None
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -756,8 +755,7 @@ class TophatProfile(CGMProfile):
 class SphericalTophatProfile(CGMProfile):
 
     def __init__(self, extra=1):
-        self.name = "tophat_spherical"
-        self.shortname = "STH"
+        self.name = "STH"
         self.extra = extra
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
@@ -1492,8 +1490,6 @@ class Configuration:
         self.resolution = resolution # x1024
 
         self.file_prefix = file_prefix
-        if (self.file_prefix == None):
-            self.file_prefix = self.addition_profile.shortname
         if (self.file_prefix == None):
             self.file_prefix = self.addition_profile.name
 
