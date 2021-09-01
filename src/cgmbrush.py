@@ -700,6 +700,7 @@ class CGMProfile(metaclass=abc.ABCMeta):
 
     def __init__(self):
         self.name = type(self).__name__
+        self.shortname = None
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -756,6 +757,7 @@ class SphericalTophatProfile(CGMProfile):
 
     def __init__(self, extra=1):
         self.name = "tophat_spherical"
+        self.shortname = "STH"
         self.extra = extra
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, *args):
@@ -1474,20 +1476,28 @@ def loadArray(filename, folder = varFolder):
 
 
 class Configuration:
-    """Configuration for a run of cgmbrush."""
+    """
+    Configuration for a run of cgmbrush. 
+    
+    Contains various utilities for running the code and analyzing the results.
+    """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, scaling_radius, resolution=1, file_prefix=None, den_grid_size=256, RS_array=[0], load_from_files=False):
+    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider=None, resolution=1, file_prefix=None, den_grid_size=256, RS_array=[0], load_from_files=False):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
+        self.scaling_radius = scaling_radius
+        self.provider = provider
+        self.resolution = resolution # x1024
+
         self.file_prefix = file_prefix
+        if (self.file_prefix == None):
+            self.file_prefix = self.addition_profile.shortname
         if (self.file_prefix == None):
             self.file_prefix = self.addition_profile.name
 
-        self.scaling_radius = scaling_radius
-
-        # Resolution: choose between 256 and 512 grid
+        # Resolution: choose between 256 and 512 grid TODO this is Bolshoi specific
         if den_grid_size != 256 and den_grid_size != 512:
             raise ValueError("Only resolutions 256 and 512 are allowed")
         self.den_grid_size = den_grid_size 
@@ -1501,8 +1511,6 @@ class Configuration:
         self.min_mass = 10**10
         self.max_mass = 10**14.5
         self.log_bins = 30
-
-        self.resolution = resolution # x1024
 
         self.load_from_files = load_from_files
         self.results = None
