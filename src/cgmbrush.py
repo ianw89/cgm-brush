@@ -610,8 +610,7 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
             fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
             
             fine_mask=fine_mask.astype(float)
-        
-        
+            
         elif profile == 'custom':
             
             # Functions for profile
@@ -655,7 +654,7 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
             
             mask1 = vec_integral(f1_1,x,y,R)
 
-            fine_mask=mask1
+            fine_mask=mask1 
         
         
         # Smoothing method: reshaping
@@ -692,7 +691,7 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
         
         
     
-    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, Rvir_avg, fine_mask, coarse_mask,halo_cell_pos
+    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)
 
 
 class CGMProfile(metaclass=abc.ABCMeta):
@@ -1100,7 +1099,7 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
     bin_markers= halo_array_for_convolution[1]
     
     # convolve halos
-    subtraction_profile = subtract_halos(df,resolution,bin_markers,subtraction_halo_profile,scaling_radius,redshift)[0]
+    subtraction_profile = subtract_halos(df,resolution,bin_markers,subtraction_halo_profile,scaling_radius,redshift)
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1)
     
     # create coarse grid
@@ -1428,11 +1427,13 @@ def create_histograms(halos_reAdded_translated,resolution):
 # TODO Perhaps they will go in a different part of the package.
 ###########################################
 
-varFolder = "../var"
-testFolder = "test"
+varFolder = "../var" # var folder above src is outside version control
+testFolder = "test" # test folder under src is in version control
+# TODO there are tests that require the Bolshoi sims files, but those are big and not in version control.
+#   Possible solution - reduce the Bolshoi files down to 1/100 the size for testing only.
 
-# Intermediate numpy arrays get can be saved into var folder outside version control
 def saveFig(filename_base, fig):
+    """Saves matplotlib figures to a specified folder (defaults to a var folder outside verion control)."""
     file_path = os.path.join(varFolder, filename_base)
     
     if not(os.path.exists(varFolder)):
@@ -1440,9 +1441,8 @@ def saveFig(filename_base, fig):
 
     fig.savefig(file_path + '_images')
 
-
-# Intermediate numpy arrays get can be saved into var folder outside version control
 def saveArray(filename, *arrays, folder = varFolder):
+    """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
     file_path = os.path.join(folder, filename)
     
     if not(os.path.exists(folder)):
@@ -1454,6 +1454,7 @@ def saveArray(filename, *arrays, folder = varFolder):
         np.save(file_path, arrays) 
     
 def loadArray(filename, folder = varFolder):
+    """Loads numpy arrays that were saved with saveArray."""
     file_path = os.path.join(folder, filename + ".npy")
     try:
         return np.load(file_path, allow_pickle=True)
