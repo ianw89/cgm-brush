@@ -590,14 +590,13 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
             fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize)
             
             fine_mask=fine_mask.astype(float)
-#             mask5 = mask5* (2*(((scaling_radius*scale_down*conv_rad[j]/cellsize)**2-(r**2))**2)**.25)
             
             Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
             fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
               
         elif profile == 'NFW':
             vec_integral = np.vectorize(NFW2D)
-            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]) # TODO why not conv_rad[j] / cellsize?
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize) # TODO why not conv_rad[j] / cellsize?
 
             r=(x**2+y**2)**.5 # * scale_down
             
@@ -730,12 +729,16 @@ class NFWProfile(CGMProfile):
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
         vec_integral = np.vectorize(NFW2D)
+        # TODO The subtract_halos codepath copy of the next line was just comoving_radius without the /cellsize
+        # Changing to /cellsize does not change the mask produced. This process is strange... investigate.
         fine_mask = vec_integral(x, y, rho_nought, R_s, comoving_radius / cellsize)
         
         r=(x**2+y**2)**.5 # * scale_down
         
         fine_mask = fine_mask.astype(float)
-        fine_mask[r > scale_down * comoving_radius / cellsize] = 0 
+        test = np.copy(fine_mask) # TODO delete this debug test thing
+        fine_mask[r > scale_down * comoving_radius / cellsize] = 0 # sets very small numbers to 0
+        print(np.allclose(test, fine_mask, rtol=1E-10, atol=1E-12))
 
         return fine_mask
 
