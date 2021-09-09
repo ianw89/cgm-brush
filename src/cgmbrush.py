@@ -575,19 +575,14 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
         
         # NFW 
         # add redshift to the function above
-        R_s=0
-        rho_nought=0
-        
         R_s = conv_rad[j]/(halo_conc(redshift,Mvir_avg[j])*cellsize)  
         rho_nought = rho_0(redshift,Mvir_avg[j],R_s)
-        
         
         # Why are we multiplying by scale_down
         if profile == 'tophat':
             r = (x**2+y**2)**.5
             fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize) 
             fine_mask=fine_mask.astype(float)
-
             
         # spherical tophat
         elif profile == 'tophat_spherical':
@@ -599,64 +594,17 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
             
             Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
             fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-            
-        
+              
         elif profile == 'NFW':
             vec_integral = np.vectorize(NFW2D)
-            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j])
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]) # TODO why not conv_rad[j] / cellsize?
 
             r=(x**2+y**2)**.5 # * scale_down
             
             fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
             
             fine_mask=fine_mask.astype(float)
-            
-        elif profile == 'custom':
-            
-            # Functions for profile
-            # Currently hardcoded but should allow the user to provide the function as inputs
-            
-            f1_1 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)**.5
-            f1_2 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)
-            
-            # Radius of first profile:
-            R= (scaling_radius*scale_down*conv_rad[j]/cellsize)/2 
-            
-            
-            vec_integral = np.vectorize(func3Dto2D)
-            
-            mask1 = x**2+y**2 < (R/2)**2
-            mask1 = mask1.astype(float)*vec_integral(f1_1,x,y,R/2)
 
-            mask2_1 = x**2+y**2 >= (R/2)**2
-            mask2_1= mask2_1.astype(float)
-            mask2_2 = x**2+y**2 <= (R)**2
-            mask2_2= mask2_2.astype(float)
-            mask2=mask2_1*mask2_2
-            mask2 = mask2*vec_integral(f1_2,x,y,R)
-
-
-            fine_mask=mask1+mask2
-            
-        
-        elif profile == 'custom_tophat':
-            
-            # Functions for profile
-            # Currently hardcoded but should allow the user to provide the function as inputs
-            
-            # Radius of first profile:
-            R= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            
-            
-            f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
-            
-            vec_integral = np.vectorize(func3Dto2D)
-            
-            mask1 = vec_integral(f1_1,x,y,R)
-
-            fine_mask=mask1 
-        
-        
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
         nbig = fine_mask_len*2
@@ -1017,48 +965,6 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
             
-       # elif profile == 'custom':
-            
-            # TODO the 'custom' profile I got from Adnan was broken when handed to me. Not sure what it was supposed to do. 
-
-            # Functions for profile
-            # Currently hardcoded but should allow the user to provide the function as inputs
-            
-            #f1_1 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)**.5
-            #f1_2 = lambda x,y,z: 1/(x**2+y**2+z**2+.5)
-            
-            # Radius of first profile:
-            #R= (scaling_radius*scale_down*conv_rad[j]/cellsize)/2 
-            
-            #vec_integral = np.vectorize(func3Dto2D)
-            
-            #mask1 = x**2+y**2 < (R/2)**2
-            #mask1 = mask1.astype(float)*vec_integral(f1_1,x,y,R/2)
-
-            #mask2_1 = x**2+y**2 >= (R/2)**2
-            #mask2_1= mask2_1.astype(float)
-            #mask2_2 = x**2+y**2 <= (R)**2
-            #mask2_2= mask2_2.astype(float)
-            #mask2=mask2_1*mask2_2
-            #mask2 = mask2*vec_integral(f1_2,x,y,R)
-
-            #fine_mask=mask1+mask2
-            
-        #elif profile == 'custom_tophat':
-            
-            # TODO the 'custom_tophat' profile I got from Adnan was broken when handed to me. Not sure what it was supposed to do. 
-
-            # Functions for profile
-            # Currently hardcoded but should allow the user to provide the function as inputs
-            
-            # Radius of first profile:
-            #R= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            #f1_1 = lambda x,y,z: np.exp(-((x**2+y**2+z**2)/R**2)**30)
-            #vec_integral = np.vectorize(func3Dto2D)
-            #mask1 = vec_integral(f1_1,x,y,R)
-            #fine_mask=mask1
-                 
-        
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
         nsmall = int(nbig/scale_down)
