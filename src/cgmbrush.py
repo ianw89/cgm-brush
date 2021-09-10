@@ -594,7 +594,7 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
               
         elif profile == 'NFW':
             vec_integral = np.vectorize(NFW2D)
-            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]) # TODO why not conv_rad[j] / cellsize?
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j] / cellsize)
 
             r=(x**2+y**2)**.5 # * scale_down
             
