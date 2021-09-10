@@ -548,13 +548,11 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
     # array of halo masses and radii
     Mvir_avg = np.zeros(chunks)
     conv_rad = np.zeros(chunks)
-    Rvir_avg = np.zeros(chunks)
 
     # convolution mask array
     convolution = np.zeros([chunks,no_cells,no_cells])    
-    #new_conv = np.zeros([chunks,no_cells,no_cells])
-    # creating a coarse map out of a fine mask
     
+    # creating a coarse map out of a fine mask
     # fine mask
     fine_mask_len = 10
     fine_lower= -1*fine_mask_len
@@ -596,7 +594,7 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
               
         elif profile == 'NFW':
             vec_integral = np.vectorize(NFW2D)
-            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]/cellsize) # TODO why not conv_rad[j] / cellsize?
+            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j]) # TODO why not conv_rad[j] / cellsize?
 
             r=(x**2+y**2)**.5 # * scale_down
             
@@ -627,15 +625,7 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
         halo_cell_pos[xy] += 1
         
         # convolve the mask and the halo positions
-        c1 = convolve(halo_cell_pos,coarse_mask, mode='wrap')
-        #c2 = my_convolve(halo_cell_pos,coarse_mask)
-        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c1
-
-        # My fft convolution method gives results that are different from old method at a level > 1e-03 sometimes. TODO which is more accurate? Does it matter?
-        #new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * c2
-        #with np.printoptions(threshold=np.inf,linewidth=np.inf, precision=2):
-        #    assert (np.allclose(c1, c2, rtol=1e-04, atol=1e-04)), "New convolution is not equivalent to old (in wrap mode) during subtract_halos for j=" + str(j) + ".\n" + str(coarse_mask)
-        
+        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)    
         
     
     return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)
@@ -710,6 +700,7 @@ class SphericalTophatProfile(CGMProfile):
         fine_mask = r <= (self.extra * scaling_radius * scale_down * comoving_radius / cellsize)
         fine_mask=fine_mask.astype(float)
         
+        # TODO r should always be less than Rv...
         Rv = (scaling_radius * scale_down * comoving_radius / cellsize)
         fine_mask = fine_mask * ((1-((r/Rv)**2))**(2))**(1/4)
         return fine_mask
@@ -736,9 +727,7 @@ class NFWProfile(CGMProfile):
         r=(x**2+y**2)**.5 # * scale_down
         
         fine_mask = fine_mask.astype(float)
-        test = np.copy(fine_mask) # TODO delete this debug test thing
         fine_mask[r > scale_down * comoving_radius / cellsize] = 0 # sets very small numbers to 0
-        print(np.allclose(test, fine_mask, rtol=1E-10, atol=1E-12))
 
         return fine_mask
 
