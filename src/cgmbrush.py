@@ -84,7 +84,6 @@ V= dx**3 # volume of each cell
 def halo_conc(redshift,halo_mass):
     return (9/(1+redshift))*(halo_mass/(5*10**12))**-0.13  #MM added the exponent
 
-
 # function for rho_0 of NFW
 def rho_0(redshift,halo_mass,R_s):
     c=halo_conc(redshift,halo_mass)
@@ -95,18 +94,24 @@ def q(z):
     return OmegaL/ ((OmegaM*(1+z)**3)+ OmegaL)  
 
 # BUG isn't it + 82, not - 82?
+# Virial Radius is the critical density of the universe at the given redshift times an 
+# overdensity constant Δ_c. Several Δ_c conventions exist; some are redshift dependent.
 def rho_vir(z):
-    return (18*pi**2 - 82*q(z) - 39*q(z)**2)*(rho_c*(OmegaL + OmegaM *(1+z)**3))
-
+    return (18*pi**2 + 82*q(z) - 39*q(z)**2)*(rho_c*(OmegaL + OmegaM *(1+z)**3))
 
 def Rvir_den(z):
     return (4/3 * np.pi * rho_vir(z))**(1/3) # physical, units in 1/r**3
+
+def comoving_radius_for_halo(Mhalo, z):
+    """Get the co-moving radius for a halo of a given mass at a given redshift usign the Bryan+Norman '98 definition."""
+    return (1+z)*((Mhalo)**(1/3) / Rvir_den(z))
 
 #radius that is 200 times the matter density in Mpc  (very similar to rvir)
 def r200Mz(Mhalo, z):
     rhocrit = 2.7755e11*h*h
     rhomatter = rhocrit*OmegaM
     return (Mhalo/((4*np.pi/3)*200.*rhomatter))**(1./3.)
+
 
 
 ########################################
@@ -569,7 +574,7 @@ def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redsh
     
     for j in range(0,chunks):
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/h
-        conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
+        conv_rad[j] = comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
         
         # NFW 
         # add redshift to the function above
@@ -953,7 +958,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
     # loops through the list of dataframes each ordered by ascending mass
     for j in range(0,chunks):
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / h
-        conv_rad[j] = (1+redshift)*((Mvir_avg[j])**(1/3) / Rvir_den(redshift)) # comoving radius
+        conv_rad[j] = comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
             
