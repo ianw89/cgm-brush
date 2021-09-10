@@ -534,108 +534,6 @@ def gauss_sinc_smoothing(smoothing_array,sigma_gauss,width_sinc,resolution):
     return result.real
 
 
-# This function subtracts the halos from the density field
-
-# arguments: 
-# haloArray: dataframe of halos, sorted by mass.
-# resolution: 1024 or 2048 TODO 
-# bin_markers: array giving the indexes of halos at the edges of mass bins
-# profile: tophat, NFW etc
-# scaling_radius: scale radius for tophat halos
-def subtract_halos(haloArray,resolution,bin_markers,profile,scaling_radius,redshift):
-    
-    # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
-    df = haloArray
-    no_cells = 1024
-    cellsize = L/(1024) 
-    chunks = len(bin_markers) - 1
-    
-    # array of halo masses and radii
-    Mvir_avg = np.zeros(chunks)
-    conv_rad = np.zeros(chunks)
-
-    # convolution mask array
-    convolution = np.zeros([chunks,no_cells,no_cells])    
-    
-    # creating a coarse map out of a fine mask
-    # fine mask
-    fine_mask_len = 10
-    fine_lower= -1*fine_mask_len
-    fine_upper= fine_mask_len
-    y,x = np.ogrid[fine_lower: fine_upper, fine_lower:fine_upper]
-    
-    # coarse mask
-    scale_down = 2  # making the grid coarser
-    
-    coarse_mask_len = int(fine_mask_len/scale_down)
-    fine_mask= np.zeros([2*coarse_mask_len,2*coarse_mask_len])
-    
-    # loops through the list of dataframes each ordered by ascending mass
-    
-    for j in range(0,chunks):
-        Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/h
-        conv_rad[j] = comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
-        
-        # NFW 
-        # add redshift to the function above
-        R_s = conv_rad[j]/(halo_conc(redshift,Mvir_avg[j])*cellsize)  
-        rho_nought = rho_0(redshift,Mvir_avg[j],R_s)
-        
-        # Why are we multiplying by scale_down
-        if profile == 'tophat':
-            r = (x**2+y**2)**.5
-            fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize) 
-            fine_mask=fine_mask.astype(float)
-            
-        # spherical tophat
-        elif profile == 'tophat_spherical':
-            r = (x**2+y**2)**.5
-            fine_mask = r <= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            
-            fine_mask=fine_mask.astype(float)
-            
-            Rv= (scaling_radius*scale_down*conv_rad[j]/cellsize)
-            fine_mask = fine_mask* ((((1)**2-((r/Rv)**2))**2)**.25)
-              
-        elif profile == 'NFW':
-            vec_integral = np.vectorize(NFW2D)
-            fine_mask =vec_integral(x,y,rho_nought,R_s,conv_rad[j] / cellsize)
-
-            r=(x**2+y**2)**.5 # * scale_down
-            
-            fine_mask[r> scale_down*conv_rad[j]/cellsize] =0 
-            
-            fine_mask=fine_mask.astype(float)
-
-        # Smoothing method: reshaping
-        # Generating coarse grid from fine grid: reshape method
-        nbig = fine_mask_len*2
-        nsmall = int(nbig/scale_down)
-        coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
-        
-        # Area of cells needed for normalization
-        totalcellArea4=0
-        totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
-
-        # populate array with halos
-        halo_cell_pos = np.zeros([no_cells,no_cells])   
-        
-        # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
-        ix = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(1024)).astype(int)
-        iy = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(1024)).astype(int)
-        
-        xy=(ix,iy)
-
-        # issue: the method does not add repeated coordinates
-        halo_cell_pos[xy] += 1
-        
-        # convolve the mask and the halo positions
-        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)    
-        
-    
-    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)
-
-
 class CGMProfile(metaclass=abc.ABCMeta):
     """Interface used by cgmbrush that handles creating a CGM profile to convolve."""
 
@@ -893,7 +791,7 @@ class PrecipitationProfile(CGMProfile):
         cellsize_kpc = cellsize * 1000 # kpc
         
     #     x = np.ogrid[-10*resolution: 10*resolution]
-        y,x = np.ogrid[-20*resolution: 20*resolution, -20*resolution:20*resolution]
+        y,x = np.ogrid[-20*resolution: 20*resolution, -20*resolution:20*resolution] # TODO delete this line
 
     #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
         f1= lambda x, y, z: precipitation_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift)
@@ -909,8 +807,6 @@ class PrecipitationProfile(CGMProfile):
             
         return mask1
 
-
-
 # The user can create their own function
 # All length scales have to be converted into units of cellsize
 def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift):
@@ -923,6 +819,71 @@ def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,re
 
     return final_ar
 
+
+# This function subtracts the halos from the density field
+
+# arguments: 
+# haloArray: dataframe of halos, sorted by mass.
+# resolution: 1024 or 2048 TODO 
+# bin_markers: array giving the indexes of halos at the edges of mass bins
+# profile: tophat, NFW etc
+# scaling_radius: scale radius for tophat halos
+def subtract_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: float, redshift: float):
+    
+    # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
+    df = haloArray
+    no_cells = 1024
+    cellsize = L/(1024) 
+    chunks = len(bin_markers) - 1
+    
+    # array of halo masses and radii
+    Mvir_avg = np.zeros(chunks)
+    conv_rad = np.zeros(chunks)
+
+    # convolution mask array
+    convolution = np.zeros([chunks,no_cells,no_cells])    
+    
+    # fine and coarse map settings
+    fine_mask_len = 10
+    scale_down = 2  # making the grid coarser
+    nbig = fine_mask_len*2
+    nsmall = int(nbig/scale_down)
+    
+    # loops through the list of dataframes each ordered by ascending mass
+    for j in range(0,chunks):
+        Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/h
+        conv_rad[j] = comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
+
+        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, 1, scaling_radius, cellsize, fine_mask_len)
+
+        # Smoothing method: reshaping
+        # Generating coarse grid from fine grid: reshape method
+        coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
+        
+        # Area of cells needed for normalization
+        totalcellArea4=0
+        totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
+
+        # populate array with halos
+        halo_cell_pos = np.zeros([no_cells,no_cells])   
+        
+        # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
+        ix = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(1024)).astype(int)
+        iy = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(1024)).astype(int)
+        xy=(ix,iy)
+
+        # BUG issue: the method does not add repeated coordinates
+        halo_cell_pos[xy] += 1
+        
+        # convolve the mask and the halo positions
+        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)    
+        
+    
+    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)
+
+
+
+
 # Status: This is the latest convolution function
 
 # The function add halos
@@ -934,11 +895,12 @@ def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,re
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
 def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
-    chunks = len(bin_markers) - 1
+    
     df = haloArray
     no_cells = 1024 * resolution
     cellsize = L / no_cells
-    
+    chunks = len(bin_markers) - 1
+
     # array of halo masses and radii
     Mvir_avg = np.zeros(chunks)
     conv_rad = np.zeros(chunks)
@@ -946,13 +908,13 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
     # convolution mask array
     new_conv = np.zeros([chunks,no_cells,no_cells])
     
-    # coarse mask
-    scale_down = 2  # making the grid coarser    
-    
-    # store all profile masks
+    # fine and coarse map settings
     fine_mask_len = 20*resolution # TODO CGMBrush is forcing this mask size scheme. Should implementers get to choose?
+    scale_down = 2  # making the grid coarser    
     nbig = fine_mask_len*2
     nsmall = int(nbig/scale_down)
+
+    # store all profile masks
     addition_masks =np.zeros([chunks,nsmall,nsmall])
     
     # loops through the list of dataframes each ordered by ascending mass
@@ -964,7 +926,6 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
             
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
-        nsmall = int(nbig/scale_down)
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
 
         # Area of cells needed for normalization
@@ -979,7 +940,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         iy = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
         xy=(ix,iy)
 
-        # issue: the method does not add repeated coordinates BUG is that right?
+        # BUG issue: the method does not add repeated coordinates BUG is that right?
         halo_cell_pos[xy] += 1
 
         # convolve the mask and the halo positions
@@ -1395,7 +1356,7 @@ class Configuration:
         self.RS_array = RS_array # For a single box, we only use the redshift 0 box
 
         # Profile used for subtracting halos from the density field
-        self.subtraction_halo_profile = 'NFW'
+        self.subtraction_halo_profile = NFWProfile()
 
         self.min_mass = 10**10
         self.max_mass = 10**14.5
