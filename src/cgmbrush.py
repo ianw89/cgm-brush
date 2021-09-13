@@ -2,6 +2,7 @@ from __future__ import print_function
 from __future__ import division
 from operator import countOf
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import numpy as np
 from numpy import core
 import scipy.integrate as integrate
@@ -93,7 +94,6 @@ def rho_0(redshift,halo_mass,R_s):
 def q(z):
     return OmegaL/ ((OmegaM*(1+z)**3)+ OmegaL)  
 
-# BUG isn't it + 82, not - 82?
 # Virial Radius is the critical density of the universe at the given redshift times an 
 # overdensity constant Δ_c. Several Δ_c conventions exist; some are redshift dependent.
 def rho_vir(z):
@@ -1410,20 +1410,25 @@ class Configuration:
             cgm_only = self.results[4][0]
             density_final = self.results[1][0]
 
+            vmin = 10 # for a log color plot
+            vmax = max(np.max(original), np.max(background_dm), np.max(cgm_only), np.max(density_final))
+            norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+
             fig, axes = plt.subplots(2,2,figsize=(24, 24))
-            plt.tight_layout()
-            pos = axes[0][0].imshow(original) 
-            fig.colorbar(pos, ax=axes[0][0])
+            pos = axes[0][0].imshow(original, norm=norm) 
+            #fig.colorbar(pos, ax=axes[0][0])
             axes[0][0].title.set_text('Original Density Field')
-            pos = axes[0][1].imshow(background_dm) 
-            fig.colorbar(pos, ax=axes[0][1])
+            pos = axes[0][1].imshow(background_dm, norm=norm) 
+            #fig.colorbar(pos, ax=axes[0][1])
             axes[0][1].title.set_text('Density minus halos')
-            pos = axes[1][0].imshow(cgm_only) 
-            fig.colorbar(pos, ax=axes[1][0])
+            pos = axes[1][0].imshow(cgm_only, norm=norm) 
+            #fig.colorbar(pos, ax=axes[1][0])
             axes[1][0].title.set_text('CGM Profile to add')
-            pos = axes[1][1].imshow(density_final) 
-            fig.colorbar(pos, ax=axes[1][1])
-            axes[1][1].title.set_text('Final Product')
+            pos = axes[1][1].imshow(density_final, norm=norm) 
+            axes[1][1].title.set_text('Final Density Field')
+
+            fig.colorbar(pos, ax=axes, shrink=0.85)
+
 
             self.figure = fig
             saveFig(filename, fig)
