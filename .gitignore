@@ -22,6 +22,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Apple junk folder
+.DS_store
+
+
 # Distribution / packaging
 .Python
 build/
