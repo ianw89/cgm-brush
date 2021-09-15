@@ -20,6 +20,7 @@ import io
 import pstats
 import datetime
 import math
+import sys
 from scipy.interpolate import interp1d
 
 ########################################
@@ -122,6 +123,11 @@ def r200Mz(Mhalo, z):
 
 # Histogram array with min and max defined
 def histArray(arr,nbin,Ncel,DMmin,DMmax):
+    print(arr)
+    print(nbin)
+    print(Ncel)
+    print(DMmin)
+    print(DMmax)
     hist, bins = np.histogram(arr,bins=nbin,range=(DMmin, DMmax))
     dv=bins[1]-bins[0]
     hist=(hist)/(dv*Ncel**2)
@@ -470,20 +476,25 @@ def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     
     return df,bins
 
-
 # Convert custom 3D function to 2D by integrating over z
 def func3Dto2D(f,x,y,Rvir):
     return integrate.quad(f,-(Rvir**2-(x**2+y**2))**.5,(Rvir**2-(x**2+y**2))**.5,args=(x,y))[0]
 
+# BUG I don't think squaring the Rvir in the boundaries of integration makes sense for a variety of reasons
+
 # TODO dedupe
 def fire3Dto2D(f,x,y,Rvir):
-    return integrate.quad(f,-1*np.real((Rvir**2-(x**2+y**2))**.5),np.real((Rvir**2-(x**2+y**2))**.5),args=(x,y))[0] 
+    # TODO why does increasing the range of integration DECREASE the mass in the middle? shouldn't it always grow larger with growing bound??
+    return integrate.quad(f, 0, 2*Rvir, args=(x,y))[0] # -1 to 1 can be 0 to 2 for radial integration (works). 
     
-
 # Project NFW profile from 3D to 2D
 def NFW2D(x,y,rho_nought,R_s,Rvir):
     offset=float(.1)
-    return integrate.quad(lambda x, y, z: rho_nought/(((offset+(x**2+y**2+ z**2)**.5)/R_s)*(1+((x**2+y**2+ z**2)**.5)/R_s)**2),-1*np.real((Rvir**2-(x**2+y**2))**.5),np.real((Rvir**2-(x**2+y**2))**.5),args=(x,y))[0]
+    return integrate.quad(lambda x, y, z: rho_nought/(((offset+(x**2+y**2+z**2)**.5)/R_s)*(1+((x**2+y**2+z**2)**.5)/R_s)**2), -1*np.real((Rvir**2-(x**2+y**2))**.5), np.real((Rvir**2-(x**2+y**2))**.5), args=(x,y))[0]
+
+def IanNFWProjection(x,y,rho_nought,R_s,Rvir):
+    offset=float(.1)
+    return integrate.quad(lambda x, y, z: rho_nought/((((offset+x**2+y**2+z**2)**.5)/R_s)*((1+((x**2+y**2+z**2)**.5)/R_s)**2)), -1*Rvir, Rvir, args=(x,y))[0]
 
 # Function creates a smaller grid from a larger grid by smoothing
 def smoothfield(big, nbig,nsmall):
@@ -538,7 +549,7 @@ class CGMProfile(metaclass=abc.ABCMeta):
     """Interface used by cgmbrush that handles creating a CGM profile to convolve."""
 
     def __init__(self):
-        self.name = type(self).__name__
+        self.debug = False
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -572,6 +583,7 @@ class TophatProfile(CGMProfile):
 
     def __init__(self):
         self.name = "tophat"
+        super().__init__()
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
@@ -590,6 +602,7 @@ class SphericalTophatProfile(CGMProfile):
     def __init__(self, extra=1):
         self.name = "STH"
         self.extra = extra
+        super().__init__()
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
@@ -612,6 +625,7 @@ class NFWProfile(CGMProfile):
     
     def __init__(self):
         self.name = "NFW"
+        super().__init__()
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
@@ -621,12 +635,22 @@ class NFWProfile(CGMProfile):
         scale_down = 2  # making the grid coarser    
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
+        
+        if self.debug:
+            with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
+                print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_radius / cellsize))
 
-        vec_integral = np.vectorize(NFW2D)
+        vec_integral = np.vectorize(IanNFWProjection)
         # TODO The subtract_halos codepath copy of the next line was just comoving_radius without the /cellsize
         # Changing to /cellsize does not change the mask produced. This process is strange... investigate.
         fine_mask = vec_integral(x, y, rho_nought, R_s, comoving_radius / cellsize)
-        
+
+        if self.debug:
+            with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
+                print("from vec integral:")
+                print(fine_mask)                
+                print("done")
+
         r=(x**2+y**2)**.5 # * scale_down
         
         fine_mask = fine_mask.astype(float)
@@ -651,6 +675,7 @@ class FireProfile(CGMProfile):
     
     def __init__(self):
         self.name = "fire"
+        super().__init__()
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
@@ -701,6 +726,7 @@ class PrecipitationProfile(CGMProfile):
     
     def __init__(self):
         self.name = "precipitation"
+        super().__init__()
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
@@ -906,7 +932,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
     conv_rad = np.zeros(chunks)
 
     # convolution mask array
-    new_conv = np.zeros([chunks,no_cells,no_cells])
+    convolution = np.zeros([chunks,no_cells,no_cells])
     
     # fine and coarse map settings
     fine_mask_len = 20*resolution # TODO CGMBrush is forcing this mask size scheme. Should implementers get to choose?
@@ -923,10 +949,20 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         conv_rad[j] = comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
-            
+
+        if profile.debug:
+            with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
+                print("FINE MASK %s" % j)
+                print(fine_mask)
+
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
+
+        if profile.debug:
+            with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
+                print("COARSE MASK %s" % j)
+                print(coarse_mask)
 
         # Area of cells needed for normalization
         totalcellArea4 = 0
@@ -936,6 +972,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         halo_cell_pos = np.zeros([no_cells,no_cells])    
         
         # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
+        # TODO the 250/256 looks fishy to me
         ix = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
         iy = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
         xy=(ix,iy)
@@ -944,13 +981,12 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         halo_cell_pos[xy] += 1
 
         # convolve the mask and the halo positions
-        new_conv[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
+        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
 
         # store addition masks
         addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
         
-    
-    return (new_conv.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, addition_masks, Mvir_avg
+    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, addition_masks, Mvir_avg
 
 
 # Halos removed field
