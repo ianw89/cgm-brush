@@ -123,11 +123,6 @@ def r200Mz(Mhalo, z):
 
 # Histogram array with min and max defined
 def histArray(arr,nbin,Ncel,DMmin,DMmax):
-    print(arr)
-    print(nbin)
-    print(Ncel)
-    print(DMmin)
-    print(DMmax)
     hist, bins = np.histogram(arr,bins=nbin,range=(DMmin, DMmax))
     dv=bins[1]-bins[0]
     hist=(hist)/(dv*Ncel**2)
@@ -476,28 +471,32 @@ def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     
     return df,bins
 
-# Convert custom 3D function to 2D by integrating over z
-def func3Dto2D(f,x,y,Rvir):
-    return integrate.quad(f,-(Rvir**2-(x**2+y**2))**.5,(Rvir**2-(x**2+y**2))**.5,args=(x,y))[0]
-
-# BUG I don't think squaring the Rvir in the boundaries of integration makes sense for a variety of reasons
-
-# TODO dedupe
-def fire3Dto2D(f,x,y,Rvir):
-    # TODO why does increasing the range of integration DECREASE the mass in the middle? shouldn't it always grow larger with growing bound??
-    return integrate.quad(f, 0, 2*Rvir, args=(x,y))[0] # -1 to 1 can be 0 to 2 for radial integration (works). 
+def project_spherical_3Dto2D(f, x, y, Rvir):
+    """Project a spherically symmetric profile from 3D to 2D.
     
-# Project NFW profile from 3D to 2D
-def NFW2D(x,y,rho_nought,R_s,Rvir):
-    offset=float(.1)
-    return integrate.quad(lambda x, y, z: rho_nought/(((offset+(x**2+y**2+z**2)**.5)/R_s)*(1+((x**2+y**2+z**2)**.5)/R_s)**2), -1*np.real((Rvir**2-(x**2+y**2))**.5), np.real((Rvir**2-(x**2+y**2))**.5), args=(x,y))[0]
-
-def IanNFWProjection(x,y,rho_nought,R_s,Rvir):
-    offset=float(.1)
-    return integrate.quad(lambda x, y, z: rho_nought/((((offset+x**2+y**2+z**2)**.5)/R_s)*((1+((x**2+y**2+z**2)**.5)/R_s)**2)), -1*Rvir, Rvir, args=(x,y))[0]
+    Rvir is in units of virial radii per cell, and is used as a hard boundary of the sphere.""" 
+    #print("Rvir, x, y: {}, {}, {}".format(Rvir, x, y))
+    boundary = math.sqrt(max(0.0, Rvir**2-(x**2+y**2)))
+    if boundary == 0.0:
+        return 0.0
+    else:
+        #print("Boundary: {}".format(boundary))
+        return 2 * integrate.quad(f, 0, boundary, args=(x,y))[0] 
+    
+def NFW2D(x, y, rho_nought, R_s, Rvir):
+    """Project NFW profile from 3D to 2D.
+    
+    Rvir is in units of virial radii per cell.""" 
+    offset=float(.1) # TODO .5 and move offset
+    boundary = math.sqrt(max(0.0, Rvir**2-(x**2+y**2)))
+    if boundary == 0.0:
+        return 0.0
+    else:
+        #print("Boundary: {}".format(boundary))
+        return 2 * integrate.quad(lambda x, y, z: rho_nought/(((offset+(x**2+y**2+z**2)**.5)/R_s)*(1+((x**2+y**2+z**2)**.5)/R_s)**2), 0, boundary, args=(x,y))[0]
 
 # Function creates a smaller grid from a larger grid by smoothing
-def smoothfield(big, nbig,nsmall):
+def smoothfield(big, nbig, nsmall):
     
     roll = int((nbig/nsmall)/2)
     y = np.roll(big, roll, axis=0)  #so that y grid takes 2 cells behind and 2 in front
@@ -571,6 +570,7 @@ class MassDependentProfile(CGMProfile):
         self.lower_profile = lower_profile
         self.higher_profile = higher_profile
         self.cutoff_mass = cutoff_mass
+        super().__init__()
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
         if mass <= self.cutoff_mass:
@@ -640,7 +640,7 @@ class NFWProfile(CGMProfile):
             with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
                 print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_radius / cellsize))
 
-        vec_integral = np.vectorize(IanNFWProjection)
+        vec_integral = np.vectorize(NFW2D)
         # TODO The subtract_halos codepath copy of the next line was just comoving_radius without the /cellsize
         # Changing to /cellsize does not change the mask produced. This process is strange... investigate.
         fine_mask = vec_integral(x, y, rho_nought, R_s, comoving_radius / cellsize)
@@ -679,7 +679,7 @@ class FireProfile(CGMProfile):
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
+        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
 
         Msun =  1.9889e33  # gr 
         adjustmentfactor = 1  #probably we want to range between 0.5-2 as the numbers look sensible in this range
@@ -695,18 +695,24 @@ class FireProfile(CGMProfile):
         
         Ntot = mass*Msun*fb/(mu*mp)/(MPCTOCM**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
         rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
-        
+
         # TODO these two lines are dead code, they were returned but not used before. What is the deal?
         #rarr = np.logspace(-2, np.log10(5*rmax), 100) # Cut off at 5 times exponential cutoff
         #rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
         
         ## creating a mask
         # TODO perf bottleneck is here
+        # TODO use symmetry to save computation
         f1 = lambda x, y, z: fire_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
         
-        vec_integral = np.vectorize(fire3Dto2D)   
+        vec_integral = np.vectorize(project_spherical_3Dto2D)   
 
-        fine_mask = vec_integral(f1, x, y, rmax / cellsize)
+        fine_mask = vec_integral(f1, x, y, rmax / cellsize) 
+        if self.debug:
+            with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
+                print("From vec integral:")
+                print(fine_mask)                
+
         fine_mask = fine_mask.astype(float)
 
         return fine_mask
@@ -716,8 +722,10 @@ class FireProfile(CGMProfile):
 # All length scales have to be converted into units of cellsize
 def fire_func(r, rmax, Rinterp, rho0, cellsize):
     R1 = rmax/cellsize  # Convert length scale into units of cellsize
+    assert r < R1, 'r should always be less than R1, but r={} and R1={}.'.format(r, rmax)
     R2 = Rinterp/cellsize
-    return rho0*np.exp(-r/R1)*  ((r+.5)/R2)**-2
+    #print('r: {}, result: {}'.format(r, rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2))
+    return rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2
 
 class PrecipitationProfile(CGMProfile):
     """
@@ -822,7 +830,7 @@ class PrecipitationProfile(CGMProfile):
     #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
         f1= lambda x, y, z: precipitation_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift)
                     
-        vec_integral=np.vectorize(fire3Dto2D)
+        vec_integral=np.vectorize(project_spherical_3Dto2D)
         
         mask1 = vec_integral(f1,x,y,XRvir*Rvirkpc/cellsize_kpc)
         r=(x**2+y**2)**.5 # * scale_down
@@ -887,7 +895,6 @@ def subtract_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile,
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
         
         # Area of cells needed for normalization
-        totalcellArea4=0
         totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
 
         # populate array with halos
@@ -951,7 +958,7 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
 
         if profile.debug:
-            with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
+            with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
                 print("FINE MASK %s" % j)
                 print(fine_mask)
 
@@ -960,12 +967,11 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
 
         if profile.debug:
-            with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
+            with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
                 print("COARSE MASK %s" % j)
                 print(coarse_mask)
 
         # Area of cells needed for normalization
-        totalcellArea4 = 0
         totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
         
         # populate array with halos
