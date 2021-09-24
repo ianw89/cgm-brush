@@ -1391,17 +1391,13 @@ class Configuration:
     """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider=None, resolution=1, file_prefix=None, den_grid_size=256, RS_array=[0], load_from_files=False):
+    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider=None, resolution=1, den_grid_size=256, RS_array=[0]):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
         self.scaling_radius = scaling_radius
         self.provider = provider
         self.resolution = resolution # x1024
-
-        self.file_prefix = file_prefix
-        if (self.file_prefix == None):
-            self.file_prefix = self.addition_profile.name
 
         # Resolution: choose between 256 and 512 grid TODO this is Bolshoi specific
         if den_grid_size != 256 and den_grid_size != 512:
@@ -1418,17 +1414,18 @@ class Configuration:
         self.max_mass = 10**14.5
         self.log_bins = 30
 
-        self.load_from_files = load_from_files
         self.results = None
         self.figure = None
     
 
-    def run(self, plots=False, trace=False):
+    def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
         """Run this configuration."""
+        scaling = ''
+        if self.scaling_radius > 1:
+            scaling = '_' + str(self.scaling_radius)
+        filename = self.addition_profile.name + str(self.resolution) + scaling + '_' + str(self.den_grid_size) + "_" + str(datetime.date.today())
 
-        filename = self.file_prefix + str(self.resolution) + '_' + str(self.den_grid_size) + "_" + str(datetime.date.today())
-
-        if self.load_from_files:
+        if load_from_files:
             try:
                 self.results = loadArray(filename)
             
@@ -1488,3 +1485,7 @@ class Configuration:
 
             self.figure = fig
             saveFig(filename, fig)
+        
+        if not results_in_memory:
+            # Results are saved to disk; let garbage collection free the memory.
+            self.results = None
