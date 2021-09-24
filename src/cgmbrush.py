@@ -1358,6 +1358,13 @@ def saveArray(filename, *arrays, folder = varFolder):
         np.save(file_path, arrays[0]) 
     else:
         np.save(file_path, arrays) 
+
+def saveInParts(filename, *arrays, folder = varFolder):
+    """Hack for saving data too big for pickle (due to a pickle implementation bug)."""
+    i = 0 
+    while i < len(arrays):
+        saveArray(filename + '_part_' + str(i), arrays[i])
+        i = i + 1
     
 def loadArray(filename, folder = varFolder):
     """Loads numpy arrays that were saved with saveArray."""
@@ -1367,6 +1374,13 @@ def loadArray(filename, folder = varFolder):
     except FileNotFoundError:
         file_path = os.path.join(folder, filename + ".txt")
         return np.load(file_path, allow_pickle=True)
+
+def loadFromParts(filename_base, folder = varFolder):
+    """Load data saved with saveInParts."""
+    for i in range(0, 9):
+        file_part = os.path.join(folder, filename_base + '_part_' + str(i))
+        loadArray(file_part, folder=folder)
+
 
 
 class Configuration:
