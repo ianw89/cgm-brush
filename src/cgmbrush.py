@@ -1,6 +1,7 @@
 from __future__ import print_function 
 from __future__ import division
 from operator import countOf
+from typing import Dict
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
@@ -1347,6 +1348,15 @@ def saveFig(filename_base, fig):
 
     fig.savefig(file_path + '_images')
 
+def saveResults(filename, folder = varFolder, **arrays):
+    """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
+    file_path = os.path.join(folder, filename)
+    
+    if not(os.path.exists(folder)):
+        os.makedirs(folder)
+
+    np.savez(file_path, **arrays) 
+
 def saveArray(filename, *arrays, folder = varFolder):
     """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
     file_path = os.path.join(folder, filename)
@@ -1375,11 +1385,26 @@ def loadArray(filename, folder = varFolder):
         file_path = os.path.join(folder, filename + ".txt")
         return np.load(file_path, allow_pickle=True)
 
+def loadResults(filename, folder=varFolder):
+    """Loads numpy arrays that were saved with saveResults."""
+    file_path = os.path.join(folder, filename + ".npz")
+    results = {}
+    try: 
+        npz = np.load(file_path, allow_pickle=True)
+        for file in npz.files:
+            results[file] = npz[file]
+        npz.close()
+        return results
+    except FileNotFoundError:
+        loadArray(filename, folder=folder) # fallback to old .npy format
+
 def loadFromParts(filename_base, folder = varFolder):
     """Load data saved with saveInParts."""
+    results = []
     for i in range(0, 9):
         file_part = os.path.join(folder, filename_base + '_part_' + str(i))
-        loadArray(file_part, folder=folder)
+        results.append(loadArray(file_part, folder=folder))
+    return tuple(results)
 
 
 
@@ -1417,6 +1442,15 @@ class Configuration:
         self.results = None
         self.figure = None
     
+    def convert_results(self):
+        """Converts results from a tuple to a dictionary (if needed)."""
+        # hist_profile returns a tuple. Reading .npy files gets a tuple. 
+        if type(self.results) is tuple:
+            self.results = { 'massbin_histograms': self.results[0], 'final_density_field': self.results[1], 'add_masks': self.results[2], 'sub_coarse': self.results[3], 'add_density_field': self.results[4], 'removed_density_field': self.results[5], 'stacked_density_field': self.results[6], 'vir_radii': self.results[7], 'halo_masses': self.results[8] }
+        if type(self.results) is dict:
+            return
+        else:
+            raise ValueError('Results are in an unexpected format.')
 
     def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
         """Run this configuration."""
@@ -1427,7 +1461,8 @@ class Configuration:
 
         if load_from_files:
             try:
-                self.results = loadArray(filename)
+                self.results = loadResults(filename)
+                self.convert_results()
             
             except IOError:
                 print("Cache miss: " + filename)
@@ -1443,7 +1478,8 @@ class Configuration:
             self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
                                                 self.addition_profile, self.scaling_radius, self.resolution)
-            saveArray(filename, *self.results)
+            self.convert_results()
+            saveResults(filename, **self.results)
             
             if trace:
                 pr.disable()
@@ -1487,5 +1523,5 @@ class Configuration:
             saveFig(filename, fig)
         
         if not results_in_memory:
-            # Results are saved to disk; let garbage collection free the memory.
+            # Results have been saved to disk; let garbage collection free the memory if that's what the user wants.
             self.results = None
