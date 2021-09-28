@@ -1407,7 +1407,6 @@ def loadFromParts(filename_base, folder = varFolder):
     return tuple(results)
 
 
-
 class Configuration:
     """
     Configuration for a run of cgmbrush. 
