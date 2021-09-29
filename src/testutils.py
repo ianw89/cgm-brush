@@ -20,11 +20,15 @@ def plot_grid_comparison(new, baseline):
     return fig
 
 def compare_mask_lists(results, baseline, resolution):
+    fig = None
     for i in range(len(results)):
         if not np.allclose(results[i], baseline[i]):
             print("Mask %s changed." % i)
-            plot_grid_comparison(results[i], baseline[i])
             print("Values of center pixel:")
             print(" New:\t\t %s" % results[i][10*resolution][10*resolution])
             print(" Baseline:\t %s" % baseline[i][10*resolution][10*resolution])
+            fig = plot_grid_comparison(results[i], baseline[i])
+    
+    return fig
+
             

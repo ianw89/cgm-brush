@@ -793,14 +793,15 @@ class PrecipitationProfile(CGMProfile):
         #chooses metalicity and cooling criterion parameters we will interpolate on
         reducedarr = fitarray[(fitarray[:, 3] == Z_METAL) & (fitarray[:, 2] ==  TRATCRIT)]
         reducedarr = reducedarr[::-1] #reverses array           
-        
+
+        logMhalo_zp2 = logMhalo*((1+0.2)/(1+redshift))**(3/2)
         #better interpolation
-        logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo)   
+        logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo_zp2)   
         n1 = 10**logn1
-        xi1 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(logMhalo) 
-        logn2 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(logMhalo)   
+        xi1 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(logMhalo_zp2) 
+        logn2 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(logMhalo_zp2)   
         n2 = 10**logn2
-        xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(logMhalo) 
+        xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(logMhalo_zp2) 
             
         #print(logMhalo, n1, xi1, n2, xi2)
 
@@ -810,9 +811,16 @@ class PrecipitationProfile(CGMProfile):
         rhoarr = np.array([rkpc, 1/np.sqrt(1/(n1*(rkpc)**-xi1+ 1e-20)**2 + 1/(n2*(rkpc/100)**-xi2 + 1e-20)**2)])
         
         #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
-        rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
-        conv = (1.989e33/(1.67e-24))/(3.086e21)**3  #constants: use your values TODO
-        mtotal = integrate.quad(rhointerp, 0, 3*np.log(10))[0]/conv
+    #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
+        rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='linear', fill_value='extrapolate')
+    #     conv = (1.989e33/(1.67e-24))/(3.086e21)**3  #constants: use your values, should have mean molecular weight, which is 1.2 
+        conv = (msun*1E3/(mu*mp))/KPCTOCM**3
+        conv1 = (1.989e33/(1.67e-24))/(3.086e21)**3  #constants: use your values TODO
+        assert (np.isclose(conv, conv1))
+        mtotal = integrate.quad(rhointerp, 0, np.log(XRvir*Rvirkpc))[0]/conv
+
+
+
         
         #add in rest of mass 
         neconstant =(10**logMhalo*fbaryon-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
