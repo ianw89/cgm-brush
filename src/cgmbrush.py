@@ -1554,7 +1554,8 @@ class Configuration:
             except IOError:
                 print("Cache miss: " + profile_file)
 
-        if self.DM_vs_R1 is None:            
+        if self.DM_vs_R1 is None:       
+            print("Generating DM vs R profile")
             halos = self.provider.get_halos(self.RS_array[0])
             #orig_den = self.provider.get_density_field(self.RS_array[0], self.den_grid_size)
             df = create_halo_array_for_convolution(halos,self.min_mass,self.max_mass,self.log_bins)
