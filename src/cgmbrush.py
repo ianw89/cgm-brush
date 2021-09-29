@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
 from numpy import core
+from numpy.lib.npyio import load
 import scipy.integrate as integrate
 from numpy import genfromtxt
 from random import randrange
@@ -23,6 +24,7 @@ import datetime
 import math
 import sys
 from scipy.interpolate import interp1d
+import gc
 
 ########################################
 # Paramters, Constants, and Functions
@@ -1193,12 +1195,11 @@ def radial_profile_array(DM_halo_array,halos_per_mass_bin,len_rad_ar):
 
 
 # Single function for radial profile of DM for a given DM array and grid size
-def DM_vs_radius(DM_array,halo_data_frame,crop_grid_dim, mass_bins, hist_mass_bins):
+def DM_vs_radius(DM_array,halo_data_frame,crop_grid_dim, hist_mass_bins):
     
 #     len_rad_ar = radial_profile(DM_for_mass_bin(DM_array,halo_data_frame,crop_grid_dim)[0,:,:],int(crop_grid_dim),int(crop_grid_dim)).shape[0]
     
     # I can run profile of masks function to get this instead of running the above function
-    len_rad_ar=15
     
     trimmed_ar = DM_for_mass_bin(DM_array,halo_data_frame,crop_grid_dim)
 #     print((trimmed_ar.shape)[-1])
@@ -1415,13 +1416,14 @@ class Configuration:
     """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider=None, resolution=1, den_grid_size=256, RS_array=[0]):
+    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=varFolder, resolution=1, den_grid_size=256, RS_array=[0]):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
         self.scaling_radius = scaling_radius
         self.provider = provider
         self.resolution = resolution # x1024
+        self.folder = folder
 
         # Resolution: choose between 256 and 512 grid TODO this is Bolshoi specific
         if den_grid_size != 256 and den_grid_size != 512:
@@ -1434,40 +1436,50 @@ class Configuration:
         # Profile used for subtracting halos from the density field
         self.subtraction_halo_profile = NFWProfile()
 
+
         self.min_mass = 10**10
         self.max_mass = 10**14.5
         self.log_bins = 30
 
         self.results = None
+        self.results_as_tuple = None
         self.figure = None
-    
-    def convert_results(self):
-        """Converts results from a tuple to a dictionary (if needed)."""
-        # hist_profile returns a tuple. Reading .npy files gets a tuple. 
-        if type(self.results) is tuple:
-            self.results = { 'massbin_histograms': self.results[0], 'final_density_field': self.results[1], 'add_masks': self.results[2], 'sub_coarse': self.results[3], 'add_density_field': self.results[4], 'removed_density_field': self.results[5], 'stacked_density_field': self.results[6], 'vir_radii': self.results[7], 'halo_masses': self.results[8] }
-        if type(self.results) is dict:
-            return
-        else:
-            raise ValueError('Results are in an unexpected format.')
+        self.DM_vs_R1 = None
+        self.mask_profiles = None
+        self.datestamp = str(datetime.date.today())
 
-    def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
-        """Run this configuration."""
+    def get_filename(self):
         scaling = ''
         if self.scaling_radius > 1:
             scaling = '_' + str(self.scaling_radius)
-        filename = self.addition_profile.name + str(self.resolution) + scaling + '_' + str(self.den_grid_size) + "_" + str(datetime.date.today())
+        return self.addition_profile.name + str(self.resolution) + scaling + '_' + str(self.den_grid_size) + "_" + self.datestamp
+
+    def convert_results(self):
+        """Makes results available both as a dictionary and the old tuple format."""
+        # hist_profile returns a tuple. Reading .npy files gets a tuple. 
+        if type(self.results) is tuple:
+            self.results_as_tuple = self.results
+            self.results = { 'massbin_histograms': self.results[0], 'final_density_field': self.results[1], 'add_masks': self.results[2], 'sub_coarse': self.results[3], 'add_density_field': self.results[4], 'removed_density_field': self.results[5], 'stacked_density_field': self.results[6], 'vir_radii': self.results[7], 'halo_masses': self.results[8] }
+        if type(self.results) is not dict:
+            raise ValueError('Results are in an unexpected format.')
+        if self.results_as_tuple == None:
+            self.results_as_tuple = ( self.results['massbin_histograms'],self.results['final_density_field'],self.results['add_masks'],self.results['sub_coarse'],self.results['add_density_field'],self.results['removed_density_field'],self.results['stacked_density_field'],self.results['vir_radii'],self.results['halo_masses'] )
+
+    def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
+        """Run this configuration."""
+
+        filename = self.get_filename()
 
         if load_from_files:
             try:
-                self.results = loadResults(filename)
+                self.results = loadResults(filename, folder=self.folder)
                 self.convert_results()
             
             except IOError:
                 print("Cache miss: " + filename)
                 #pass # File cache doesn't exist, swallow and compute it instead
 
-        if self.results == None:
+        if self.results is None:
             print("Performing Calculations for " + filename)
                                    
             if trace:
@@ -1478,7 +1490,7 @@ class Configuration:
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
                                                 self.addition_profile, self.scaling_radius, self.resolution)
             self.convert_results()
-            saveResults(filename, **self.results)
+            saveResults(filename, **self.results, folder=self.folder)
             
             if trace:
                 pr.disable()
@@ -1519,8 +1531,62 @@ class Configuration:
 
 
             self.figure = fig
-            saveFig(filename, fig)
+            saveFig(filename, fig, folder=self.folder)
         
         if not results_in_memory:
             # Results have been saved to disk; let garbage collection free the memory if that's what the user wants.
             self.results = None
+    
+    def generate_DM_vs_radius_profile(self, load_from_files=False):
+        profile_file = '%s_DMvsR_prof' % self.get_filename()
+
+        if load_from_files:
+            try:
+                self.DM_vs_R1 = loadArray(profile_file, folder=self.folder)            
+            except IOError:
+                print("Cache miss: " + profile_file)
+
+        if self.DM_vs_R1 is None:            
+            halos = self.provider.get_halos(self.RS_array[0])
+            #orig_den = self.provider.get_density_field(self.RS_array[0], self.den_grid_size)
+            df = create_halo_array_for_convolution(halos,self.min_mass,self.max_mass,self.log_bins)
+
+            #grid_size = self.resolution*1024
+
+            # Mean DM of single box
+            #mean_DM = np.mean(orig_den)
+
+            # Mass bins out of the 30 bins
+            #M_chosen = [1,10,12,18,25]
+
+            # dimension of the small grid around the halo we want to crop
+            trim_dim=int((10*self.resolution))
+
+            # Radial extent of the plots in Mpc
+            #extent = (L/grid_size)*(trim_dim/2)
+
+            self.DM_vs_R1 = DM_vs_radius(self.results['final_density_field'][0,:,:], df[0], trim_dim, df[1]) [0]
+            saveArray(profile_file, self.DM_vs_R1, folder=self.folder)
+    
+    def generate_profile_of_masks(self, load_from_files=False):
+        mask_file = '%s_masks' % self.get_filename()
+
+        if load_from_files:
+            try:
+                self.mask_profiles = loadArray(mask_file, folder=self.folder)            
+            except IOError:
+                print("Cache miss: " + mask_file)
+
+        if self.mask_profiles is None:
+            # using 0'th index (first available redshift) here
+            print("Generating Mask Profiles")
+            self.mask_profiles = profile_of_masks(self.results['add_masks'][0,:,40:120,40:120])
+            saveArray('%s_masks' % self.get_filename(), self.mask_profiles, folder=self.folder)
+
+    def clear_results(self):
+        """Clears results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
+        self.results = None
+        self.results_as_tuple = None
+        #gc.collect()
+        # should allow garbage collection to happen
+        
