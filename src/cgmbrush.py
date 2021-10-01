@@ -1203,14 +1203,14 @@ def radial_profile_array(DM_halo_array,halos_per_mass_bin,len_rad_ar):
 
 
 # Single function for radial profile of DM for a given DM array and grid size
-def DM_vs_radius(DM_array,halo_data_frame,crop_grid_dim, hist_mass_bins):
-    
+def DM_vs_radius(DM_array, halo_data_frame, crop_grid_dim, hist_mass_bins):
 #     len_rad_ar = radial_profile(DM_for_mass_bin(DM_array,halo_data_frame,crop_grid_dim)[0,:,:],int(crop_grid_dim),int(crop_grid_dim)).shape[0]
     
     # I can run profile of masks function to get this instead of running the above function
-    
+    # trimmed_ar is a massive array of 2D chunks of the final density field (which is a DM field)
+    # cenetered around each halo in the halo table.
     trimmed_ar = DM_for_mass_bin(DM_array,halo_data_frame,crop_grid_dim)
-#     print((trimmed_ar.shape)[-1])
+    #print(trimmed_ar.shape)
     
     final_ar=radial_profile(trimmed_ar[0,:,:],(trimmed_ar.shape)[-1]/2,(trimmed_ar.shape)[-1]/2)
         
@@ -1405,7 +1405,7 @@ def loadResults(filename, folder=varFolder):
         npz.close()
         return results
     except FileNotFoundError:
-        loadArray(filename, folder=folder) # fallback to old .npy format
+        return loadArray(filename, folder=folder) # fallback to old .npy format
 
 def loadFromParts(filename_base, folder = varFolder):
     """Load data saved with saveInParts."""
@@ -1465,11 +1465,13 @@ class Configuration:
     def convert_results(self):
         """Makes results available both as a dictionary and the old tuple format."""
         # hist_profile returns a tuple. Reading .npy files gets a tuple. 
+        if isinstance(self.results, np.ndarray):
+            self.results = tuple(self.results)
         if type(self.results) is tuple:
             self.results_as_tuple = self.results
             self.results = { 'massbin_histograms': self.results[0], 'final_density_field': self.results[1], 'add_masks': self.results[2], 'sub_coarse': self.results[3], 'add_density_field': self.results[4], 'removed_density_field': self.results[5], 'stacked_density_field': self.results[6], 'vir_radii': self.results[7], 'halo_masses': self.results[8] }
         if type(self.results) is not dict:
-            raise ValueError('Results are in an unexpected format.')
+            raise ValueError('Results are in an unexpected format: %s' % type(self.results))
         if self.results_as_tuple == None:
             self.results_as_tuple = ( self.results['massbin_histograms'],self.results['final_density_field'],self.results['add_masks'],self.results['sub_coarse'],self.results['add_density_field'],self.results['removed_density_field'],self.results['stacked_density_field'],self.results['vir_radii'],self.results['halo_masses'] )
 
@@ -1569,7 +1571,7 @@ class Configuration:
             #M_chosen = [1,10,12,18,25]
 
             # dimension of the small grid around the halo we want to crop
-            trim_dim=int((10*self.resolution))
+            trim_dim = int(10*self.resolution)
 
             # Radial extent of the plots in Mpc
             #extent = (L/grid_size)*(trim_dim/2)

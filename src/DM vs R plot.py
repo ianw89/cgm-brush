@@ -1,7 +1,6 @@
 from __future__ import print_function 
 import matplotlib.pyplot as plt
 import numpy as np
-%matplotlib inline
 from matplotlib.patches import Rectangle
 from cgmbrush import *
 
@@ -17,50 +16,35 @@ max_mass=10**14.5
 log_bins=30
 
 provider = BolshoiProvider()
-orig_den_256 = provider.get_density_field(0, 256)
-halos_0 = provider.get_halos(0)
-
-
-STH8_256 = loadArray('STH8_256_2021-09-13') # for compatability with how this file was written
-
-# This function orders the halo array in ascending mass
-# Outputs: ordered dataframe of halos, mass bins
-df= create_halo_array_for_convolution(halos_0,min_mass,max_mass,log_bins)
-
-# Mean DM of single box
-mean_DM=np.mean(orig_den_256)
-
-# Mass bins out of the 30 bins
-M_chosen = [1,10,12,18,25]
-
-# Table of virial radii and avg masses. TODO do these vary from run to run?
-vir_rad_ar = STH8_256[7]
-avg_mass_ar = STH8_256[8]
 
 # Specify resolution
-resolution=8
+resolution=1
 grid_size = resolution*1024
 
-# dimension of the small grid around the halo we want to crop
-trim_dim=int((10*resolution))
-
-# Radial extent of the plots in Mpc
-extent = (L/grid_size)*(trim_dim/2)
-
-folder = '/Volumes/Seagate Backup Plus Drive/CGM-FRB-Data/'
+#folder = '/Volumes/Seagate Backup Plus Drive/CGM-FRB-Data/'
 load_data = True
 load_DM_vs_rad = True
-load_masks = False
+load_masks = True
 
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=resolution, folder=folder)
-STH_config.datestamp = '2021-09-28'
+STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=resolution, folder=varFolder)
+STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=load_data)
 STH_config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
 STH_config.generate_profile_of_masks(load_from_files=load_masks)
-STH_config.clear_results()
 #STH_256 = STH_config.results_as_tuple # for compatability with how this file was written
 STH8_DMvsR = STH_config.DM_vs_R1
 STH8_masks = STH_config.mask_profiles
+
+# Table of virial radii and avg masses
+vir_rad_ar = STH_config.results['vir_radii']
+avg_mass_ar = STH_config.results['halo_masses']
+
+
+print(STH8_DMvsR[2].shape)
+
+
+
+STH_config.clear_results()
 
 
 """
@@ -105,6 +89,21 @@ P8_masks = P_config.mask_profiles
 """
 # BUG Kernal dies when generate_DM_vs_radius_profile() runs for res=8 (I think)
 
+orig_den_256 = provider.get_density_field(0, 256)
+halos_0 = provider.get_halos(0)
+
+# This function orders the halo array in ascending mass
+# Outputs: ordered dataframe of halos, mass bins
+df= create_halo_array_for_convolution(halos_0,min_mass,max_mass,log_bins)
+
+# Mean DM of single box
+mean_DM=np.mean(orig_den_256)
+
+# dimension of the small grid around the halo we want to crop
+trim_dim=int((10*resolution))
+
+# Radial extent of the plots in Mpc
+extent = (L/grid_size)*(trim_dim/2)
 
 #####
 # Plot generation
