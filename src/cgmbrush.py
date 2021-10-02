@@ -399,11 +399,11 @@ class BolshoiProvider(SimulationProvider):
             pdDensN=pdDensN.sort_values(['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz'])
             tden = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
             tden2 = np.reshape(tden,(resolution,resolution,resolution))
-            return ((tden2+1).sum(2))*10**6* dx* elecD(z) /(1+z)**2
+            return normDM((tden2+1).sum(2), 0)
 
         else:
-            name = 'dens'+resStr+'-z-0.'+str(redshift)+'.csv.gz'
-            den = pd.read_csv(name)
+            file_path = os.path.join(sims_folder, 'dens'+resStr+'-z-{:.1f}.csv.gz'.format(redshift))
+            den = pd.read_csv(file_path)
             den2=den[['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz','Bolshoi__Dens'+resStr+'__dens']]
 
             # 3D density array
@@ -411,7 +411,7 @@ class BolshoiProvider(SimulationProvider):
             den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
             den = np.reshape(den_vals,(resolution,resolution,resolution))
             
-            return normDM((den+1).sum(2),0)
+            return normDM((den+1).sum(2),0) # TODO BUG 0 should be redshift I would have
             #return normDM((den+1).sum(random.randint(0,1)),0)
 
     # Create a single array of density fields for various redshifts
@@ -427,8 +427,7 @@ class BolshoiProvider(SimulationProvider):
         
     # Extract halos for a given redshift
     def extract_halos(self, redshift):
-        # TODO filenaming issues? Adnan had a mismatch and just called files 0.1, 0.2, etc
-        name = 'halo-z-0.'+str(redshift)+'.csv.gz'    
+        name = 'halo-z-{:.1f}.csv.gz'.format(redshift)    
         file_path= os.path.join(sims_folder, name)
         halos = pd.read_csv(file_path)
         return halos
