@@ -1293,8 +1293,9 @@ def stack_all_arrays(halos_reAdded,RS_array):
     
     return halos_reAdded_translated
 
-def create_histograms(halos_reAdded_translated,resolution):
-    nbin=80
+def create_histograms(halos_reAdded_translated, resolution: int):
+    """Creates histograms from the final density fild. Resolution provided should be actual full resolution."""
+    nbin=200
     hist = histArray(sum(halos_reAdded_translated[:,:,:]),nbin,int(resolution),0,3*np.mean(sum(halos_reAdded_translated[:,:,:])))
 
     return hist
@@ -1354,7 +1355,7 @@ def saveFig(filename_base, fig, **kwargs):
     if not(os.path.exists(varFolder)):
         os.makedirs(varFolder)
 
-    fig.savefig(file_path + '_images', **kwargs)
+    fig.savefig(file_path, **kwargs)
 
 def saveResults(filename, folder = varFolder, **arrays):
     """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
@@ -1540,7 +1541,7 @@ class Configuration:
 
 
             self.figure = fig
-            saveFig(filename, fig, folder=self.folder)
+            saveFig(filename + '_images', fig, folder=self.folder)
         
         if not results_in_memory:
             # Results have been saved to disk; let garbage collection free the memory if that's what the user wants.
