@@ -1347,14 +1347,14 @@ testFolder = "test" # test folder under src is in version control
 # TODO there are tests that require the Bolshoi sims files, but those are big and not in version control.
 #   Possible solution - reduce the Bolshoi files down to 1/100 the size for testing only.
 
-def saveFig(filename_base, fig):
+def saveFig(filename_base, fig, **kwargs):
     """Saves matplotlib figures to a specified folder (defaults to a var folder outside verion control)."""
     file_path = os.path.join(varFolder, filename_base)
     
     if not(os.path.exists(varFolder)):
         os.makedirs(varFolder)
 
-    fig.savefig(file_path + '_images')
+    fig.savefig(file_path + '_images', **kwargs)
 
 def saveResults(filename, folder = varFolder, **arrays):
     """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
