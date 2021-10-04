@@ -6,79 +6,85 @@ provider = BolshoiProvider()
 STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1, folder=varFolder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
-#STH1_256 = STH_config.results_as_tuple
-STH1_hist = create_histograms(STH_config.results_as_tuple[1], STH_config.resolution*1024)
+STH1_256 = STH_config.results
+STH1_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
 STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2, folder=varFolder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
-#STH2_256 = STH_config.results_as_tuple
-STH2_hist = create_histograms(STH_config.results_as_tuple[1], STH_config.resolution*1024)
+STH2_256 = STH_config.results
+STH2_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
 STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=4, folder=varFolder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
-#STH4_256 = STH_config.results_as_tuple
-STH4_hist = create_histograms(STH_config.results_as_tuple[1], STH_config.resolution*1024)
+STH4_256 = STH_config.results
+STH4_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
 STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, folder=varFolder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
-#STH8_256 = STH_config.results_as_tuple
-STH8_hist = create_histograms(STH_config.results_as_tuple[1], STH_config.resolution*1024)
+STH8_256 = STH_config.results
+STH8_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
 STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16, folder=varFolder)
 STH_config.datestamp = '2021-09-24'
 STH_config.run(load_from_files=True)
-#STH16_256 = STH_config.results_as_tuple
-STH16_hist = create_histograms(STH_config.results_as_tuple[1], STH_config.resolution*1024)
+STH16_256 = STH_config.results
+STH16_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
 STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32, folder=varFolder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
-#STH32_256 = STH_config.results_as_tuple
-STH32_hist = create_histograms(STH_config.results_as_tuple[1], STH_config.resolution*1024)
+STH32_256 = STH_config.results
+STH32_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
 fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=1, folder=varFolder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
-fire1_hist = create_histograms(fire_config.results_as_tuple[1], fire_config.resolution*1024)
+fire1_256 = fire_config.results
+fire1_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
 fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=2, folder=varFolder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
-fire2_hist = create_histograms(fire_config.results_as_tuple[1], fire_config.resolution*1024)
+fire2_256 = fire_config.results
+fire2_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
 fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=4, folder=varFolder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
-fire4_hist = create_histograms(fire_config.results_as_tuple[1], fire_config.resolution*1024)
+fire4_256 = fire_config.results
+fire4_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
 fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=8, folder=varFolder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
-fire8_hist = create_histograms(fire_config.results_as_tuple[1], fire_config.resolution*1024)
+fire8_256 = fire_config.results
+fire8_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
 fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=16, folder=varFolder)
 fire_config.datestamp = '2021-09-24'
 fire_config.run(load_from_files=True)
-fire16_hist = create_histograms(fire_config.results_as_tuple[1], fire_config.resolution*1024)
+fire16_256 = fire_config.results
+fire16_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
 fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=32, folder=varFolder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
-fire32_hist = create_histograms(fire_config.results_as_tuple[1], fire_config.resolution*1024)
+fire32_256 = fire_config.results
+fire32_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
 
@@ -114,10 +120,10 @@ def make_resolution_image_comparison(vmax):
 
     # axis1=ax1.imshow(STH1_256[4][0,0:u,0:u],vmin=vmin,vmax=vmax)
     #axis2=ax2.imshow(STH2_256[4][0,0:2*u,0:2*u],vmin=vmin,vmax=vmax)
-    axis4=ax4.imshow(STH4_256[4][0,0:4*u,0:4*u],vmin=vmin,vmax=vmax)
-    axis5=ax5.imshow(STH8_256[4][0,0:8*u,0:8*u],vmin=vmin,vmax=vmax)
-    axis6=ax6.imshow(STH16_256[4][0,0:16*u,0:16*u],vmin=vmin,vmax=vmax)
-    axis7=ax7.imshow(STH32_256[4][0,0:32*u,0:32*u],vmin=vmin,vmax=vmax)
+    axis4=ax4.imshow(STH4_256['add_density_field'][0,0:4*u,0:4*u],vmin=vmin,vmax=vmax)
+    axis5=ax5.imshow(STH8_256['add_density_field'][0,0:8*u,0:8*u],vmin=vmin,vmax=vmax)
+    axis6=ax6.imshow(STH16_256['add_density_field'][0,0:16*u,0:16*u],vmin=vmin,vmax=vmax)
+    axis7=ax7.imshow(STH32_256['add_density_field'][0,0:32*u,0:32*u],vmin=vmin,vmax=vmax)
 
     # axis1=ax1.imshow(STH2_256[4][0,0:2*u,0:2*u],vmin=vmin,vmax=vmax)
     # axis2 = ax2.imshow(STH4_256[4][0,0:4*u,0:4*u],vmin=vmin,vmax=vmax)

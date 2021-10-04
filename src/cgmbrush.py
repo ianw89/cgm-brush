@@ -1295,41 +1295,10 @@ def stack_all_arrays(halos_reAdded,RS_array):
 
 def create_histograms(halos_reAdded_translated, resolution: int):
     """Creates histograms from the final density fild. Resolution provided should be actual full resolution."""
-    nbin=200
+    nbin=80
     hist = histArray(sum(halos_reAdded_translated[:,:,:]),nbin,int(resolution),0,3*np.mean(sum(halos_reAdded_translated[:,:,:])))
 
     return hist
-
-
-# Create histogram for the stack without min and max defined
-
-# def create_histograms(halos_reAdded_translated,resolution):
-#     nbin=1000
-#     hist = histArray(sum(halos_reAdded_translated[:,:,:]),nbin,int(1024*resolution))
-
-#     return hist
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1450,7 +1419,6 @@ class Configuration:
         self.log_bins = 30
 
         self.results = None
-        self.results_as_tuple = None
         self.figure = None
         self.DM_vs_R1 = None
         self.mask_profiles = None
@@ -1462,18 +1430,20 @@ class Configuration:
             scaling = '_' + str(self.scaling_radius)
         return self.addition_profile.name + str(self.resolution) + scaling + '_' + str(self.den_grid_size) + "_" + self.datestamp
 
-    def convert_results(self):
-        """Makes results available both as a dictionary and the old tuple format."""
-        # hist_profile returns a tuple. Reading .npy files gets a tuple. 
+    def convert_and_save(self):
+        """Makes results available as a dictionary, which is how the .npz archive is formatted. 
+
+        hist_profile returns a tuple. Reading .npy files gets a tuple or array. We want everything converted to dictionary and npz.
+        
+        Note that .npz archives are loaded lazilly, which is important for managing memory usage."""
+        # hist_profile returns a tuple. Reading .npy files gets a tuple or array. 
         if isinstance(self.results, np.ndarray):
             self.results = tuple(self.results)
         if type(self.results) is tuple:
-            self.results_as_tuple = self.results
             self.results = { 'massbin_histograms': self.results[0], 'final_density_field': self.results[1], 'add_masks': self.results[2], 'sub_coarse': self.results[3], 'add_density_field': self.results[4], 'removed_density_field': self.results[5], 'stacked_density_field': self.results[6], 'vir_radii': self.results[7], 'halo_masses': self.results[8] }
+            saveResults(self.get_filename(), **self.results, folder=self.folder)
         if type(self.results) is not dict:
             raise ValueError('Results are in an unexpected format: %s' % type(self.results))
-        if self.results_as_tuple == None:
-            self.results_as_tuple = ( self.results['massbin_histograms'],self.results['final_density_field'],self.results['add_masks'],self.results['sub_coarse'],self.results['add_density_field'],self.results['removed_density_field'],self.results['stacked_density_field'],self.results['vir_radii'],self.results['halo_masses'] )
 
     def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
         """Run this configuration."""
@@ -1483,7 +1453,7 @@ class Configuration:
         if load_from_files:
             try:
                 self.results = loadResults(filename, folder=self.folder)
-                self.convert_results()
+                self.convert_and_save()
             
             except IOError:
                 print("Cache miss: " + filename)
@@ -1499,8 +1469,7 @@ class Configuration:
             self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
                                                 self.addition_profile, self.scaling_radius, self.resolution)
-            self.convert_results()
-            saveResults(filename, **self.results, folder=self.folder)
+            self.convert_and_save()
             
             if trace:
                 pr.disable()
@@ -1597,7 +1566,6 @@ class Configuration:
     def clear_results(self):
         """Clears results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
         self.results = None
-        self.results_as_tuple = None
         #gc.collect()
         # should allow garbage collection to happen
         
