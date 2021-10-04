@@ -1527,23 +1527,9 @@ class Configuration:
 
         if self.DM_vs_R1 is None:       
             print("Generating DM vs R profile")
-            halos = self.provider.get_halos(self.RS_array[0])
-            #orig_den = self.provider.get_density_field(self.RS_array[0], self.den_grid_size)
-            df = create_halo_array_for_convolution(halos,self.min_mass,self.max_mass,self.log_bins)
+            df = create_halo_array_for_convolution(self.provider.get_halos(self.RS_array[0]), self.min_mass, self.max_mass, self.log_bins)
 
-            #grid_size = self.resolution*1024
-
-            # Mean DM of single box
-            #mean_DM = np.mean(orig_den)
-
-            # Mass bins out of the 30 bins
-            #M_chosen = [1,10,12,18,25]
-
-            # dimension of the small grid around the halo we want to crop
             trim_dim = int(10*self.resolution)
-
-            # Radial extent of the plots in Mpc
-            #extent = (L/grid_size)*(trim_dim/2)
 
             self.DM_vs_R1 = DM_vs_radius(self.results['final_density_field'][0,:,:], df[0], trim_dim, df[1]) [0]
             saveArray(profile_file, self.DM_vs_R1, folder=self.folder)
@@ -1560,7 +1546,12 @@ class Configuration:
         if self.mask_profiles is None:
             # using 0'th index (first available redshift) here
             print("Generating Mask Profiles")
-            self.mask_profiles = profile_of_masks(self.results['add_masks'][0,:,40:120,40:120])
+
+            # zoom in on middle of masks
+            full_mask_len = self.resolution * 20
+            zoom_start = full_mask_len // 4
+            zoom_end = 3 * zoom_start
+            self.mask_profiles = profile_of_masks(self.results['add_masks'][0, :, zoom_start:zoom_end, zoom_start:zoom_end])
             saveArray('%s_masks' % self.get_filename(), self.mask_profiles, folder=self.folder)
 
     def clear_results(self):

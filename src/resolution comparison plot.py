@@ -1,86 +1,87 @@
 import matplotlib.pyplot as plt
 from cgmbrush import *
 
+folder = '../../var/'
 
 provider = BolshoiProvider()
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1, folder=varFolder)
+STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1, folder=folder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
 STH1_256 = STH_config.results
 STH1_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2, folder=varFolder)
+STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2, folder=folder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
 STH2_256 = STH_config.results
 STH2_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=4, folder=varFolder)
+STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=4, folder=folder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
 STH4_256 = STH_config.results
 STH4_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, folder=varFolder)
+STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, folder=folder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
 STH8_256 = STH_config.results
 STH8_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16, folder=varFolder)
+STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16, folder=folder)
 STH_config.datestamp = '2021-09-24'
 STH_config.run(load_from_files=True)
 STH16_256 = STH_config.results
 STH16_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32, folder=varFolder)
+STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32, folder=folder)
 STH_config.datestamp = '2021-09-27'
 STH_config.run(load_from_files=True)
 STH32_256 = STH_config.results
 STH32_hist = create_histograms(STH_config.results['final_density_field'], STH_config.resolution*1024)
 STH_config.clear_results()
 
-fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=1, folder=varFolder)
+fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=1, folder=folder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
 fire1_256 = fire_config.results
 fire1_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
-fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=2, folder=varFolder)
+fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=2, folder=folder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
 fire2_256 = fire_config.results
 fire2_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
-fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=4, folder=varFolder)
+fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=4, folder=folder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
 fire4_256 = fire_config.results
 fire4_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
-fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=8, folder=varFolder)
+fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=8, folder=folder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
 fire8_256 = fire_config.results
 fire8_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
-fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=16, folder=varFolder)
+fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=16, folder=folder)
 fire_config.datestamp = '2021-09-24'
 fire_config.run(load_from_files=True)
 fire16_256 = fire_config.results
 fire16_hist = create_histograms(fire_config.results['final_density_field'], fire_config.resolution*1024)
 fire_config.clear_results()
 
-fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=32, folder=varFolder)
+fire_config = Configuration(FireProfile(), 1, provider=provider, resolution=32, folder=folder)
 fire_config.datestamp = '2021-09-27'
 fire_config.run(load_from_files=True)
 fire32_256 = fire_config.results
