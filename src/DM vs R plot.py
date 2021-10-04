@@ -23,7 +23,7 @@ grid_size = resolution*1024
 folder = '../../var/'
 #folder = '/Volumes/Seagate Backup Plus Drive/CGM-FRB-Data/'
 load_data = True
-load_DM_vs_rad = True
+load_DM_vs_rad = False
 load_masks = True
 
 STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=resolution, folder=varFolder)
@@ -192,13 +192,10 @@ def make_DM_vs_Rad_profiles_plots():
     # x and y axis limits
     DM_Rad_axs[0].set_ylim([0, 130])
     DM_Rad_axs[0].set_xlim([x_start, .7*MpctoKpc])
-
     DM_Rad_axs[1].set_ylim(ymin=0,ymax=399)
     DM_Rad_axs[1].set_xlim([x_start, .7*MpctoKpc])
-
     DM_Rad_axs[2].set_ylim(ymin=0,ymax=1499)
     DM_Rad_axs[2].set_xlim([x_start, .7*MpctoKpc])
-
 
     # Rectangular patch 
     DM_Rad_axs[0].add_patch(Rectangle((0,0), 45, 130,facecolor='yellow'))
@@ -218,8 +215,7 @@ def make_DM_vs_Rad_profiles_plots():
     # # plt.rc('ytick', labelsize=35)    # fontsize of the tick labels
 
 
-
-    DM_Rad_fig.savefig('DMvsRad_profiles_%s.pdf' % resolution, bbox_inches='tight')
+    saveFig('DMvsRad_profiles_%s.pdf' % resolution, DM_Rad_fig, bbox_inches='tight')
 
 
 make_DM_vs_Rad_profiles_plots()
