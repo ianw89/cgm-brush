@@ -1,21 +1,13 @@
 from __future__ import print_function 
 from __future__ import division
-from operator import countOf
-from typing import Dict
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
-from numpy import core
-from numpy.lib.npyio import load
 import scipy.integrate as integrate
-from numpy import genfromtxt
-from random import randrange
 import random
-import time
 from numpy.polynomial import Polynomial as P
 import pandas as pd
 import os
-from scipy.ndimage.filters import convolve
 import abc
 import cProfile
 import io
@@ -24,7 +16,6 @@ import datetime
 import math
 import sys
 from scipy.interpolate import interp1d
-import gc
 
 ########################################
 # Paramters, Constants, and Functions
@@ -635,9 +626,7 @@ class NFWProfile(CGMProfile):
                 print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_radius / cellsize))
 
         vec_integral = np.vectorize(NFW2D)
-        # TODO The subtract_halos codepath copy of the next line was just comoving_radius without the /cellsize
-        # Changing to /cellsize does not change the mask produced. This process is strange... investigate.
-        fine_mask = vec_integral(x, y, rho_nought, R_s, comoving_radius / cellsize)
+        fine_mask = vec_integral(x, y, rho_nought, R_s, scale_down * comoving_radius / cellsize)
 
         if self.debug:
             with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
@@ -645,7 +634,7 @@ class NFWProfile(CGMProfile):
                 print(fine_mask)                
                 print("done")
 
-        r=(x**2+y**2)**.5 # * scale_down
+        r=(x**2+y**2)**.5 
         
         fine_mask = fine_mask.astype(float)
         fine_mask[r > scale_down * comoving_radius / cellsize] = 0 # sets very small numbers to 0
@@ -1441,7 +1430,10 @@ class Configuration:
         scaling = ''
         if self.scaling_radius > 1:
             scaling = '_' + str(self.scaling_radius)
-        return self.addition_profile.name + str(self.resolution) + scaling + '_' + str(self.den_grid_size) + "_" + self.datestamp
+        z_str = ''
+        if self.RS_array != [0]:
+            z_str = 'z_'+str(self.RS_array)[1:-1].replace(', ','_') # z_0.1_0.2_0.3 for example
+        return self.addition_profile.name + str(self.resolution) + scaling + '_' + str(self.den_grid_size) + z_str + "_" + self.datestamp
 
     def convert_and_save(self):
         """Makes results available as a dictionary, which is how the .npz archive is formatted. 
