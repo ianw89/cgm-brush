@@ -463,14 +463,6 @@ def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     histH, binsH = np.histogram(sorted_haloMasses,bins=np.logspace(np.log10(M_min),np.log10(M_max), logchunks))
     bins=np.append([0],histH.cumsum()).tolist()
 
-    # Remove any empty bins
-    i = 0
-    while i < len(bins) - 1:
-        if bins[i] == bins[i+1]:
-            del bins[i+1]
-        else:
-            i += 1
-    
     return df,bins
 
 def project_spherical_3Dto2D(f, x, y, Rvir):
@@ -895,6 +887,14 @@ def subtract_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile,
     
     # loops through the list of dataframes each ordered by ascending mass
     for j in range(0,chunks):
+
+        if bin_markers[j] == bin_markers[j+1]:
+            # Special case - mass bin is empty. Just set results to 0 for this mass bin.
+            Mvir_avg[j] = 0
+            conv_rad[j] = 0
+            convolution[j,:,:] = 0
+            continue
+
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/h
         conv_rad[j] = comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
 
@@ -921,7 +921,6 @@ def subtract_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile,
         # convolve the mask and the halo positions
         convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)    
         
-    
     return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)
 
 
@@ -962,6 +961,15 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
     
     # loops through the list of dataframes each ordered by ascending mass
     for j in range(0,chunks):
+
+        if bin_markers[j] == bin_markers[j+1]:
+            # Special case - mass bin is empty. Just set results to 0 for this mass bin.
+            Mvir_avg[j] = 0
+            conv_rad[j] = 0
+            addition_masks[j,:,:] = 0
+            convolution[j,:,:] = 0
+            continue
+
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / h
         conv_rad[j] = comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
 
@@ -1016,13 +1024,17 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
     
     # convolve halos
     subtraction_profile = subtract_halos(df,resolution,bin_markers,subtraction_halo_profile,scaling_radius,redshift)
+    assert not np.any(np.isnan(subtraction_profile))
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1)
+    assert not np.any(np.isnan(subtraction_profile_smooth))
     
     # create coarse grid
     subtracted_coarse= smoothfield(subtraction_profile_smooth,1024,den_grid_size)
+    assert not np.any(np.isnan(subtracted_coarse))
     
     # remove halos from the density field
     halos_removed_coarse=removeConvolvedHalos(density_field,subtracted_coarse)
+    assert not np.any(np.isnan(halos_removed_coarse))
     
     return halos_removed_coarse,subtracted_coarse
 
@@ -1132,7 +1144,8 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_array, min_
     else:
         t6 = stack_all_arrays(t1,RS_array)
         
-    t7 = create_histograms(t6,resolution) # TODO turn off?
+    #t7 = create_histograms(t6, resolution*1024)
+    t7 = (0,0,0) # TODO
     
     t8 = t[5]
     t9 = t[6]

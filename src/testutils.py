@@ -30,5 +30,16 @@ def compare_mask_lists(results, baseline, resolution):
             fig = plot_grid_comparison(results[i], baseline[i])
     
     return fig
+    
 
+def check_validity(results):
+    #assert not np.isnan(results['massbin_histograms']), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['sub_coarse'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['removed_density_field'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['add_masks'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['add_density_field'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['final_density_field'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['stacked_density_field'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['vir_radii'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(results['halo_masses'])), 'No NaN should appear in results.'
             
