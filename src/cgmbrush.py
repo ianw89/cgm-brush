@@ -447,7 +447,7 @@ def my_convolve(a, b):
 def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     """Creates an array of indexes corresponding to indexes in pdHalos at the edges of logarithmic mass bins.
 
-    The length will be up to logchunks, but may be smaller due to removed bins (if a mass bin would be empty)."""
+    The length will be logchunks."""
     halos = haloArray_minmax(pdHalos,M_min,M_max)
     df = halos.sort_values(by='Mvir',ascending=True)
     sorted_haloMasses = df['Mvir'].values
@@ -1160,66 +1160,55 @@ def radial_profile(data, center_x,center_y):
     radialprofile = tbin / nr
     return radialprofile 
 
-# Calculate Dispersion measure for each mass bin
-def DM_for_mass_bin(halo_array,df,crop_grid):
+
+def make_halo_square(DM_field, ix, iy, halo_index, crop_grid):
+    """Createa a square cutout of the DM field from around the ix, iy point 
+    for the halo_index halo with dimensions crop_grid x crop_grid."""
     
-    res=halo_array.shape[0]
-    trim_dim=crop_grid
-#     DM_rad = np.zeros([len(df), 2*trim_dim+1,2*trim_dim+1])
-    
-    DM_rad = np.zeros([len(df), trim_dim,trim_dim])
-    
-#     ix = (df['ix'].values)
-#     iy = (df['iy'].values)
-    
-    ix = ((np.around((4*res/1024)*((df['x'].values)/(250/256))))%(res)).astype(int)
-    iy = ((np.around((4*res/1024)*((df['y'].values)/(250/256))))%(res)).astype(int)
-#     print(ix)
-    
-    for i in range(0,len(df)):            
+    res=DM_field.shape[0]    
+    DM_rad = np.zeros([crop_grid,crop_grid])
+    i = halo_index
             
-        if ix[i] > int(trim_dim) and ix[i] < res - int(trim_dim) and iy[i] > int(trim_dim) and iy[i] < res- int(trim_dim):
-#             trimmed = halo_array[ix[i]-int(trim_dim):ix[i]+int(trim_dim+1),iy[i]-int(trim_dim):iy[i]+int(trim_dim +1)]
-            trimmed = halo_array[ix[i]-int(trim_dim/2):ix[i]+int(trim_dim/2),iy[i]-int(trim_dim/2):iy[i]+int(trim_dim/2)]
-            DM_rad[i,:,:] = trimmed
+    # BUG I think this ignose halos near the edge? But then we use them in the average? Hmm...
+    if ix[i] > int(crop_grid) and ix[i] < res - int(crop_grid) and iy[i] > int(crop_grid) and iy[i] < res- int(crop_grid):
+        trimmed = DM_field[ix[i]-int(crop_grid/2):ix[i]+int(crop_grid/2),iy[i]-int(crop_grid/2):iy[i]+int(crop_grid/2)]
+        DM_rad = trimmed
 
     return DM_rad
-        
-# Function: calculates the radial profile for each mass bin
-def radial_profile_array(DM_halo_array,halos_per_mass_bin,len_rad_ar):
-    
-    trim_dim=DM_halo_array.shape[1]
-    center=int(trim_dim/2)
-    
-    DM_mass_bin= np.zeros([len(halos_per_mass_bin),trim_dim,trim_dim])
-    rad_prof_mass_bin = np.zeros([len(halos_per_mass_bin),len_rad_ar])
-
-    
-    # The -1 has to be thought more about
-    for i in range(0,len(halos_per_mass_bin)-1):
-        DM_mass_bin[i,:,:]= np.mean(DM_halo_array[halos_per_mass_bin[i]:halos_per_mass_bin[i+1],:,:],axis=0)
-        rad_prof_mass_bin[i,:] = radial_profile(DM_mass_bin[i,:,:],center,center)
-    
-    return rad_prof_mass_bin,DM_mass_bin
 
 
 # Single function for radial profile of DM for a given DM array and grid size
-def DM_vs_radius(DM_array, halo_data_frame, crop_grid_dim, hist_mass_bins):
-#     len_rad_ar = radial_profile(DM_for_mass_bin(DM_array,halo_data_frame,crop_grid_dim)[0,:,:],int(crop_grid_dim),int(crop_grid_dim)).shape[0]
+def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers):    
     
-    # I can run profile of masks function to get this instead of running the above function
-    # trimmed_ar is a massive array of 2D chunks of the final density field (which is a DM field)
-    # cenetered around each halo in the halo table.
-    trimmed_ar = DM_for_mass_bin(DM_array,halo_data_frame,crop_grid_dim)
-    #print(trimmed_ar.shape)
+    # TODO: Matt says we can calculate using every 1/4 the pixels or something.
     
-    final_ar=radial_profile(trimmed_ar[0,:,:],(trimmed_ar.shape)[-1]/2,(trimmed_ar.shape)[-1]/2)
-        
-#     return radial_profile_array(DM_for_mass_bin(DM_array,halo_data_frame,crop_grid_dim),hist_mass_bins,((final_ar.shape)[0]))
+    num_bins = len(bin_markers) -1 
+    center = int(crop_grid_dim/2)
+    
+    DM_mass_bin= np.zeros([num_bins, crop_grid_dim, crop_grid_dim]) # TODO previously this had an extra empty bin at end I think. mistake
+    rad_prof_mass_bin = []
 
-    output = radial_profile_array(trimmed_ar,hist_mass_bins,((final_ar.shape)[0]))
+    res=DM_field.shape[0]
+    ix = ((np.around((4*res/1024)*((halo_data_frame['x'].values)/(250/256))))%(res)).astype(int)
+    iy = ((np.around((4*res/1024)*((halo_data_frame['y'].values)/(250/256))))%(res)).astype(int)
+
+    # Go through each mass bin
+    for i in range(0, num_bins):
+        # get a square cutout from the DM field around the center of each halo within this mass bin
+        num_halos = bin_markers[i+1] - bin_markers[i]
+        #halo_squares = DM_for_mass_bin(DM_field, halo_data_frame[bin_markers[i]:bin_markers[i+1]], crop_grid_dim)
+
+        # Take all the halos in this mass bin, and get the mean DM for each pixel in the trimmed square.
+        # Running sum for memory reasons
+        for halo_index in range(bin_markers[i], bin_markers[i+1]):
+            halo_square = make_halo_square(DM_field, ix, iy, halo_index, crop_grid_dim)
+            DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] + halo_square
+
+        DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] / num_halos # finishing computing average
+        rad_prof_mass_bin.append(radial_profile(DM_mass_bin[i,:,:],center,center))
     
-    return output[0],output[1],trimmed_ar
+    arr = np.array(rad_prof_mass_bin)
+    return arr, DM_mass_bin
     
 # Calculate profiles of masks 
 def profile_of_masks(mask_array):

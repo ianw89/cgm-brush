@@ -14,97 +14,137 @@ min_mass=10**10
 max_mass=10**14.5
 log_bins=30
 
+M_chosen = [1,10,15,20,25]
+
 provider = BolshoiProvider()
 
 # Specify resolution
-resolution = 4
+resolution = 32
 grid_size = resolution*1024
 
 folder = '../../var/'
 #folder = '/Volumes/Seagate Backup Plus Drive/CGM-FRB-Data/'
 load_data = True
-load_DM_vs_rad = False
+load_DM_vs_rad = True
 load_masks = True
 
-STH_config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=resolution, folder=varFolder)
-STH_config.datestamp = '2021-09-27'
-STH_config.run(load_from_files=load_data)
-STH_config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
-STH_config.generate_profile_of_masks(load_from_files=load_masks)
-STH_DMvsR = STH_config.DM_vs_R1
-STH_masks = STH_config.mask_profiles
+series = []
+
+config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=resolution, folder=varFolder)
+config.datestamp = '2021-10-05'
+config.run(load_from_files=load_data)
+config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
+config.generate_profile_of_masks(load_from_files=load_masks)
+STH_DMvsR = config.DM_vs_R1
+STH_masks = config.mask_profiles
 
 # Table of virial radii and avg masses
-vir_rad_ar = STH_config.results['vir_radii']
-avg_mass_ar = STH_config.results['halo_masses']
+vir_rad_ar = config.results['vir_radii']
+avg_mass_ar = config.results['halo_masses']
 
-STH_config.clear_results()
+config.clear_results()
+series.append((config.DM_vs_R1,config.mask_profiles,'3D Tophat','red'))
 
-"""
-STH_2_config = Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=resolution, folder=folder)
-STH_2_config.run(load_from_files=True)
-STH_2_config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
-STH_2_config.generate_profile_of_masks(load_from_files=load_masks)
-STH_2_DMvsR = STH_2_config.DM_vs_R1
-STH_2_masks = STH_2_config.mask_profiles
-STH_2_config.clear_results()
+config = Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=resolution, folder=folder)
+config.datestamp = '2021-10-05'
+config.run(load_from_files=load_data)
+config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
+config.generate_profile_of_masks(load_from_files=load_masks)
+STH_2_DMvsR = config.DM_vs_R1
+STH_2_masks = config.mask_profiles
+config.clear_results()
+series.append((config.DM_vs_R1, config.mask_profiles, '3D Tophat 2$R_{vir}$', 'orange'))
 
-FIRE_config = Configuration(FireProfile(), 1, provider=provider, resolution=resolution, folder=folder)
-FIRE_config.run(load_from_files=True)
-FIRE_config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
-FIRE_config.generate_profile_of_masks(load_from_files=load_masks)
-fire_DMvsR = FIRE_config.DM_vs_R1
-fire_masks = FIRE_config.mask_profiles
-FIRE_config.clear_results()
+config = Configuration(FireProfile(), 1, provider=provider, resolution=resolution, folder=folder)
+config.datestamp = '2021-10-05'
+config.run(load_from_files=load_data)
+config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
+config.generate_profile_of_masks(load_from_files=load_masks)
+fire_DMvsR = config.DM_vs_R1
+fire_masks = config.mask_profiles
+config.clear_results()
+series.append((config.DM_vs_R1, config.mask_profiles, 'FIRE', 'green'))
 
-NFW_config = Configuration(NFWProfile(), 1, provider=provider, resolution=resolution, folder=folder)
-NFW_config.run(load_from_files=True)
-NFW_config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
-NFW_config.generate_profile_of_masks(load_from_files=load_masks)
-NFW_DMvsR = NFW_config.DM_vs_R1
-NFW_masks = STH_2_config.mask_profiles
-NFW_config.clear_results()
+config = Configuration(NFWProfile(), 1, provider=provider, resolution=resolution, folder=folder)
+config.datestamp = '2021-10-05'
+config.run(load_from_files=load_data)
+config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
+config.generate_profile_of_masks(load_from_files=load_masks)
+NFW_DMvsR = config.DM_vs_R1
+NFW_masks = config.mask_profiles
+config.clear_results()
+series.append((config.DM_vs_R1, config.mask_profiles, 'NFW', 'blue'))
 
-P_config = Configuration(PrecipitationProfile(), 1, provider=provider, resolution=resolution, folder=folder)
-P_config.run(load_from_files=True)
-P_config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
-P_config.generate_profile_of_masks(load_from_files=load_masks)
-P_DMvsR = P_config.DM_vs_R1
-P_masks = P_config.mask_profiles
-P_config.clear_results()
-"""
+config = Configuration(PrecipitationProfile(), 1, provider=provider, resolution=resolution, folder=folder)
+config.datestamp = '2021-10-05'
+config.run(load_from_files=load_data)
+config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
+config.generate_profile_of_masks(load_from_files=load_masks)
+P_DMvsR = config.DM_vs_R1
+P_masks = config.mask_profiles
+config.clear_results()
+series.append((config.DM_vs_R1, config.mask_profiles, 'Precipitation', 'c'))
 
-# BUG Kernal dies when generate_DM_vs_radius_profile() runs for res=8 (I think)
 
 
-def plot_DM_vs_Rad(x_axis, mean_DM, axis, massbin):
+### For error bar plot
+# Variances should be extracted from the redshift plots at redshift =0.5
+var_STH_2 = 173
+var_STH2_2 = 141
+var_NFW_2 = 451
+var_fire_2 = 226
+var_P_2 = 215
+
+sd_incl_host = np.sqrt(var_fire_2**2 + 300**2)
+
+
+def error_bar_DMvsRad(sd,N_frb,radius_array,Rvir,avg_frbs):
+    error_bar = np.zeros([len(radius_array)])
+    for i in range(1,len(radius_array)):
+        error_bar[i-1] = sd/(np.sqrt(avg_frbs*N_frb*((radius_array[i]**2-radius_array[i-1]**2)/Rvir**2)))
     
-    # axis title
+    return error_bar
+
+
+
+#r_star_ar_1 = np.logspace(np.log10(vir_rad_ar[M_chosen[1]]/25),np.log10(3*vir_rad_ar[M_chosen[1]]),10)
+#r_star_ar_2 = np.logspace(np.log10(vir_rad_ar[M_chosen[2]]/25),np.log10(3*vir_rad_ar[M_chosen[2]]),10)
+r_star_ar = np.logspace(np.log10(vir_rad_ar[M_chosen[3]]/25),np.log10(3*vir_rad_ar[M_chosen[3]]),10)
+
+error_100_11M_STH = error_bar_DMvsRad(var_STH_2,100,r_star_ar,vir_rad_ar[M_chosen[1]],4)
+error_100_11M_fire = error_bar_DMvsRad(var_fire_2,100,r_star_ar,vir_rad_ar[M_chosen[1]],4)
+error_100_11M_P = error_bar_DMvsRad(var_P_2,100,r_star_ar,vir_rad_ar[M_chosen[1]],4)
+
+error_100_12M_STH = error_bar_DMvsRad(var_STH_2,100,r_star_ar,vir_rad_ar[M_chosen[2]],2)
+error_100_12M_fire = error_bar_DMvsRad(var_fire_2,100,r_star_ar,vir_rad_ar[M_chosen[2]],2)
+error_100_12M_P = error_bar_DMvsRad(var_P_2,100,r_star_ar,vir_rad_ar[M_chosen[2]],2)
+
+error_100_13M_STH = error_bar_DMvsRad(var_STH_2,100,r_star_ar,vir_rad_ar[M_chosen[3]],.2)
+error_100_13M_fire = error_bar_DMvsRad(var_fire_2,100,r_star_ar,vir_rad_ar[M_chosen[3]],.2)
+error_100_13M_P = error_bar_DMvsRad(var_P_2,100,r_star_ar,vir_rad_ar[M_chosen[3]],.2)
+
+# error when host halo DM is included
+error_100_12M_fire_host = error_bar_DMvsRad(sd_incl_host,100,r_star_ar,vir_rad_ar[M_chosen[2]],2)
+
+
+def plot_DM_vs_Rad(x_axis, mean_DM, axis, massbin, series, plot_masks):
+    
     # axis.set_title('Mass = %.1E' % Decimal(df[2][massbin]),fontsize=14)
-
-    # axis.semilogx(np.linspace(0,extent,TH_DMvsR.shape[1]),TH_DMvsR[massbin,:]-mean_DM,'-', label= '2D tophat')
     
-    #axis.semilogx(x_axis,fire_DMvsR[massbin,:]-mean_DM,'-', label= 'FIRE',lw=5,color='green')
-    #axis.semilogx(x_axis,P_DMvsR[massbin,:]-mean_DM,'-' ,label= 'Precipitation',lw=5,color='c')
-    #axis.semilogx(x_axis,NFW_DMvsR[massbin,:]-mean_DM,'-' ,label= 'NFW',lw=5,color='blue')
-    axis.semilogx(x_axis,STH_DMvsR[massbin,:]-mean_DM,'-', label= '3D Tophat',lw=5,color= 'red')
-    #axis.semilogx(x_axis,STH_2_DMvsR[massbin,:]-mean_DM,'-', label= '3D Tophat 2$R_{vir}$',lw=5,color= 'orange')
+    for data in series:
+        axis.semilogx(x_axis,data[0][massbin,:]-mean_DM,'-', label=data[2],lw=5,color=data[3])
 
-    # Masks
-    axis.semilogx(x_axis,STH_masks[massbin,:],'--', lw=2,color='red')
-    #axis.semilogx(x_axis,STH_2_masks[massbin,:],'--', lw=2,color='orange')
-    #axis.semilogx(x_axis,fire_masks[massbin,:],'--',lw=2,color='green')
-    #axis.semilogx(x_axis,NFW_masks[massbin,:],'--', lw=2,color='blue')
-    #axis.semilogx(x_axis,P_masks[massbin,:],'--', lw=2,color='c')
+        if plot_masks:
+            axis.semilogx(x_axis,data[1][massbin,:],'--', lw=2,color=data[3])
 
-def make_DM_vs_Rad_profiles_plots():
+def plot_error_bars(r_star_ar, axis, *lines):
+    for line in lines:
+        axis.semilogx(r_star_ar*1000,line[0],ls='--',drawstyle='steps',color=line[1],lw=line[2])
+
+
+def make_DM_vs_Rad_profiles_plots(series, error: bool):
 
     orig_den_256 = provider.get_density_field(0, 256)
-    halos_0 = provider.get_halos(0)
-
-    # This function orders the halo array in ascending mass
-    # Outputs: ordered dataframe of halos, mass bins
-    df= create_halo_array_for_convolution(halos_0,min_mass,max_mass,log_bins)
 
     # Mean DM of single box
     mean_DM=np.mean(orig_den_256)
@@ -115,15 +155,10 @@ def make_DM_vs_Rad_profiles_plots():
     # Radial extent of the plots in Mpc
     extent = (L/grid_size)*(trim_dim/2)
 
-    #####
-    # Plot generation
-    #####
     SMALL_SIZE = 8
     MEDIUM_SIZE = 10
     BIGGER_SIZE = 30
     XBIG_SIZE = 20
-    axis_fontsize = 20
-    curve_thickness = 2
 
     plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
     plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
@@ -133,30 +168,25 @@ def make_DM_vs_Rad_profiles_plots():
     plt.rc('legend', fontsize=XBIG_SIZE)    # legend fontsize
     plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
-
-    M_chosen = [1,10,15,20,25]
-
     MpctoKpc =1000
-    mask_rescale = np.sqrt(2)
-    x_start=30  #kpc: min impact parameter 
+    x_start = 30  #kpc: min impact parameter 
+    hspace = 0.015
 
     DM_Rad_fig, DM_Rad_axs = plt.subplots(3, 1,
-                            gridspec_kw={'hspace': 0.015, 'wspace': .2},figsize=(20,30))
+                            gridspec_kw={'hspace': hspace, 'wspace': .2},figsize=(20,30))
 
 
     # X-axis: mask grid has a diagonal of length sqrt(2) that needs to be factored in after the profile is calculated
-    x_axis = np.sqrt(2)*MpctoKpc*np.linspace(0, extent, STH_DMvsR.shape[1])
+    x_axis = np.sqrt(2)*MpctoKpc*np.linspace(0, extent, series[0][0].shape[1])
 
-    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[0], M_chosen[1])
-    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[1], M_chosen[2])
-    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[2], M_chosen[3])
+    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[0], M_chosen[1], series, not error)
+    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[1], M_chosen[2], series, not error)
+    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[2], M_chosen[3], series, not error)
 
-    # Error bar
-    # STH
-    # DM_Rad_axs[1].semilogx(r_star_ar*1000,error_1000_MW_STH,ls='--',drawstyle='steps',color='red',lw=.5)
-    # DM_Rad_axs[1].semilogx(r_star_ar*1000,error_1000_MW_STH2,ls='--',drawstyle='steps',color='orange',lw=.5)
-    # DM_Rad_axs[1].semilogx(r_star_ar*1000,error_1000_MW_fire,ls='--',drawstyle='steps',color='green',lw=.5)
-    # DM_Rad_axs[1].semilogx(r_star_ar*1000,error_1000_MW_NFW,ls='--',drawstyle='steps',color='blue',lw=.5)
+    if error:
+        plot_error_bars(r_star_ar, DM_Rad_axs[0], (error_100_11M_STH, 'red', 4), (error_100_11M_fire, 'green', 4))
+        plot_error_bars(r_star_ar, DM_Rad_axs[1], (error_100_12M_STH, 'red', 4), (error_100_12M_fire, 'green', 4), (error_100_12M_fire_host, 'blue', 2))
+        plot_error_bars(r_star_ar, DM_Rad_axs[2], (error_100_13M_STH, 'red', 4), (error_100_13M_fire, 'green', 4))
 
     # ticks
 
@@ -214,8 +244,15 @@ def make_DM_vs_Rad_profiles_plots():
     # DM_Rad_axs[0].rc('xtick', labelsize=35)    # fontsize of the tick labels
     # # plt.rc('ytick', labelsize=35)    # fontsize of the tick labels
 
+    errstr = ''
+    if error:
+        errstr = '_error'
+    name = 'DMvsRad_profiles_{}{}.pdf'.format(resolution, errstr)
 
-    saveFig('DMvsRad_profiles_%s.pdf' % resolution, DM_Rad_fig, bbox_inches='tight')
+    saveFig(name, DM_Rad_fig, bbox_inches='tight')
 
 
-make_DM_vs_Rad_profiles_plots()
+
+
+
+make_DM_vs_Rad_profiles_plots(series, False)
