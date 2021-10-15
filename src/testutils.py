@@ -39,7 +39,7 @@ def check_validity(results):
     assert not np.any(np.isnan(results['add_masks'])), 'No NaN should appear in results.'
     assert not np.any(np.isnan(results['add_density_field'])), 'No NaN should appear in results.'
     assert not np.any(np.isnan(results['final_density_field'])), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['stacked_density_field'])), 'No NaN should appear in results.'
+    #assert not np.any(np.isnan(results['stacked_density_field'])), 'No NaN should appear in results.'
     assert not np.any(np.isnan(results['vir_radii'])), 'No NaN should appear in results.'
     assert not np.any(np.isnan(results['halo_masses'])), 'No NaN should appear in results.'
             

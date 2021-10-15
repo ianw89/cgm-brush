@@ -1063,7 +1063,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     # Details of halo profiles
 
     # sigma is the variance of the gaussian. sigma**2 = 16 or 3*sigma**2 = 16
-    sigma_gauss = 4*resolution/np.sqrt(3)
+    sigma_gauss = 4/np.sqrt(3)
 
     # nsinc is the full width of the box function. So 4 means two boxes on either side of the point.
     width_sinc = 4
@@ -1084,7 +1084,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         halos_removed = halos_removed_field(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
               
         conv_all_steps = convolution_all_steps_final(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed[0],
-                           addition_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
+                           addition_profile,scaling_radius,resolution,sigma_gauss*resolution,width_sinc)
         
         
         halos_reAdded[i,:,:] = conv_all_steps[0]
@@ -1127,21 +1127,26 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_array, min_
     # Halos removed field
     t5 = t[4]
     
-    if len(RS_array)==1:
-        t6 = t1
+    #if len(RS_array)==1:
+    #    t6 = t1
     
-    else:
-        t6 = stack_all_arrays(t1,RS_array)
+    #else:
+    #    t6 = stack_all_arrays(t1,RS_array)
         
     #t7 = create_histograms(t6, resolution*1024)
-    t7 = (0,0,0) # TODO
+    #t7 = (0,0,0) # TODO
     
     t8 = t[5]
     t9 = t[6]
-    
+    #t10 = np.zeros([len(RS_array),resolution*1024,resolution*1024])
+
+    #for i in range(0,len(RS_array)):
+    #    t10[i,:,:] = redshifted_DM(t6[i,:,:], RS_array[i])
+
     # Outputs: 
     # histograms, halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, stacked halo field, virial radii, halo masses
-    return t7,t1,t2,t3,t4,t5,t6,t8,t9
+    return t1,t2,t3,t4,t5,t8,t9
+
 
 
 
@@ -1271,7 +1276,7 @@ def complete_stacking(stack,to_redshift):
     return stacked_array
 
 # Stack all arrays
-# Translate and redshift arrays 
+# Translate arrays 
 def stack_all_arrays(halos_reAdded,RS_array):
     
     resolution= np.shape(halos_reAdded)[-1]
@@ -1279,7 +1284,8 @@ def stack_all_arrays(halos_reAdded,RS_array):
     halos_reAdded_translated[0,:,:] = redshifted_DM(halos_reAdded[0,:,:],RS_array[0])
     
     for i in range(1, len(RS_array)):
-        halos_reAdded_translated[i,:,:] = redshifted_DM(translate_array(halos_reAdded[i,:,:]),RS_array[i]) # 10,10 are seeds to generate random numbers
+        halos_reAdded_translated[i,:,:] = translate_array(halos_reAdded[i,:,:]) # 10,10 are seeds to generate random numbers
+        #halos_reAdded_translated[i,:,:] = redshifted_DM(translate_array(halos_reAdded[i,:,:]),RS_array[i]) # 10,10 are seeds to generate random numbers
     
     
     return halos_reAdded_translated
@@ -1361,7 +1367,7 @@ def loadResults(filename, folder=varFolder):
     try: 
         npz = np.load(file_path, allow_pickle=True)
         for file in npz.files:
-            results[file] = npz[file]
+            results[file] = npz[file] # TODO Hmm, is this force loading all into memory instead of lazy?
         npz.close()
         return results
     except FileNotFoundError:
@@ -1413,6 +1419,8 @@ class Configuration:
         self.figure = None
         self.DM_vs_R1 = None
         self.mask_profiles = None
+        self.translated_field = None
+        self.stacked_field = None
         self.datestamp = str(datetime.date.today())
 
     def get_filename(self):
@@ -1434,7 +1442,7 @@ class Configuration:
         if isinstance(self.results, np.ndarray):
             self.results = tuple(self.results)
         if type(self.results) is tuple:
-            self.results = { 'massbin_histograms': self.results[0], 'final_density_field': self.results[1], 'add_masks': self.results[2], 'sub_coarse': self.results[3], 'add_density_field': self.results[4], 'removed_density_field': self.results[5], 'stacked_density_field': self.results[6], 'vir_radii': self.results[7], 'halo_masses': self.results[8] }
+            self.results = { 'final_density_field': self.results[0], 'add_masks': self.results[1], 'sub_coarse': self.results[2], 'add_density_field': self.results[3], 'removed_density_field': self.results[4], 'vir_radii': self.results[5], 'halo_masses': self.results[6] }
             saveResults(self.get_filename(), **self.results, folder=self.folder)
         if type(self.results) is not dict:
             raise ValueError('Results are in an unexpected format: %s' % type(self.results))
@@ -1448,6 +1456,7 @@ class Configuration:
             try:
                 self.results = loadResults(filename, folder=self.folder)
                 self.convert_and_save()
+                # TODO load 
             
             except IOError:
                 print("Cache miss: " + filename)
@@ -1463,8 +1472,9 @@ class Configuration:
             self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
                                                 self.addition_profile, self.scaling_radius, self.resolution)
-            self.convert_and_save()
             
+            self.convert_and_save()
+
             if trace:
                 pr.disable()
                 s = io.StringIO()
@@ -1510,6 +1520,39 @@ class Configuration:
             # Results have been saved to disk; let garbage collection free the memory if that's what the user wants.
             self.results = None
     
+    def generate_stacked_field(self, results_in_memory=True, load_from_files=False):
+
+        #translated_file = self.get_filename() + "_translated"
+        stacked_file = self.get_filename() + "_stacked"
+
+        if load_from_files:
+            try:
+                self.stacked_file = loadArray(stacked_file, folder=self.folder)            
+            except IOError:
+                print("Cache miss: " + stacked_file)
+
+        if self.stacked_field is None:
+
+            if not self.results:
+                raise ValueError("Run the convolution for this configuration before generating a stacked field.")
+
+            if len(self.RS_array) > 1:
+                
+                if not self.results:
+                    self.run(load_from_files=True)
+                
+                self.translated_field = stack_all_arrays(self.results['final_density_field'], self.RS_array)
+                #saveArray(translated_file, self.translated_field, folder=self.folder)
+                self.stacked_field = redshifted_DM(self.translated_field, self.RS_array)
+                saveArray(stacked_file, self.stacked_field, folder=self.folder)
+                self.results = None
+            else:
+                raise ValueError('Generating a stacked field is only applicable with data from multiple redshifts.')
+        
+        if not results_in_memory:
+            self.translated_field = None
+            self.stacked_field = None
+
     def generate_DM_vs_radius_profile(self, load_from_files=False):
         profile_file = '%s_DMvsR_prof' % self.get_filename()
 
@@ -1551,6 +1594,8 @@ class Configuration:
     def clear_results(self):
         """Clears results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
         self.results = None
+        self.translated_field = None
+        self.stacked_field = None
         #gc.collect()
         # should allow garbage collection to happen
         
