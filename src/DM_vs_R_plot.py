@@ -20,10 +20,8 @@ series = []
 
 config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1, folder=varFolder)
 config.datestamp = '2021-10-05'
-config.run(load_from_files=load_data)
-# Table of virial radii and avg masses
-vir_rad_ar = config.results['vir_radii']
-avg_mass_ar = config.results['halo_masses']
+vir_rad_ar = config.get_virial_radii()
+avg_mass_ar = config.get_halo_masses()
 
 print ("Masses chosen: ")
 print (avg_mass_ar[M_chosen[1]])

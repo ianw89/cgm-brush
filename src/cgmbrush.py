@@ -402,7 +402,7 @@ class BolshoiProvider(SimulationProvider):
             den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
             den = np.reshape(den_vals,(resolution,resolution,resolution))
             
-            return normDM((den+1).sum(2),0) # TODO BUG 0 should be redshift I would have
+            return normDM((den+1).sum(2),0) # TODO BUG 0 should be redshift I would have 
             #return normDM((den+1).sum(random.randint(0,1)),0)
 
     # Create a single array of density fields for various redshifts
@@ -985,12 +985,12 @@ def add_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scal
         halo_cell_pos = np.zeros([no_cells,no_cells])    
         
         # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
-        # TODO the 250/256 looks fishy to me
+        # TODO the resolution math here can be written in a more intuitive way
         ix = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
         iy = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
         xy=(ix,iy)
 
-        # BUG issue: the method does not add repeated coordinates BUG is that right?
+        # Adnan: BUG issue: the method does not add repeated coordinates. Ian: Is that right?
         halo_cell_pos[xy] += 1
 
         # convolve the mask and the halo positions
@@ -1100,13 +1100,13 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
 
 
 
+# TODO clean this up, we've basically made it do nothign over halo_subtraction_addition
 def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_array, min_mass, max_mass,
                                        log_bins, subtraction_halo_profile, addition_profile: CGMProfile, scaling_radius, resolution):
     """
-    This function runs everything needed apply cgmbrush.
+    This function runs the convolution code (subtraction and addition).
 
-    Outputs: histograms, halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, 
-    halos removed field, stacked halo field, virial radii, halo masses
+    Outputs: halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, virial radii, halo masses
     """
     
     # halo array
@@ -1134,7 +1134,7 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_array, min_
     #    t6 = stack_all_arrays(t1,RS_array)
         
     #t7 = create_histograms(t6, resolution*1024)
-    #t7 = (0,0,0) # TODO
+    #t7 = (0,0,0) 
     
     t8 = t[5]
     t9 = t[6]
@@ -1144,7 +1144,7 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_array, min_
     #    t10[i,:,:] = redshifted_DM(t6[i,:,:], RS_array[i])
 
     # Outputs: 
-    # histograms, halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, stacked halo field, virial radii, halo masses
+    # halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, virial radii, halo masses
     return t1,t2,t3,t4,t5,t8,t9
 
 
@@ -1343,13 +1343,6 @@ def saveArray(filename, *arrays, folder = varFolder):
         np.save(file_path, arrays[0]) 
     else:
         np.save(file_path, arrays) 
-
-def saveInParts(filename, *arrays, folder = varFolder):
-    """Hack for saving data too big for pickle (due to a pickle implementation bug)."""
-    i = 0 
-    while i < len(arrays):
-        saveArray(filename + '_part_' + str(i), arrays[i])
-        i = i + 1
     
 def loadArray(filename, folder = varFolder):
     """Loads numpy arrays that were saved with saveArray."""
@@ -1359,27 +1352,6 @@ def loadArray(filename, folder = varFolder):
     except FileNotFoundError:
         file_path = os.path.join(folder, filename + ".txt")
         return np.load(file_path, allow_pickle=True)
-
-def loadResults(filename, folder=varFolder):
-    """Loads numpy arrays that were saved with saveResults."""
-    file_path = os.path.join(folder, filename + ".npz")
-    results = {}
-    try: 
-        npz = np.load(file_path, allow_pickle=True)
-        for file in npz.files:
-            results[file] = npz[file] # TODO Hmm, is this force loading all into memory instead of lazy?
-        npz.close()
-        return results
-    except FileNotFoundError:
-        return loadArray(filename, folder=folder) # fallback to old .npy format
-
-def loadFromParts(filename_base, folder = varFolder):
-    """Load data saved with saveInParts."""
-    results = []
-    for i in range(0, 9):
-        file_part = os.path.join(folder, filename_base + '_part_' + str(i))
-        results.append(loadArray(file_part, folder=folder))
-    return tuple(results)
 
 
 class Configuration:
@@ -1414,14 +1386,27 @@ class Configuration:
         self.min_mass = 10**10
         self.max_mass = 10**14.5
         self.log_bins = 30
+        self.datestamp = str(datetime.date.today())
 
+        self.npz = None
         self.results = None
         self.figure = None
+        self.final_field = None
+        self.add_masks = None
+        self.addition_field = None
+        self.sub_coarse = None
+        self.removed_field = None
+        self.virial_radii = None
+        self.halo_masses = None
         self.DM_vs_R1 = None
         self.mask_profiles = None
         self.translated_field = None
         self.stacked_field = None
-        self.datestamp = str(datetime.date.today())
+
+
+    def __del__(self):
+        if (self.npz is not None):
+            self.npz.close()
 
     def get_filename(self):
         scaling = ''
@@ -1444,8 +1429,86 @@ class Configuration:
         if type(self.results) is tuple:
             self.results = { 'final_density_field': self.results[0], 'add_masks': self.results[1], 'sub_coarse': self.results[2], 'add_density_field': self.results[3], 'removed_density_field': self.results[4], 'vir_radii': self.results[5], 'halo_masses': self.results[6] }
             saveResults(self.get_filename(), **self.results, folder=self.folder)
+            self.final_field = self.results['final_density_field']
+            self.add_masks = self.results['add_masks']
+            self.sub_coarse = self.results['sub_coarse']
+            self.addition_field = self.results['add_density_field']
+            self.removed_field = self.results['removed_density_field']
+            self.virial_radii = self.results['vir_radii']
+            self.halo_masses = self.results['halo_masses']
+
         if type(self.results) is not dict:
             raise ValueError('Results are in an unexpected format: %s' % type(self.results))
+
+    def get_final_field(self):
+        if self.final_field is None:
+            
+            if self.npz is None:
+                self.run(load_from_files = True)
+            
+            self.final_field = self.npz.files['final_density_field']
+        
+        return self.final_field
+
+    def get_addition_masks(self):
+        if self.add_masks is None:
+            
+            if self.npz is None:
+                self.run(load_from_files = True)
+            
+            self.add_masks = self.npz.files['add_masks']
+        
+        return self.add_masks
+
+    def get_subtraction_coarse_field(self):
+        if self.sub_coarse is None:
+            
+            if self.npz is None:
+                self.run(load_from_files = True)
+            
+            self.sub_coarse = self.npz.files['sub_coarse']
+        
+        return self.sub_coarse
+
+    def get_addition_field(self):
+        if self.addition_field is None:
+            
+            if self.npz is None:
+                self.run(load_from_files = True)
+            
+            self.addition_field = self.npz.files['add_density_field']
+        
+        return self.addition_field
+
+    def get_removed_field(self):
+        if self.removed_field is None:
+            
+            if self.npz is None:
+                self.run(load_from_files = True)
+            
+            self.removed_field = self.npz.files['removed_density_field']
+        
+        return self.removed_field
+
+    def get_virial_radii(self):
+        if self.virial_radii is None:
+            
+            if self.npz is None:
+                self.run(load_from_files = True)
+            
+            self.virial_radii = self.npz.files['vir_radii']
+        
+        return self.virial_radii
+
+    def get_halo_masses(self):
+        if self.halo_masses is None:
+            
+            if self.npz is None:
+                self.run(load_from_files = True)
+            
+            self.halo_masses = self.npz.files['halo_masses']
+        
+        return self.halo_masses
 
     def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
         """Run this configuration."""
@@ -1454,10 +1517,15 @@ class Configuration:
 
         if load_from_files:
             try:
-                self.results = loadResults(filename, folder=self.folder)
-                self.convert_and_save()
-                # TODO load 
-            
+                file_path = os.path.join(self.folder, filename + ".npz")
+                self.results = {}
+                self.npz = np.load(file_path, allow_pickle=True)
+
+                # This is the non-lazy approach
+                #for file in npz.files:
+                #    self.results[file] = npz[file] 
+                #npz.close()
+                            
             except IOError:
                 print("Cache miss: " + filename)
                 #pass # File cache doesn't exist, swallow and compute it instead
@@ -1533,19 +1601,12 @@ class Configuration:
 
         if self.stacked_field is None:
 
-            if not self.results:
-                raise ValueError("Run the convolution for this configuration before generating a stacked field.")
-
             if len(self.RS_array) > 1:
-                
-                if not self.results:
-                    self.run(load_from_files=True)
-                
-                self.translated_field = stack_all_arrays(self.results['final_density_field'], self.RS_array)
+                                
+                self.translated_field = stack_all_arrays(self.get_final_field(), self.RS_array)
                 #saveArray(translated_file, self.translated_field, folder=self.folder)
                 self.stacked_field = redshifted_DM(self.translated_field, self.RS_array)
                 saveArray(stacked_file, self.stacked_field, folder=self.folder)
-                self.results = None
             else:
                 raise ValueError('Generating a stacked field is only applicable with data from multiple redshifts.')
         
@@ -1568,7 +1629,7 @@ class Configuration:
 
             trim_dim = int(10*self.resolution)
 
-            self.DM_vs_R1 = DM_vs_radius(self.results['final_density_field'][0,:,:], df[0], trim_dim, df[1]) [0]
+            self.DM_vs_R1 = DM_vs_radius(self.get_final_field()[0,:,:], df[0], trim_dim, df[1]) [0]
             saveArray(profile_file, self.DM_vs_R1, folder=self.folder)
     
     def generate_profile_of_masks(self, load_from_files=False):
@@ -1588,14 +1649,17 @@ class Configuration:
             full_mask_len = self.resolution * 20
             zoom_start = full_mask_len // 4
             zoom_end = 3 * zoom_start
-            self.mask_profiles = profile_of_masks(self.results['add_masks'][0, :, zoom_start:zoom_end, zoom_start:zoom_end])
+            self.mask_profiles = profile_of_masks(self.get_addition_masks()[0, :, zoom_start:zoom_end, zoom_start:zoom_end])
             saveArray('%s_masks' % self.get_filename(), self.mask_profiles, folder=self.folder)
 
     def clear_results(self):
-        """Clears results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
+        """Clears memory-intense results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
         self.results = None
+        self.final_field = None
+        self.addition_field = None
         self.translated_field = None
         self.stacked_field = None
+        # TODO is calling del(...) better? 
         #gc.collect()
         # should allow garbage collection to happen
         

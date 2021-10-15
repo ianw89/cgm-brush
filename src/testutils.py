@@ -32,14 +32,24 @@ def compare_mask_lists(results, baseline, resolution):
     return fig
     
 
-def check_validity(results):
+def check_validity(config: Configuration):
     #assert not np.isnan(results['massbin_histograms']), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['sub_coarse'])), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['removed_density_field'])), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['add_masks'])), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['add_density_field'])), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['final_density_field'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_subtraction_coarse_field())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_removed_field())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_addition_masks())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_addition_field())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_final_field())), 'No NaN should appear in results.'
     #assert not np.any(np.isnan(results['stacked_density_field'])), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['vir_radii'])), 'No NaN should appear in results.'
-    assert not np.any(np.isnan(results['halo_masses'])), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_virial_radii())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_halo_masses())), 'No NaN should appear in results.'
             
+
+def force_load_npz(filename, folder=varFolder):
+    """Loads all numpy arrays in a npz into a dictionary."""
+    file_path = os.path.join(folder, filename + ".npz")
+    results = {}
+    npz = np.load(file_path, allow_pickle=True)
+    for file in npz.files:
+        results[file] = npz[file] 
+    npz.close()
+    return results
