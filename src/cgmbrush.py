@@ -1275,25 +1275,21 @@ def complete_stacking(stack,to_redshift):
     
     return stacked_array
 
-# Stack all arrays
-# Translate arrays 
-def stack_all_arrays(halos_reAdded,RS_array):
+def translate_field_stack(halos_reAdded, RS_array):
+
+    halos_reAdded_translated = np.zeros(halos_reAdded.shape)
     
-    resolution= np.shape(halos_reAdded)[-1]
-    halos_reAdded_translated = np.zeros([len(RS_array),resolution,resolution])
-    halos_reAdded_translated[0,:,:] = redshifted_DM(halos_reAdded[0,:,:],RS_array[0])
-    
+    # Translate all but the first z slice
     for i in range(1, len(RS_array)):
         halos_reAdded_translated[i,:,:] = translate_array(halos_reAdded[i,:,:]) # 10,10 are seeds to generate random numbers
         #halos_reAdded_translated[i,:,:] = redshifted_DM(translate_array(halos_reAdded[i,:,:]),RS_array[i]) # 10,10 are seeds to generate random numbers
     
-    
     return halos_reAdded_translated
 
 def create_histograms(halos_reAdded_translated, resolution: int):
-    """Creates histograms from the final density fild. Resolution provided should be actual full resolution."""
+    """Creates histograms from a field. Resolution provided should be actual full resolution."""
     nbin=80
-    hist = histArray(sum(halos_reAdded_translated[:,:,:]),nbin,int(resolution),0,3*np.mean(sum(halos_reAdded_translated[:,:,:])))
+    hist = histArray(sum(halos_reAdded_translated),nbin, resolution, 0, 3*np.mean(sum(halos_reAdded_translated)))
 
     return hist
 
@@ -1446,7 +1442,7 @@ class Configuration:
             if self.npz is None:
                 self.run(load_from_files = True)
             
-            self.final_field = self.npz.files['final_density_field']
+            self.final_field = self.npz.get('final_density_field')
         
         return self.final_field
 
@@ -1456,7 +1452,7 @@ class Configuration:
             if self.npz is None:
                 self.run(load_from_files = True)
             
-            self.add_masks = self.npz.files['add_masks']
+            self.add_masks = self.npz.get('add_masks')
         
         return self.add_masks
 
@@ -1466,7 +1462,7 @@ class Configuration:
             if self.npz is None:
                 self.run(load_from_files = True)
             
-            self.sub_coarse = self.npz.files['sub_coarse']
+            self.sub_coarse = self.npz.get('sub_coarse')
         
         return self.sub_coarse
 
@@ -1476,7 +1472,7 @@ class Configuration:
             if self.npz is None:
                 self.run(load_from_files = True)
             
-            self.addition_field = self.npz.files['add_density_field']
+            self.addition_field = self.npz.get('add_density_field')
         
         return self.addition_field
 
@@ -1486,7 +1482,7 @@ class Configuration:
             if self.npz is None:
                 self.run(load_from_files = True)
             
-            self.removed_field = self.npz.files['removed_density_field']
+            self.removed_field = self.npz.get('removed_density_field')
         
         return self.removed_field
 
@@ -1496,7 +1492,7 @@ class Configuration:
             if self.npz is None:
                 self.run(load_from_files = True)
             
-            self.virial_radii = self.npz.files['vir_radii']
+            self.virial_radii = self.npz.get('vir_radii')
         
         return self.virial_radii
 
@@ -1506,7 +1502,7 @@ class Configuration:
             if self.npz is None:
                 self.run(load_from_files = True)
             
-            self.halo_masses = self.npz.files['halo_masses']
+            self.halo_masses = self.npz.get('halo_masses')
         
         return self.halo_masses
 
@@ -1518,7 +1514,6 @@ class Configuration:
         if load_from_files:
             try:
                 file_path = os.path.join(self.folder, filename + ".npz")
-                self.results = {}
                 self.npz = np.load(file_path, allow_pickle=True)
 
                 # This is the non-lazy approach
@@ -1530,7 +1525,7 @@ class Configuration:
                 print("Cache miss: " + filename)
                 #pass # File cache doesn't exist, swallow and compute it instead
 
-        if self.results is None:
+        if self.npz is None:
             print("Performing Calculations for " + filename)
                                    
             if trace:
@@ -1542,6 +1537,7 @@ class Configuration:
                                                 self.addition_profile, self.scaling_radius, self.resolution)
             
             self.convert_and_save()
+            self.npz = np.load(file_path, allow_pickle=True)
 
             if trace:
                 pr.disable()
@@ -1557,9 +1553,9 @@ class Configuration:
 
         if plots:
             original = self.provider.get_density_field(0, self.den_grid_size)
-            background_dm = self.results[5][0]
-            cgm_only = self.results[4][0]
-            density_final = self.results[1][0]
+            background_dm = self.get_removed_field()[0]
+            cgm_only = self.get_addition_field()[0]
+            density_final = self.get_final_field()[0]
 
             vmin = 10 # for a log color plot
             vmax = max(np.max(original), np.max(background_dm), np.max(cgm_only), np.max(density_final))
@@ -1585,28 +1581,37 @@ class Configuration:
             saveFig(filename + '_images', fig, folder=self.folder)
         
         if not results_in_memory:
-            # Results have been saved to disk; let garbage collection free the memory if that's what the user wants.
-            self.results = None
+            self.clear_results()
     
     def generate_stacked_field(self, results_in_memory=True, load_from_files=False):
+
+        if self.stacked_field is not None:
+            return self.stacked_field
 
         #translated_file = self.get_filename() + "_translated"
         stacked_file = self.get_filename() + "_stacked"
 
         if load_from_files:
             try:
-                self.stacked_file = loadArray(stacked_file, folder=self.folder)            
+                print("Loading stacked field... ",end="")
+                self.stacked_field = loadArray(stacked_file, folder=self.folder)    
+                print("done")        
             except IOError:
-                print("Cache miss: " + stacked_file)
+                print("cache miss: " + stacked_file)
 
         if self.stacked_field is None:
 
             if len(self.RS_array) > 1:
+                print("Creating Stacked Field... ",end="")
                                 
-                self.translated_field = stack_all_arrays(self.get_final_field(), self.RS_array)
+                self.translated_field = translate_field_stack(self.get_final_field(), self.RS_array)
                 #saveArray(translated_file, self.translated_field, folder=self.folder)
-                self.stacked_field = redshifted_DM(self.translated_field, self.RS_array)
+                self.stacked_field = np.zeros(self.translated_field.shape)
+                for i in range(0, len(self.RS_array)):
+                    self.stacked_field[i,:,:] = redshifted_DM(self.translated_field[i,:,:], self.RS_array[i])
+
                 saveArray(stacked_file, self.stacked_field, folder=self.folder)
+                print("done")
             else:
                 raise ValueError('Generating a stacked field is only applicable with data from multiple redshifts.')
         

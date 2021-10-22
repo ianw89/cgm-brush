@@ -10,15 +10,14 @@ provider = BolshoiProvider()
 resolution = 32
 grid_size = resolution*1024
 
-folder = '../../var/'
-#folder = '/Volumes/Seagate Backup Plus Drive/CGM-FRB-Data/'
+varFolder = '/Volumes/Seagate Backup Plus Drive/CGM-FRB-Data/'
 load_data = True
 load_DM_vs_rad = True
 load_masks = True
 
 series = []
 
-config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1, folder=varFolder)
+config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1)
 config.datestamp = '2021-10-05'
 vir_rad_ar = config.get_virial_radii()
 avg_mass_ar = config.get_halo_masses()
@@ -28,7 +27,7 @@ print (avg_mass_ar[M_chosen[1]])
 print (avg_mass_ar[M_chosen[2]])
 print (avg_mass_ar[M_chosen[3]])
 
-config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=resolution, folder=varFolder)
+config = Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=resolution)
 config.datestamp = '2021-10-05'
 #config.run(load_from_files=load_data)
 config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
@@ -38,7 +37,7 @@ STH_masks = config.mask_profiles
 config.clear_results()
 series.append((config.DM_vs_R1,config.mask_profiles,'3D Tophat','red'))
 
-config = Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=resolution, folder=folder)
+config = Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=resolution)
 config.datestamp = '2021-10-05'
 #config.run(load_from_files=load_data)
 config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
@@ -48,7 +47,7 @@ STH_2_masks = config.mask_profiles
 config.clear_results()
 series.append((config.DM_vs_R1, config.mask_profiles, '3D Tophat 2$R_{vir}$', 'orange'))
 
-config = Configuration(FireProfile(), 1, provider=provider, resolution=resolution, folder=folder)
+config = Configuration(FireProfile(), 1, provider=provider, resolution=resolution)
 config.datestamp = '2021-10-05'
 #config.run(load_from_files=load_data)
 config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
@@ -58,7 +57,7 @@ fire_masks = config.mask_profiles
 config.clear_results()
 series.append((config.DM_vs_R1, config.mask_profiles, 'FIRE', 'green'))
 
-config = Configuration(NFWProfile(), 1, provider=provider, resolution=resolution, folder=folder)
+config = Configuration(NFWProfile(), 1, provider=provider, resolution=resolution)
 config.datestamp = '2021-10-05'
 #config.run(load_from_files=load_data)
 config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
@@ -68,7 +67,7 @@ NFW_masks = config.mask_profiles
 config.clear_results()
 series.append((config.DM_vs_R1, config.mask_profiles, 'NFW', 'blue'))
 
-config = Configuration(PrecipitationProfile(), 1, provider=provider, resolution=resolution, folder=folder)
+config = Configuration(PrecipitationProfile(), 1, provider=provider, resolution=resolution)
 config.datestamp = '2021-10-05'
 #config.run(load_from_files=load_data)
 config.generate_DM_vs_radius_profile(load_from_files=load_DM_vs_rad)
