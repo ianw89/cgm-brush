@@ -1,3 +1,10 @@
+###################################################################################################
+#
+# cgmbrush.py 	        (c) Ian Williams, Adnan Khan, Matt McQuinn
+#     				    	ianw89@live.com
+#
+###################################################################################################
+
 from __future__ import print_function 
 from __future__ import division
 import matplotlib.pyplot as plt
@@ -17,23 +24,12 @@ import math
 import sys
 from scipy.interpolate import interp1d
 
+from cgmbrush.settings import *
+from cgmbrush.constants import *
+
 ########################################
 # Paramters, Constants, and Functions
 ########################################
-
-# Constants
-Mpc = 3.096*10**24 # cm
-msun =1.9891 * 10**30 #kilograms
-mprot = 1.6726219 * 10**-27 #kilograms
-Yhe =.25
-nPS = msun/mprot*(1-Yhe/2) # accounts for the fact that some mass is in helium
-lightspeed = 3e5 #km/s
-pi = np.pi
-mp = 1.6726216e-24  #proton mass in gr
-            
-KPCTOCM = 3.086e21
-MPCTOCM = 3.086e24
-mu = 1/((1-Yhe) + 2.*Yhe/4)  #mean molecular weight to give number of electrons assuming helium doubly ionized
 
 # Cosmological parameters
 z = 0
@@ -64,7 +60,6 @@ def elecD(z):
 # ########################################
 
 # TODO Bolshoi specific?
-sims_folder= "../sims"
 L=250/h # length of box in Mpc
 Ncel= 256  # number of cells of density field
 dx= L/Ncel # width of each cell
@@ -380,7 +375,7 @@ class BolshoiProvider(SimulationProvider):
         # Have to hardcode z=0 table because of the unique column names
         if redshift == 0:
             # reading density field and halos data
-            file_path= os.path.join(sims_folder, 'dens'+resStr+'-z-0.csv.gz')
+            file_path= os.path.join(SIMS_DIR, 'dens'+resStr+'-z-0.csv.gz')
             pdDens=pd.read_csv(file_path)
 
             # extracting columns
@@ -393,7 +388,7 @@ class BolshoiProvider(SimulationProvider):
             return normDM((tden2+1).sum(2), 0)
 
         else:
-            file_path = os.path.join(sims_folder, 'dens'+resStr+'-z-{:.1f}.csv.gz'.format(redshift))
+            file_path = os.path.join(SIMS_DIR, 'dens'+resStr+'-z-{:.1f}.csv.gz'.format(redshift))
             den = pd.read_csv(file_path)
             den2=den[['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz','Bolshoi__Dens'+resStr+'__dens']]
 
@@ -419,7 +414,7 @@ class BolshoiProvider(SimulationProvider):
     # Extract halos for a given redshift
     def extract_halos(self, redshift):
         name = 'halo-z-{:.1f}.csv.gz'.format(redshift)    
-        file_path= os.path.join(sims_folder, name)
+        file_path= os.path.join(SIMS_DIR, name)
         halos = pd.read_csv(file_path)
         return halos
 
@@ -1305,21 +1300,20 @@ def create_histograms(halos_reAdded_translated, resolution: int):
 # TODO Perhaps they will go in a different part of the package.
 ###########################################
 
-varFolder = "../var" # var folder above src is outside version control
-testFolder = "test" # test folder under src is in version control
+TEST_DIR = "data" # test folder under src is in version control
 # TODO there are tests that require the Bolshoi sims files, but those are big and not in version control.
 #   Possible solution - reduce the Bolshoi files down to 1/100 the size for testing only.
 
 def saveFig(filename_base, fig, **kwargs):
     """Saves matplotlib figures to a specified folder (defaults to a var folder outside verion control)."""
-    file_path = os.path.join(varFolder, filename_base)
+    file_path = os.path.join(VAR_DIR, filename_base)
     
-    if not(os.path.exists(varFolder)):
-        os.makedirs(varFolder)
+    if not(os.path.exists(VAR_DIR)):
+        os.makedirs(VAR_DIR)
 
     fig.savefig(file_path, **kwargs)
 
-def saveResults(filename, folder = varFolder, **arrays):
+def saveResults(filename, folder = VAR_DIR, **arrays):
     """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
     file_path = os.path.join(folder, filename)
     
@@ -1328,7 +1322,7 @@ def saveResults(filename, folder = varFolder, **arrays):
 
     np.savez(file_path, **arrays) 
 
-def saveArray(filename, *arrays, folder = varFolder):
+def saveArray(filename, *arrays, folder = VAR_DIR):
     """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
     file_path = os.path.join(folder, filename)
     
@@ -1340,7 +1334,7 @@ def saveArray(filename, *arrays, folder = varFolder):
     else:
         np.save(file_path, arrays) 
     
-def loadArray(filename, folder = varFolder):
+def loadArray(filename, folder = VAR_DIR):
     """Loads numpy arrays that were saved with saveArray."""
     file_path = os.path.join(folder, filename + ".npy")
     try:
@@ -1358,7 +1352,7 @@ class Configuration:
     """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=varFolder, resolution=1, den_grid_size=256, RS_array=[0]):
+    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_array=[0]):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
@@ -1510,10 +1504,10 @@ class Configuration:
         """Run this configuration."""
 
         filename = self.get_filename()
+        file_path = os.path.join(self.folder, filename + ".npz")
 
         if load_from_files:
             try:
-                file_path = os.path.join(self.folder, filename + ".npz")
                 self.npz = np.load(file_path, allow_pickle=True)
 
                 # This is the non-lazy approach
@@ -1547,7 +1541,7 @@ class Configuration:
 
                 version = 1
                 # TODO auto version incrementing
-                perf_file_path = os.path.join(varFolder, 'perf_convo_' + filename + '_v%s.txt' % version)
+                perf_file_path = os.path.join(VAR_DIR, 'perf_convo_' + filename + '_v%s.txt' % version)
                 with open(perf_file_path, 'w') as f:
                     f.write(s.getvalue())
 

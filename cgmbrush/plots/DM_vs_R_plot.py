@@ -1,4 +1,4 @@
-from cgmbrush import *
+from cgmbrush.cgmbrush import *
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
@@ -10,7 +10,6 @@ provider = BolshoiProvider()
 resolution = 32
 grid_size = resolution*1024
 
-varFolder = '/Volumes/Seagate Backup Plus Drive/CGM-FRB-Data/'
 load_data = True
 load_DM_vs_rad = True
 load_masks = True

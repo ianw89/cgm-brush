@@ -5,7 +5,8 @@
 # Simulations folder containing large n-body simulation files
 sims/
 
-
+# Virtual Environment for python
+dev_env/
 
 #####
 # STANDARD IGNORES

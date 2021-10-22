@@ -1,4 +1,4 @@
-from cgmbrush import *
+from cgmbrush.cgmbrush import *
 import numpy as np
 import matplotlib.pyplot as plt
 #from truth.truth import AssertThat # considering using PyTruth for fluent assertions
@@ -44,7 +44,7 @@ def check_validity(config: Configuration):
     assert not np.any(np.isnan(config.get_halo_masses())), 'No NaN should appear in results.'
             
 
-def force_load_npz(filename, folder=varFolder):
+def force_load_npz(filename, folder=VAR_DIR):
     """Loads all numpy arrays in a npz into a dictionary."""
     file_path = os.path.join(folder, filename + ".npz")
     results = {}

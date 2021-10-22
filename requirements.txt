@@ -1,0 +1,7 @@
+scipy
+numpy
+jupyter
+matplotlib
+pandas
+ipython
+ipykernel

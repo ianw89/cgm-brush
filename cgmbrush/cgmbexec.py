@@ -1,4 +1,4 @@
-from cgmbrush import *
+from cgmbrush.cgmbrush import *
 import numpy as np
 
 
