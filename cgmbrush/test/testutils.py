@@ -1,3 +1,10 @@
+###################################################################################################
+#
+# testutils.py 	        (c) Ian Williams, Adnan Khan, Matt McQuinn
+#     				    	ianw89@live.com
+#
+###################################################################################################
+
 from cgmbrush.cgmbrush import *
 import numpy as np
 import matplotlib.pyplot as plt
