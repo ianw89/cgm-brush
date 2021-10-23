@@ -7,6 +7,8 @@ Tested on python 3.7.1 and 3.8.5
 ## Installation Instructions
 CGMbrush is not yet available as a public package. For now, you can clone this repository and follow the developer instructions below.
 
+When publically available, you may run the following to install cgmbrush:
+$ pip install cgmbrush
 
 ## Developer Instructions
 If you are forking this repo and intend on workign directly with its sources, the following workflow is recommended (assumes linux or macintosh):

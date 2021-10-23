@@ -17,6 +17,7 @@ setup(
     requires=['numpy','scipy','pandas','jupyter'],
     url='https://github.com/ianw89/cgm-brush',
     license=license,
+    requires = ['numpy', 'scipy', 'jupyter', 'pandas', 'ipython', 'ipykernel', 'matplotlib'],
     packages=['cgmbrush',
             'cgmbrush.plots',
             ]
