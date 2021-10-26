@@ -11,9 +11,9 @@ When publically available, you may run the following to install cgmbrush:
 $ pip install cgmbrush
 
 ## Developer Instructions
-If you are forking this repo and intend on workign directly with its sources, the following workflow is recommended (assumes linux or macintosh):
+If you are forking this repo and intend on working directly with its sources, the following workflow is recommended:
 
-First, setup a virtual environment in the root folder of the respository. Open a terminal and navigate to the base folder of the respository.
+First, setup a virtual environment in the root folder of the respository. Open a terminal and navigate to the base folder of the respository. Type these commands:
 $ virtualenv dev_env
 $ source dev_env/bin/activate
 $ pip install -e .

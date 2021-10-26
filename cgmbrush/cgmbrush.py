@@ -1577,6 +1577,14 @@ class Configuration:
         if not results_in_memory:
             self.clear_results()
     
+    def get_stacked_field(self):
+
+        if self.stacked_field is None:
+            self.generate_stacked_field(load_from_files=True)
+
+        return self.stacked_field
+
+
     def generate_stacked_field(self, results_in_memory=True, load_from_files=False):
 
         if self.stacked_field is not None:
@@ -1608,10 +1616,11 @@ class Configuration:
                 print("done")
             else:
                 raise ValueError('Generating a stacked field is only applicable with data from multiple redshifts.')
-        
+
         if not results_in_memory:
             self.translated_field = None
             self.stacked_field = None
+        
 
     def generate_DM_vs_radius_profile(self, load_from_files=False):
         profile_file = '%s_DMvsR_prof' % self.get_filename()
