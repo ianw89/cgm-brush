@@ -1227,7 +1227,7 @@ def profile_of_masks(mask_array):
     return prof_masks
     
 # Translate arrays by random number
-# def translate_array(array,seed_x,seed_y):
+#def translate_array(array,seed_x,seed_y):
 def translate_array(array):
     
     # Dimension of input array
@@ -1270,14 +1270,19 @@ def complete_stacking(stack,to_redshift):
     
     return stacked_array
 
-def translate_field_stack(halos_reAdded, RS_array):
+def translate_field_stack(halos_reAdded, RS_array, seed):
 
     halos_reAdded_translated = np.zeros(halos_reAdded.shape)
     
+    # We want to random translations for each of the blocks. But we want to be able to make the same translations from run to run
+    # so different CGM profiles can be compared. Thus, set the random seed here.
+    if seed is not None:
+        random.seed(seed)
+
     # Translate all but the first z slice
     for i in range(1, len(RS_array)):
-        halos_reAdded_translated[i,:,:] = translate_array(halos_reAdded[i,:,:]) # 10,10 are seeds to generate random numbers
-        #halos_reAdded_translated[i,:,:] = redshifted_DM(translate_array(halos_reAdded[i,:,:]),RS_array[i]) # 10,10 are seeds to generate random numbers
+        halos_reAdded_translated[i,:,:] = translate_array(halos_reAdded[i,:,:]) 
+        #halos_reAdded_translated[i,:,:] = redshifted_DM(translate_array(halos_reAdded[i,:,:]),RS_array[i])
     
     return halos_reAdded_translated
 
@@ -1300,7 +1305,7 @@ def create_histograms(halos_reAdded_translated, resolution: int):
 # TODO Perhaps they will go in a different part of the package.
 ###########################################
 
-TEST_DIR = "data" # test folder under src is in version control
+TEST_DIR = "data" # folder under cgmbrush/test/ that holds data files used in tests is in version control
 # TODO there are tests that require the Bolshoi sims files, but those are big and not in version control.
 #   Possible solution - reduce the Bolshoi files down to 1/100 the size for testing only.
 
@@ -1377,6 +1382,7 @@ class Configuration:
         self.max_mass = 10**14.5
         self.log_bins = 30
         self.datestamp = str(datetime.date.today())
+        self.seed = None
 
         self.npz = None
         self.results = None
@@ -1606,7 +1612,7 @@ class Configuration:
             if len(self.RS_array) > 1:
                 print("Creating Stacked Field... ",end="")
                                 
-                self.translated_field = translate_field_stack(self.get_final_field(), self.RS_array)
+                self.translated_field = translate_field_stack(self.get_final_field(), self.RS_array, self.seed)
                 #saveArray(translated_file, self.translated_field, folder=self.folder)
                 self.stacked_field = np.zeros(self.translated_field.shape)
                 for i in range(0, len(self.RS_array)):
