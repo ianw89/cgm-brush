@@ -1273,6 +1273,7 @@ def complete_stacking(stack,to_redshift):
 def translate_field_stack(halos_reAdded, RS_array, seed):
 
     halos_reAdded_translated = np.zeros(halos_reAdded.shape)
+    halos_reAdded_translated[0] = halos_reAdded[0] # don't translate the 1st redshift's field, so just copy over
     
     # We want to random translations for each of the blocks. But we want to be able to make the same translations from run to run
     # so different CGM profiles can be compared. Thus, set the random seed here.
