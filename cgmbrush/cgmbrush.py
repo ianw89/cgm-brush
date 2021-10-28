@@ -1008,14 +1008,14 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
     assert not np.any(np.isnan(subtraction_profile_smooth))
     
     # create coarse grid
-    subtracted_coarse= smoothfield(subtraction_profile_smooth,1024,den_grid_size)
-    assert not np.any(np.isnan(subtracted_coarse))
+    subtraction_coarse= smoothfield(subtraction_profile_smooth,1024,den_grid_size)
+    assert not np.any(np.isnan(subtraction_coarse))
     
     # remove halos from the density field
-    halos_removed_coarse=removeConvolvedHalos(density_field,subtracted_coarse)
+    halos_removed_coarse=removeConvolvedHalos(density_field,subtraction_coarse)
     assert not np.any(np.isnan(halos_removed_coarse))
     
-    return halos_removed_coarse,subtracted_coarse
+    return halos_removed_coarse,subtraction_coarse,subtraction_profile,subtraction_profile_smooth
 
 
 # Function subtracts and adds halos
@@ -1053,7 +1053,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     # Details of halo profiles
 
     # sigma is the variance of the gaussian. sigma**2 = 16 or 3*sigma**2 = 16
-    sigma_gauss = 4/np.sqrt(3)
+    sigma_gauss = 4
 
     # nsinc is the full width of the box function. So 4 means two boxes on either side of the point.
     width_sinc = 4
@@ -1086,7 +1086,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         
         
     # returns halo array and masks used to add halos back
-    return halos_reAdded,halo_masks,halos_subtraction_coarse,halo_field,halos_removed_fields, conv_all_steps[5],conv_all_steps[6]
+    return halos_reAdded,halo_masks,halos_subtraction_coarse,halo_field,halos_removed_fields, conv_all_steps[5],conv_all_steps[6],halos_removed[2],halos_removed[3]
 
 
 
@@ -1135,7 +1135,7 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_array, min_
 
     # Outputs: 
     # halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, virial radii, halo masses
-    return t1,t2,t3,t4,t5,t8,t9
+    return t1,t2,t3,t4,t5,t8,t9,t[7],t[8]
 
 
 
@@ -1394,6 +1394,8 @@ class Configuration:
         self.mask_profiles = None
         self.translated_field = None
         self.stacked_field = None
+        self.sub_fine_unsmoothed = None
+        self.sub_fine_smoothed = None
 
 
     def __del__(self):
@@ -1419,7 +1421,7 @@ class Configuration:
         if isinstance(self.results, np.ndarray):
             self.results = tuple(self.results)
         if type(self.results) is tuple:
-            self.results = { 'final_density_field': self.results[0], 'add_masks': self.results[1], 'sub_coarse': self.results[2], 'add_density_field': self.results[3], 'removed_density_field': self.results[4], 'vir_radii': self.results[5], 'halo_masses': self.results[6] }
+            self.results = { 'final_density_field': self.results[0], 'add_masks': self.results[1], 'sub_coarse': self.results[2], 'add_density_field': self.results[3], 'removed_density_field': self.results[4], 'vir_radii': self.results[5], 'halo_masses': self.results[6], 'sub_fine_unsmoothed': self.results[7], 'sub_fine_smoothed': self.results[8] }
             saveResults(self.get_filename(), **self.results, folder=self.folder)
             self.final_field = self.results['final_density_field']
             self.add_masks = self.results['add_masks']
@@ -1428,6 +1430,8 @@ class Configuration:
             self.removed_field = self.results['removed_density_field']
             self.virial_radii = self.results['vir_radii']
             self.halo_masses = self.results['halo_masses']
+            self.sub_fine_unsmoothed = self.results['sub_fine_unsmoothed']
+            self.sub_fine_smoothed = self.results['sub_fine_smoothed']
 
         if type(self.results) is not dict:
             raise ValueError('Results are in an unexpected format: %s' % type(self.results))
