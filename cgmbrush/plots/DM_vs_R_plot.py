@@ -142,7 +142,7 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end):
     if error:
 
         ### For error bar plot
-        # Variances should be extracted from the redshift plots at redshift =0.5
+        # Variances should be extracted from the redshift plots at redshift =0.5 TODO update
         var_STH_2 = 173
         var_STH2_2 = 141
         var_NFW_2 = 451
@@ -157,12 +157,12 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end):
 
         num_FRB = 100
 
-        error_100_11M_STH = error_bar_DMvsRad(var_STH_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[1]],4)
-        error_100_11M_fire = error_bar_DMvsRad(var_fire_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[1]],4)
+        error_100_11M_STH = error_bar_DMvsRad(var_STH_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[1]],1)
+        error_100_11M_fire = error_bar_DMvsRad(var_fire_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[1]],1)
         #error_100_11M_P = error_bar_DMvsRad(var_P_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[1]],4)
 
-        error_100_12M_STH = error_bar_DMvsRad(var_STH_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[2]],2)
-        error_100_12M_fire = error_bar_DMvsRad(var_fire_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[2]],2)
+        error_100_12M_STH = error_bar_DMvsRad(var_STH_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[2]],1)
+        error_100_12M_fire = error_bar_DMvsRad(var_fire_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[2]],1)
         #error_100_12M_P = error_bar_DMvsRad(var_P_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[2]],2)
 
         error_100_13M_STH = error_bar_DMvsRad(var_STH_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[3]],0.6)
