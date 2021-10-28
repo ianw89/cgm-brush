@@ -397,19 +397,14 @@ class BolshoiProvider(SimulationProvider):
             den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
             den = np.reshape(den_vals,(resolution,resolution,resolution))
             
-            return normDM((den+1).sum(2),0) # TODO BUG 0 should be redshift I would have 
-            #return normDM((den+1).sum(random.randint(0,1)),0)
+            den = normDM((den+1).sum(2),0) 
 
-    # Create a single array of density fields for various redshifts
-    # Density fields: Choose 256 or 512 field
-    def extract_all_den_fields(self, RS_array, den_grid_size):
+            test_l= (np.repeat((np.repeat(den,4,axis=0)),4,axis=1))
 
-        all_den_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size])
+            test_sm =  gauss_sinc_smoothing(test_l,4,4,1)
+            smoothed_field = test_sm.reshape([256, 4, 256, 4]).mean(3).mean(1)
+            return smoothed_field
 
-        for i in range(0, len(RS_array)):
-            all_den_fields[i,:,:] = self.import_density_field(i, den_grid_size)
-        
-        return all_den_fields 
         
     # Extract halos for a given redshift
     def extract_halos(self, redshift):
