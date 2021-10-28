@@ -13,7 +13,6 @@ setup(
     long_description=readme,
     author='Ian Williams',
     author_email='ianw89@live.com',
-    requires=['numpy','scipy','pandas','jupyter'],
     url='https://github.com/ianw89/cgm-brush',
     license=license,
     requires = ['numpy', 'scipy', 'jupyter', 'pandas', 'ipython', 'ipykernel', 'matplotlib'],
