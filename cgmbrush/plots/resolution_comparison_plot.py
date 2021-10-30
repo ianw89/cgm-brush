@@ -1,3 +1,10 @@
+###################################################################################################
+#
+# resolution_comparison_plot.py 	(c) Ian Williams, Adnan Khan, Matt McQuinn
+#     				    	        ianw89@live.com
+#
+###################################################################################################
+
 import matplotlib.pyplot as plt
 from cgmbrush.cgmbrush import *
 

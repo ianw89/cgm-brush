@@ -1,3 +1,10 @@
+###################################################################################################
+#
+# DM_vs_R_plot.py 	                (c) Ian Williams, Adnan Khan, Matt McQuinn
+#     				    	        ianw89@live.com
+#
+###################################################################################################
+
 from cgmbrush.cgmbrush import *
 import matplotlib.pyplot as plt
 import numpy as np

@@ -28,7 +28,7 @@ from cgmbrush.settings import *
 from cgmbrush.constants import *
 
 ########################################
-# Paramters, Constants, and Functions
+# Parameters, Constants, and Functions
 ########################################
 
 # Cosmological parameters
@@ -59,7 +59,7 @@ def elecD(z):
 # Configuration of the simulation
 # ########################################
 
-# TODO Bolshoi specific?
+# TODO Bolshoi specific; need to make these properties of the SimulationProvider
 L=250/h # length of box in Mpc
 Ncel= 256  # number of cells of density field
 dx= L/Ncel # width of each cell
@@ -259,6 +259,10 @@ def z_eff(zmin,zmax,L_box):
     return ((DM_analytical(zmax)-DM_analytical(zmin))/((L_box*10**6)*elecD(0)))**(1) - 1
 
 def RS_array_gen(z_max,L):
+    """Computes redshift values for each box when stacking boxes of length L out to redshift z_max.
+    
+    Returns an array of these z values.
+    """
     RS_array = []
     RS_array.append(CDtoRS(L,1))
     for i in range(1,int(numBoxes(z_max))):
@@ -302,25 +306,51 @@ class SimulationProvider(metaclass=abc.ABCMeta):
 
 
 class BolshoiProvider(SimulationProvider):
-    """SimulationProvider implementation for Bolshoi simulations."""
+    """SimulationProvider implementation for Bolshoi simulations.
 
-    # TODO pass in filename in constructor?
+    Reads density fields for downloaded from the Bolshoi Simulation archives named like dens<resolution-z-<zzz>.csv.gz and halo-z-<zzz>.csv.gz,
+    where <resolution> is either 256 or 512 and <zzz> is a shorthand for redshift of the data, which can be related to the actual redshift
+    via the z_to_filename map.
+    
+    Note for dealing with z > 0:
+    In order to deal with the fact that there is different density fields and halos for specific redshifts, 
+    a filename convention is created here that maps specific redshift values to a shorter filename moniker.
+    So, the data for z≈0.31 is in the files with 0.4 in them as per the default z_to_filename map. The map can 
+    be re-written as per your application.
+    """
+
     def __init__(self):
         # Associative array of (redshift, resolution) => 3D numpy grid 
         # This works very well with np.savez, which is much faster to read
         # than the Bolshoi density files
         self.density_fields = {}  
         self.halos = {}
+        self.z_to_filename = {
+            '0':'0',
+            str(round(0.0845770240448820, 2)): '0.1', 
+            str(round(0.1337050904798766, 2)): '0.2',
+            str(round(0.2225162656597088, 2)): '0.3',
+            str(round(0.3113821868867406, 2)): '0.4',
+            str(round(0.4089786628982832, 2)): '0.5',
+            str(round(0.5101330792301793, 2)): '0.6',
+            str(round(0.6205902514416375, 2)): '0.7', 
+            str(round(0.7454876185015988,2)): '0.8', 
+            str(round(0.8931355846491102,2)): '0.9'
+        }
 
     def get_density_field(self, redshift: float, resolution: int):
         """Gets the density field for the given redshift and grid resolution."""
 
+        if str(round(redshift, 2)) not in self.z_to_filename:
+            raise ValueError("There is no file associated with the z={}. Add an entry to the z_to_filname dictionary on this object.".format(redshift))
+        z_name = self.z_to_filename[str(round(redshift, 2))]
+
         # If in memory, use it
-        if (redshift, resolution) in self.density_fields:
-            return self.density_fields[(redshift, resolution)]
+        if (z_name, resolution) in self.density_fields:
+            return self.density_fields[(z_name, resolution)]
 
         # If not, try fast reading from saved off numpy array            
-        filename = "bol_den_field_" + str(redshift) + '_' + str(resolution) 
+        filename = "bol_den_field_" + z_name + '_' + str(resolution) 
         result = []
         try:
             result = loadArray(filename)
@@ -329,23 +359,27 @@ class BolshoiProvider(SimulationProvider):
         
         # Do the slow reading from the bolshoi file and save off fast copy
         if len(result) == 0:
-            result = self.import_density_field(redshift, resolution)
+            result = self.import_density_field(z_name, resolution)
             if len(result) == 0:
                 raise IOError("There was a problem importing the Bolshoi density field for (" + str(redshift) + ", " + str(resolution) + ")")
             saveArray(filename, result)
 
-        self.density_fields[(redshift, resolution)] = result
+        self.density_fields[(z_name, resolution)] = result
         return result
 
     def get_halos(self, redshift: float) -> pd.DataFrame:
         """Gets halo information for the given redshift."""
 
+        if str(round(redshift, 2)) not in self.z_to_filename:
+            raise ValueError("There is no file associated with the z={}. Add an entry to the z_to_filname dictionary on this object.".format(redshift))
+        z_name = self.z_to_filename[str(round(redshift, 2))]
+
         # If in memory, use it
-        if redshift in self.halos:
-            return self.halos[redshift]
+        if z_name in self.halos:
+            return self.halos[z_name]
 
         # If not, try fast reading from saved off numpy array            
-        filename = "bol_halos_" + str(redshift)
+        filename = "bol_halos_" + z_name
         result = []
         try:
             result = loadArray(filename)
@@ -356,16 +390,16 @@ class BolshoiProvider(SimulationProvider):
         
         # Do the slow reading from the bolshoi file and save off fast copy
         if len(result) == 0:
-            result = self.extract_halos(redshift)
+            result = self.extract_halos(z_name)
             if len(result) == 0:
                 raise IOError("There was a problem importing the Bolshoi halos for redshift" + str(redshift))
             saveArray(filename, result)
 
-        self.halos[redshift] = result
+        self.halos[z_name] = result
         return result
 
-    # Function to import density and halo tables for a given redshift
-    def import_density_field(self, redshift, resolution):
+    def import_density_field(self, z_name, resolution):
+        """Imports the density field for a given redshift and smooths it. Stores the result in a cache that is faster to access."""
         
         if resolution != 256 and resolution != 512:
             raise ValueError("Only resolution 256 or 512 is supported.")
@@ -373,7 +407,7 @@ class BolshoiProvider(SimulationProvider):
         resStr = str(resolution)
 
         # Have to hardcode z=0 table because of the unique column names
-        if redshift == 0:
+        if z_name == 0:
             # reading density field and halos data
             file_path= os.path.join(SIMS_DIR, 'dens'+resStr+'-z-0.csv.gz')
             pdDens=pd.read_csv(file_path)
@@ -388,7 +422,7 @@ class BolshoiProvider(SimulationProvider):
             return normDM((tden2+1).sum(2), 0)
 
         else:
-            file_path = os.path.join(SIMS_DIR, 'dens'+resStr+'-z-{:.1f}.csv.gz'.format(redshift))
+            file_path = os.path.join(SIMS_DIR, 'dens'+resStr+'-z-{}.csv.gz'.format(z_name))
             den = pd.read_csv(file_path)
             den2=den[['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz','Bolshoi__Dens'+resStr+'__dens']]
 
@@ -407,8 +441,8 @@ class BolshoiProvider(SimulationProvider):
 
         
     # Extract halos for a given redshift
-    def extract_halos(self, redshift):
-        name = 'halo-z-{:.1f}.csv.gz'.format(redshift)    
+    def extract_halos(self, z_name):
+        name = 'halo-z-{}.csv.gz'.format(z_name)    
         file_path= os.path.join(SIMS_DIR, name)
         halos = pd.read_csv(file_path)
         return halos
@@ -839,11 +873,10 @@ def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,re
 
 # arguments: 
 # haloArray: dataframe of halos, sorted by mass.
-# resolution: 1024 or 2048 TODO 
 # bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
-def subtract_halos(haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: float, redshift: float):
+def subtract_halos(haloArray, bin_markers, profile: CGMProfile, scaling_radius: float, redshift: float):
     
     # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
     df = haloArray
@@ -1002,7 +1035,7 @@ def halos_removed_field(current_halo_file,min_mass,max_mass,density_field,den_gr
     bin_markers= halo_array_for_convolution[1]
     
     # convolve halos
-    subtraction_profile = subtract_halos(df,resolution,bin_markers,subtraction_halo_profile,scaling_radius,redshift)
+    subtraction_profile = subtract_halos(df,bin_markers,subtraction_halo_profile,scaling_radius,redshift)
     assert not np.any(np.isnan(subtraction_profile))
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1)
     assert not np.any(np.isnan(subtraction_profile_smooth))
@@ -1354,7 +1387,7 @@ class Configuration:
     """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_array=[0],RS_names=[0]):
+    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_values=[0], RS_names=[0]):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
@@ -1369,7 +1402,7 @@ class Configuration:
         self.den_grid_size = den_grid_size 
 
         # User provides a redshift array
-        self.RS_array = RS_array # For a single box, we only use the redshift 0 box
+        self.RS_array = RS_values # For a single box, we only use the redshift 0 box
         self.RS_names = RS_names
 
         # Profile used for subtracting halos from the density field

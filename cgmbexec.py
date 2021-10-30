@@ -11,7 +11,7 @@ results_in_memory = False # Do not keep results in memeory, just want them saved
 plots = False 
 trace = False
 seed = '50g89Gfh03f4Gh0r38h2TfM08'
-RS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+RS_values = RS_array_gen(1,L)
 # TODO having all the data for all the redshifts together is too big at large resolutions
 # TODO design an alternative
 
@@ -20,7 +20,7 @@ configurations = [
     Configuration(NFWProfile(), 1, provider=provider, resolution=2),
     Configuration(NFWProfile(), 1, provider=provider, resolution=4),
     Configuration(NFWProfile(), 1, provider=provider, resolution=8),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_array=RS),
+    Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
     Configuration(NFWProfile(), 1, provider=provider, resolution=16),
     Configuration(NFWProfile(), 1, provider=provider, resolution=32),
 
@@ -28,7 +28,7 @@ configurations = [
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=4),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, RS_array=RS),
+    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32),
 
@@ -36,7 +36,7 @@ configurations = [
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=2),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=4),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8, RS_array=RS),
+    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8, RS_values=RS_values),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=16),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=32),
 
@@ -44,7 +44,7 @@ configurations = [
     Configuration(TophatProfile(), 1, provider=provider, resolution=2),
     Configuration(TophatProfile(), 1, provider=provider, resolution=4),
     Configuration(TophatProfile(), 1, provider=provider, resolution=8),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=8, RS_array=RS),
+    Configuration(TophatProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
     Configuration(TophatProfile(), 1, provider=provider, resolution=16),
     Configuration(TophatProfile(), 1, provider=provider, resolution=32),
 
@@ -52,7 +52,7 @@ configurations = [
     Configuration(FireProfile(), 1, provider=provider, resolution=2),
     Configuration(FireProfile(), 1, provider=provider, resolution=4),
     Configuration(FireProfile(), 1, provider=provider, resolution=8),
-    Configuration(FireProfile(), 1, provider=provider, resolution=8, RS_array=RS),
+    Configuration(FireProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
     Configuration(FireProfile(), 1, provider=provider, resolution=16),
     Configuration(FireProfile(), 1, provider=provider, resolution=32),
 
@@ -60,7 +60,7 @@ configurations = [
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=2),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=4),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8, RS_array=RS),
+    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=16),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=32),
 
