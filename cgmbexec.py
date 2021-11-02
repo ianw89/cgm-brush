@@ -1,10 +1,6 @@
 from cgmbrush.cgmbrush import *
 import numpy as np
 
-
-min_mass = 10**10
-max_mass = 10**14.5
-log_bins = 30
 provider = BolshoiProvider()
 load_from_files = True # If we already ran this run today, skip it
 results_in_memory = False # Do not keep results in memeory, just want them saved to npy files
@@ -20,7 +16,7 @@ configurations = [
     Configuration(NFWProfile(), 1, provider=provider, resolution=2),
     Configuration(NFWProfile(), 1, provider=provider, resolution=4),
     Configuration(NFWProfile(), 1, provider=provider, resolution=8),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
+    Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
     Configuration(NFWProfile(), 1, provider=provider, resolution=16),
     Configuration(NFWProfile(), 1, provider=provider, resolution=32),
 
@@ -28,15 +24,17 @@ configurations = [
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=4),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
+    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16),
     Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32),
+
+    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16, den_grid_size=512),
 
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=1),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=2),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=4),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8, RS_values=RS_values),
+    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8, RS_array=RS_values),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=16),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=32),
 
@@ -44,7 +42,7 @@ configurations = [
     Configuration(TophatProfile(), 1, provider=provider, resolution=2),
     Configuration(TophatProfile(), 1, provider=provider, resolution=4),
     Configuration(TophatProfile(), 1, provider=provider, resolution=8),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
+    Configuration(TophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
     Configuration(TophatProfile(), 1, provider=provider, resolution=16),
     Configuration(TophatProfile(), 1, provider=provider, resolution=32),
 
@@ -52,7 +50,7 @@ configurations = [
     Configuration(FireProfile(), 1, provider=provider, resolution=2),
     Configuration(FireProfile(), 1, provider=provider, resolution=4),
     Configuration(FireProfile(), 1, provider=provider, resolution=8),
-    Configuration(FireProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
+    Configuration(FireProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
     Configuration(FireProfile(), 1, provider=provider, resolution=16),
     Configuration(FireProfile(), 1, provider=provider, resolution=32),
 
@@ -60,14 +58,14 @@ configurations = [
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=2),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=4),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8, RS_values=RS_values),
+    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=16),
     Configuration(PrecipitationProfile(), 1, provider=provider, resolution=32),
 
 ]
 
 for config in configurations:
-    config.datestamp = '2021-10-25'
+    config.datestamp = '2021-11-01'
     config.seed = seed
     config.run(trace=trace, plots=plots, load_from_files=load_from_files, results_in_memory=results_in_memory)
     config.generate_DM_vs_radius_profile(load_from_files=load_from_files)

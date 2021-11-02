@@ -290,6 +290,8 @@ class SimulationProvider(metaclass=abc.ABCMeta):
     def __subclasshook__(cls, subclass):
         return (hasattr(subclass, 'get_density_field') and
         callable(subclass.get_density_field) and 
+        hasattr(subclass, 'get_z_name') and
+        callable(subclass.get_z_name) and 
         hasattr(subclass, 'get_halos') and
         callable(subclass.get_halos) or
         NotImplemented)
@@ -302,6 +304,11 @@ class SimulationProvider(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_halos(self, redshift : int) -> pd.DataFrame:
         """Gets halo information for the given redshift."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_z_name(redshift: float) -> str:
+        """Gets the shorthand name associated with a given redshift, used in filenames."""
         raise NotImplementedError
 
 
@@ -338,12 +345,15 @@ class BolshoiProvider(SimulationProvider):
             str(round(0.8931355846491102,2)): '0.9'
         }
 
+    def get_z_name(self, redshift: float) -> str: 
+        return self.z_to_filename[str(round(redshift, 2))]
+
     def get_density_field(self, redshift: float, resolution: int):
         """Gets the density field for the given redshift and grid resolution."""
 
         if str(round(redshift, 2)) not in self.z_to_filename:
             raise ValueError("There is no file associated with the z={}. Add an entry to the z_to_filname dictionary on this object.".format(redshift))
-        z_name = self.z_to_filename[str(round(redshift, 2))]
+        z_name = self.get_z_name(redshift)
 
         # If in memory, use it
         if (z_name, resolution) in self.density_fields:
@@ -372,7 +382,7 @@ class BolshoiProvider(SimulationProvider):
 
         if str(round(redshift, 2)) not in self.z_to_filename:
             raise ValueError("There is no file associated with the z={}. Add an entry to the z_to_filname dictionary on this object.".format(redshift))
-        z_name = self.z_to_filename[str(round(redshift, 2))]
+        z_name = self.get_z_name(redshift)
 
         # If in memory, use it
         if z_name in self.halos:
@@ -1080,7 +1090,7 @@ def convolution_all_steps_final(current_halo_file,min_mass,max_mass,density_fiel
 
 
 # Multiple Redshift Convolution
-def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array, RS_names,min_mass,max_mass,log_bins,subtraction_halo_profile,
+def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile,
                              addition_profile: CGMProfile,scaling_radius,resolution):
 
     # Details of halo profiles
@@ -1101,9 +1111,8 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     for i in range(0, len(RS_array)):
         
         redshift = RS_array[i]
-        redshift_name = RS_names[i]
-        density_field = sim_provider.get_density_field(redshift_name, den_grid_size)
-        halos = sim_provider.get_halos(redshift_name)
+        density_field = sim_provider.get_density_field(redshift, den_grid_size)
+        halos = sim_provider.get_halos(redshift)
 
         halos_removed = halos_removed_field(halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc)
               
@@ -1125,7 +1134,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
 
 
 # TODO clean this up, we've basically made it do nothign over halo_subtraction_addition
-def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, RS_names, min_mass, max_mass,
+def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, min_mass, max_mass,
                                        log_bins, subtraction_halo_profile, addition_profile: CGMProfile, scaling_radius, resolution):
     """
     This function runs the convolution code (subtraction and addition).
@@ -1134,7 +1143,7 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, RS_
     """
     
     # halo array
-    t = halo_subtraction_addition(sim_provider,den_grid_size,RS_values, RS_names,min_mass,max_mass,
+    t = halo_subtraction_addition(sim_provider,den_grid_size,RS_values,min_mass,max_mass,
                                        log_bins,subtraction_halo_profile,addition_profile,scaling_radius,resolution)
     # Halos-readded field
     t1 = t[0]
@@ -1387,7 +1396,7 @@ class Configuration:
     """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_values=[0], RS_names=[0]):
+    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_array=[0]):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
@@ -1402,15 +1411,14 @@ class Configuration:
         self.den_grid_size = den_grid_size 
 
         # User provides a redshift array
-        self.RS_array = RS_values # For a single box, we only use the redshift 0 box
-        self.RS_names = RS_names
+        self.RS_array = RS_array # For a single box, we only use the redshift 0 box
 
         # Profile used for subtracting halos from the density field
         self.subtraction_halo_profile = NFWProfile()
 
 
-        self.min_mass = 10**10
-        self.max_mass = 10**14.5
+        self.min_mass = 10**10 # halos smaller than this shouldn't have much of a CGM
+        self.max_mass = 9*10**15 # this is a little bigger than the biggest halo in Bolshoi
         self.log_bins = 30
         self.datestamp = str(datetime.date.today())
         self.seed = None
@@ -1443,7 +1451,10 @@ class Configuration:
             scaling = '_' + str(self.scaling_radius)
         z_str = ''
         if self.RS_array != [0]:
-            z_str = 'z_'+str(self.RS_names)[1:-1].replace(', ','_') # z_0.1_0.2_0.3 for example
+            z_str = '_z'
+            for z in self.RS_array: # z_0.1_0.2_0.3 for example
+                z_name = self.provider.get_z_name(z)
+                z_str += '_' + z_name
         return self.addition_profile.name + str(self.resolution) + scaling + '_' + str(self.den_grid_size) + z_str + "_" + self.datestamp
 
     def convert_and_save(self):
@@ -1567,7 +1578,7 @@ class Configuration:
                 pr = cProfile.Profile()
                 pr.enable()
 
-            self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.RS_names, self.min_mass, 
+            self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
                                                 self.addition_profile, self.scaling_radius, self.resolution)
             
@@ -1628,12 +1639,14 @@ class Configuration:
 
     def generate_stacked_field(self, results_in_memory=True, load_from_files=False):
 
+        # TODO do this operation for the original, removed, and addition fields too
+
         if self.stacked_field is not None:
             return self.stacked_field
 
         #translated_file = self.get_filename() + "_translated"
         stacked_file = self.get_filename() + "_stacked"
-
+    
         if load_from_files:
             try:
                 print("Loading stacked field... ",end="")
@@ -1674,7 +1687,7 @@ class Configuration:
 
         if self.DM_vs_R1 is None:       
             print("Generating DM vs R profile")
-            df = create_halo_array_for_convolution(self.provider.get_halos(self.RS_names[0]), self.min_mass, self.max_mass, self.log_bins)
+            df = create_halo_array_for_convolution(self.provider.get_halos(self.RS_array[0]), self.min_mass, self.max_mass, self.log_bins)
 
             trim_dim = int(10*self.resolution)
 
