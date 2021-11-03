@@ -34,20 +34,6 @@ def fields_comparison_plot(fields, vmin, vmax):
 
     return fig,axs
 
-def algorithm_stages_plot(raw_field, removed_field, addition_field, final_field, orig_grid_size, zoom_rect: bool):
-    vmin = 0
-    vmax = 300
-    fig, axs = fields_comparison_plot( [('Raw density field', raw_field), ('Halos removed', removed_field), ('Halo-associated gas', addition_field), ('Final halo density field', final_field)], vmin, vmax)
-    
-    if zoom_rect:
-        rect = Rectangle((0,0),320,320,linewidth=1,edgecolor='r',facecolor="none")
-        axs[3].add_patch(rect)
-    
-    filename = 'implot_add_remove_halos_{}.pdf'.format(orig_grid_size)
-    saveFig(filename, fig, bbox_inches='tight')
-
-
-
 def compare_4_profile_fields(STH2, NFW, FIRE, PRE, resolution, z):
     """Creates a plot comparing the fields from 4 CGM profiles (see variable names)."""
 
