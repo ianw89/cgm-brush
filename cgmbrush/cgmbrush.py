@@ -1709,9 +1709,9 @@ class Configuration:
                 for i in range(0, len(self.RS_array)):
                     all_orig_fields[i] = self.provider.get_density_field(self.RS_array[i], self.den_grid_size)
                 translated_field = translate_field_stack(all_orig_fields, self.RS_array, self.seed)
-                self.stacked_removed_field = np.zeros(translated_field.shape)
+                self.stacked_orig_field = np.zeros(translated_field.shape)
                 for i in range(0, len(self.RS_array)):
-                    self.stacked_removed_field[i,:,:] = redshifted_DM(translated_field[i,:,:], self.RS_array[i])
+                    self.stacked_orig_field[i,:,:] = redshifted_DM(translated_field[i,:,:], self.RS_array[i])
 
                 translated_field = translate_field_stack(self.get_removed_field(), self.RS_array, self.seed)
                 self.stacked_removed_field = np.zeros(translated_field.shape)
@@ -1730,6 +1730,7 @@ class Configuration:
     
                 stacked_fields = { 'stacked_orig_field': self.stacked_orig_field, 'stacked_removed_field': self.stacked_removed_field, 'stacked_addition_field': self.stacked_addition_field, 'stacked_final_field': self.stacked_final_field }
                 saveResults(stacked_file, **stacked_fields, folder=self.folder)
+                self.stacked_npz = np.load(file_path, allow_pickle=True)
 
                 print("done")
             else:

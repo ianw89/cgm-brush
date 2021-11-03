@@ -52,9 +52,14 @@ def check_validity(config: Configuration):
 
 def check_stacked_validity(config: Configuration):
     assert not np.any(np.isnan(config.get_stacked_orig_field())), 'No NaN should appear in results.'
+    assert not np.allclose(config.get_stacked_orig_field(), 0), 'Fields shouldn\'t just be 0\'s.'
     assert not np.any(np.isnan(config.get_stacked_removed_field())), 'No NaN should appear in results.'
+    assert not np.allclose(config.get_stacked_removed_field(), 0), 'Fields shouldn\'t just be 0\'s.'
     assert not np.any(np.isnan(config.get_stacked_addition_field())), 'No NaN should appear in results.'
+    assert not np.allclose(config.get_stacked_addition_field(), 0), 'Fields shouldn\'t just be 0\'s.'
     assert not np.any(np.isnan(config.get_stacked_final_field())), 'No NaN should appear in results.'
+    assert not np.allclose(config.get_stacked_final_field(), 0), 'Fields shouldn\'t just be 0\'s.'
+
 
 
 def force_load_npz(filename, folder=VAR_DIR):
