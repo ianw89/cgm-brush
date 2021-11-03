@@ -8,6 +8,7 @@
 from cgmbrush.cgmbrush import *
 import matplotlib.pyplot as plt
 import math
+from matplotlib.patches import Rectangle
 
 
 def density_plot(axis, field, vmin: int, vmax: int, name: str):
@@ -15,7 +16,7 @@ def density_plot(axis, field, vmin: int, vmax: int, name: str):
     axis.set_title(name, size='20')
     return a
 
-def fields_comparison_plot(fields, vmin, vmax, filename):
+def fields_comparison_plot(fields, vmin, vmax):
     """Creates a plot 1 x n long for n fields with a single shared color bar."""
     n = len(fields)
 
@@ -31,14 +32,21 @@ def fields_comparison_plot(fields, vmin, vmax, filename):
     cbar.set_label('DM [pc cm$^{-3}$]', rotation=270, fontsize='20')
 
 
-    saveFig(filename, fig, bbox_inches='tight')
-    return fig
+    return fig,axs
 
-def algorithm_stages_plot(raw_field, removed_field, addition_field, final_field, orig_grid_size):
+def algorithm_stages_plot(raw_field, removed_field, addition_field, final_field, orig_grid_size, zoom_rect: bool):
     vmin = 0
     vmax = 300
+    fig, axs = fields_comparison_plot( [('Raw density field', raw_field), ('Halos removed', removed_field), ('Halo-associated gas', addition_field), ('Final halo density field', final_field)], vmin, vmax)
+    
+    if zoom_rect:
+        rect = Rectangle((0,0),320,320,linewidth=1,edgecolor='r',facecolor="none")
+        axs[3].add_patch(rect)
+    
     filename = 'implot_add_remove_halos_{}.pdf'.format(orig_grid_size)
-    return fields_comparison_plot( [('Raw density field', raw_field), ('Halos removed', removed_field), ('Halo-associated gas', addition_field), ('Final halo density field', final_field)], vmin, vmax, filename)
+    saveFig(filename, fig, bbox_inches='tight')
+
+
 
 def compare_4_profile_fields(STH2, NFW, FIRE, PRE, resolution, z):
     """Creates a plot comparing the fields from 4 CGM profiles (see variable names)."""
@@ -48,6 +56,8 @@ def compare_4_profile_fields(STH2, NFW, FIRE, PRE, resolution, z):
     vhigh = vmax*0.25
     vmax = int(round(vhigh, -int(math.floor(math.log10(vhigh)))))  
 
-    filename = 'stacked_field_images_{}_z{:.1f}.pdf'.format(resolution, z)
 
-    return fields_comparison_plot([('NFW', NFW), ('FIRE', FIRE), ('Precipitation', PRE), ('Tophat $2R_{vir}$', STH2)], vmin, vmax, filename)
+    fig, axs = fields_comparison_plot([('NFW', NFW), ('FIRE', FIRE), ('Precipitation', PRE), ('Tophat $2R_{vir}$', STH2)], vmin, vmax)
+
+    filename = 'stacked_field_images_{}_z{:.1f}.pdf'.format(resolution, z)
+    saveFig(filename, fig, bbox_inches='tight')

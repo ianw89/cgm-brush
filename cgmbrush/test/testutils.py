@@ -49,7 +49,13 @@ def check_validity(config: Configuration):
     #assert not np.any(np.isnan(results['stacked_density_field'])), 'No NaN should appear in results.'
     assert not np.any(np.isnan(config.get_virial_radii())), 'No NaN should appear in results.'
     assert not np.any(np.isnan(config.get_halo_masses())), 'No NaN should appear in results.'
-            
+
+def check_stacked_validity(config: Configuration):
+    assert not np.any(np.isnan(config.get_stacked_orig_field())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_stacked_removed_field())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_stacked_addition_field())), 'No NaN should appear in results.'
+    assert not np.any(np.isnan(config.get_stacked_final_field())), 'No NaN should appear in results.'
+
 
 def force_load_npz(filename, folder=VAR_DIR):
     """Loads all numpy arrays in a npz into a dictionary."""

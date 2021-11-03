@@ -417,7 +417,7 @@ class BolshoiProvider(SimulationProvider):
         resStr = str(resolution)
 
         # Have to hardcode z=0 table because of the unique column names
-        if z_name == 0:
+        if z_name == '0':
             # reading density field and halos data
             file_path= os.path.join(SIMS_DIR, 'dens'+resStr+'-z-0.csv.gz')
             pdDens=pd.read_csv(file_path)
@@ -1429,21 +1429,29 @@ class Configuration:
         self.final_field = None
         self.add_masks = None
         self.addition_field = None
+        self.sub_fine_unsmoothed = None
+        self.sub_fine_smoothed = None
         self.sub_coarse = None
         self.removed_field = None
         self.virial_radii = None
         self.halo_masses = None
         self.DM_vs_R1 = None
         self.mask_profiles = None
-        self.translated_field = None
-        self.stacked_field = None
-        self.sub_fine_unsmoothed = None
-        self.sub_fine_smoothed = None
+
+        self.stacked_npz = None
+        self.stacked_orig_field = None
+        self.stacked_removed_field = None
+        self.stacked_addition_field = None
+        self.stacked_final_field = None
+
+
 
 
     def __del__(self):
         if (self.npz is not None):
             self.npz.close()
+        if (self.stacked_npz is not None):
+            self.stacked_npz.close()
 
     def get_filename(self):
         scaling = ''
@@ -1597,7 +1605,7 @@ class Configuration:
                 with open(perf_file_path, 'w') as f:
                     f.write(s.getvalue())
 
-        if plots:
+        if plots: # TODO delete?
             original = self.provider.get_density_field(0, self.den_grid_size)
             background_dm = self.get_removed_field()[0]
             cgm_only = self.get_addition_field()[0]
@@ -1629,44 +1637,100 @@ class Configuration:
         if not results_in_memory:
             self.clear_results()
     
-    def get_stacked_field(self):
 
-        if self.stacked_field is None:
-            self.generate_stacked_field(load_from_files=True)
+    def get_stacked_orig_field(self):
 
-        return self.stacked_field
+        if self.stacked_orig_field is None:
+
+            if self.stacked_npz is None:
+                self.generate_stacked_fields(load_from_files=True)
+            
+            self.stacked_orig_field = self.stacked_npz.get('stacked_orig_field')
+
+        return self.stacked_orig_field
+
+    def get_stacked_removed_field(self):
+
+        if self.stacked_removed_field is None:
+
+            if self.stacked_npz is None:
+                self.generate_stacked_fields(load_from_files=True)
+            
+            self.stacked_removed_field = self.stacked_npz.get('stacked_removed_field')
+
+        return self.stacked_removed_field
+
+    def get_stacked_addition_field(self):
+
+        if self.stacked_addition_field is None:
+
+            if self.stacked_npz is None:
+                self.generate_stacked_fields(load_from_files=True)
+            
+            self.stacked_addition_field = self.stacked_npz.get('stacked_addition_field')
+
+        return self.stacked_addition_field
+
+    def get_stacked_final_field(self):
+
+        if self.stacked_final_field is None:
+
+            if self.stacked_npz is None:
+                self.generate_stacked_fields(load_from_files=True)
+            
+            self.stacked_final_field = self.stacked_npz.get('stacked_final_field')
+
+        return self.stacked_final_field
 
 
-    def generate_stacked_field(self, results_in_memory=True, load_from_files=False):
+    def generate_stacked_fields(self, results_in_memory=True, load_from_files=False):
 
         # TODO do this operation for the original, removed, and addition fields too
 
-        if self.stacked_field is not None:
-            return self.stacked_field
 
         #translated_file = self.get_filename() + "_translated"
         stacked_file = self.get_filename() + "_stacked"
+        file_path = os.path.join(self.folder, stacked_file + ".npz")
     
         if load_from_files:
             try:
-                print("Loading stacked field... ",end="")
-                self.stacked_field = loadArray(stacked_file, folder=self.folder)    
+                print("Loading stacked fields... ", end="")
+                self.stacked_npz = np.load(file_path, allow_pickle=True)
                 print("done")        
             except IOError:
-                print("cache miss: " + stacked_file)
+                print("Cache miss: " + stacked_file)
 
-        if self.stacked_field is None:
+        if self.stacked_npz is None:
 
             if len(self.RS_array) > 1:
-                print("Creating Stacked Field... ",end="")
-                                
-                self.translated_field = translate_field_stack(self.get_final_field(), self.RS_array, self.seed)
-                #saveArray(translated_file, self.translated_field, folder=self.folder)
-                self.stacked_field = np.zeros(self.translated_field.shape)
-                for i in range(0, len(self.RS_array)):
-                    self.stacked_field[i,:,:] = redshifted_DM(self.translated_field[i,:,:], self.RS_array[i])
+                print("Creating Stacked Fields... ", end="")
 
-                saveArray(stacked_file, self.stacked_field, folder=self.folder)
+                all_orig_fields = np.zeros((len(RS_array_gen), self.den_grid_size, self.den_grid_size))
+                for i in range(0, len(self.RS_array)):
+                    all_orig_fields[i] = self.provider.get_density_field(self.RS_array[i])
+                translated_field = translate_field_stack(all_orig_fields, self.RS_array, self.seed)
+                self.stacked_removed_field = np.zeros(translated_field.shape)
+                for i in range(0, len(self.RS_array)):
+                    self.stacked_removed_field[i,:,:] = redshifted_DM(translated_field[i,:,:], self.RS_array[i])
+
+                translated_field = translate_field_stack(self.get_removed_field(), self.RS_array, self.seed)
+                self.stacked_removed_field = np.zeros(translated_field.shape)
+                for i in range(0, len(self.RS_array)):
+                    self.stacked_removed_field[i,:,:] = redshifted_DM(translated_field[i,:,:], self.RS_array[i])
+
+                translated_field = translate_field_stack(self.get_addition_field(), self.RS_array, self.seed)
+                self.stacked_addition_field = np.zeros(translated_field.shape)
+                for i in range(0, len(self.RS_array)):
+                    self.stacked_addition_field[i,:,:] = redshifted_DM(translated_field[i,:,:], self.RS_array[i])
+                                
+                translated_field = translate_field_stack(self.get_final_field(), self.RS_array, self.seed)
+                self.stacked_final_field = np.zeros(translated_field.shape)
+                for i in range(0, len(self.RS_array)):
+                    self.stacked_final_field[i,:,:] = redshifted_DM(translated_field[i,:,:], self.RS_array[i])
+    
+                stacked_fields = { 'stacked_orig_field': self.stacked_orig_field, 'stacked_removed_field': self.stacked_removed_field, 'stacked_addition_field': self.stacked_addition_field, 'stacked_final_field': self.stacked_final_field }
+                saveResults(stacked_file, **stacked_fields, folder=self.folder)
+                
                 print("done")
             else:
                 raise ValueError('Generating a stacked field is only applicable with data from multiple redshifts.')
