@@ -1705,9 +1705,9 @@ class Configuration:
             if len(self.RS_array) > 1:
                 print("Creating Stacked Fields... ", end="")
 
-                all_orig_fields = np.zeros((len(RS_array_gen), self.den_grid_size, self.den_grid_size))
+                all_orig_fields = np.zeros((len(self.RS_array), self.den_grid_size, self.den_grid_size))
                 for i in range(0, len(self.RS_array)):
-                    all_orig_fields[i] = self.provider.get_density_field(self.RS_array[i])
+                    all_orig_fields[i] = self.provider.get_density_field(self.RS_array[i], self.den_grid_size)
                 translated_field = translate_field_stack(all_orig_fields, self.RS_array, self.seed)
                 self.stacked_removed_field = np.zeros(translated_field.shape)
                 for i in range(0, len(self.RS_array)):
@@ -1730,14 +1730,16 @@ class Configuration:
     
                 stacked_fields = { 'stacked_orig_field': self.stacked_orig_field, 'stacked_removed_field': self.stacked_removed_field, 'stacked_addition_field': self.stacked_addition_field, 'stacked_final_field': self.stacked_final_field }
                 saveResults(stacked_file, **stacked_fields, folder=self.folder)
-                
+
                 print("done")
             else:
                 raise ValueError('Generating a stacked field is only applicable with data from multiple redshifts.')
 
         if not results_in_memory:
-            self.translated_field = None
-            self.stacked_field = None
+            self.stacked_orig_field = None
+            self.stacked_removed_field = None
+            self.stacked_addition_field = None
+            self.stacked_final_field = None
         
 
     def generate_DM_vs_radius_profile(self, load_from_files=False):
@@ -1783,8 +1785,10 @@ class Configuration:
         self.results = None
         self.final_field = None
         self.addition_field = None
-        self.translated_field = None
-        self.stacked_field = None
+        self.stacked_addition_field = None
+        self.stacked_final_field = None
+        self.stacked_removed_field = None
+        self.stacked_orig_field = None
         # TODO is calling del(...) better? 
         #gc.collect()
         # should allow garbage collection to happen
