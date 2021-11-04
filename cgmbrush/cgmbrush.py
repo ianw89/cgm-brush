@@ -61,10 +61,6 @@ def elecD(z):
 
 # TODO Bolshoi specific; need to make these properties of the SimulationProvider
 L=250/h # length of box in Mpc
-Ncel= 256  # number of cells of density field
-dx= L/Ncel # width of each cell
-V= dx**3 # volume of each cell
-
 
 
 ########################################
@@ -215,10 +211,6 @@ def DM_analytical(z):
 def integrandDM(z):
     return 10**6*dConfDistdz(z)*elecD(z)/(1+z)**2 
 
-# normalize DM
-def normDM(DM,z):
-    return DM *10**6* dx* elecD(z) /(1+z)**2  # Psc cm-2
-
 def redshifted_DM(DM,z):
     return DM *(1+z)  # Psc cm-2
 
@@ -250,10 +242,6 @@ def elecDforBox(n):
 
 def avgZ(n): 
     return max((CDtoRS(n*L,1)+CDtoRS((n-1)*L,1))/2,0)
-
-# normalizes DM for a given box and accounts for electron density 
-def normDM(DM,z):
-    return (DM) *10**6* dx* elecD(z) /(1+z)**2  # Psc cm-2
     
 def z_eff(zmin,zmax,L_box):
     return ((DM_analytical(zmax)-DM_analytical(zmin))/((L_box*10**6)*elecD(0)))**(1) - 1
@@ -326,10 +314,13 @@ class BolshoiProvider(SimulationProvider):
     be re-written as per your application.
     """
 
+#Ncel= 256  # number of cells of density field
+#dx= L/Ncel # width of each cell
     def __init__(self):
         # Associative array of (redshift, resolution) => 3D numpy grid 
         # This works very well with np.savez, which is much faster to read
         # than the Bolshoi density files
+        
         self.density_fields = {}  
         self.halos = {}
         self.z_to_filename = {
@@ -344,6 +335,10 @@ class BolshoiProvider(SimulationProvider):
             str(round(0.7454876185015988,2)): '0.8', 
             str(round(0.8931355846491102,2)): '0.9'
         }
+
+    # normalize DM
+    def normDM(self, DM, z, resolution):
+        return DM *10**6* L/resolution * elecD(z) /(1+z)**2  # Psc cm-2
 
     def get_z_name(self, redshift: float) -> str: 
         return self.z_to_filename[str(round(redshift, 2))]
@@ -429,7 +424,7 @@ class BolshoiProvider(SimulationProvider):
             pdDensN=pdDensN.sort_values(['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz'])
             tden = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
             tden2 = np.reshape(tden,(resolution,resolution,resolution))
-            return normDM((tden2+1).sum(2), 0)
+            return self.normDM((tden2+1).sum(2), 0, resolution)
 
         else:
             file_path = os.path.join(SIMS_DIR, 'dens'+resStr+'-z-{}.csv.gz'.format(z_name))
@@ -441,11 +436,13 @@ class BolshoiProvider(SimulationProvider):
             den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
             den = np.reshape(den_vals,(resolution,resolution,resolution))
             
-            den = normDM((den+1).sum(2),0) 
+            den = self.normDM((den+1).sum(2),0, resolution) 
 
             test_l= (np.repeat((np.repeat(den,4,axis=0)),4,axis=1))
 
             test_sm =  gauss_sinc_smoothing(test_l,4,4,1)
+
+            assert resolution == 256
             smoothed_field = test_sm.reshape([256, 4, 256, 4]).mean(3).mean(1)
             return smoothed_field
 

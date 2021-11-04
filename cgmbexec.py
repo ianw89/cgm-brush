@@ -69,10 +69,12 @@ for config in configurations:
     config.datestamp = '2021-11-01'
     config.seed = seed
 
-    config.run(trace=trace, plots=plots, load_from_files=load_from_files, results_in_memory=results_in_memory)
-    config.generate_DM_vs_radius_profile(load_from_files=load_from_files)
-    config.generate_profile_of_masks(load_from_files=load_from_files)
     if len(config.RS_array) > 1:
-        config.generate_stacked_fields(load_from_files=load_from_files, results_in_memory=results_in_memory)
-            
-    config.clear_results()
+
+        config.run(trace=trace, plots=plots, load_from_files=load_from_files, results_in_memory=results_in_memory)
+        config.generate_DM_vs_radius_profile(load_from_files=load_from_files)
+        config.generate_profile_of_masks(load_from_files=load_from_files)
+        if len(config.RS_array) > 1:
+            config.generate_stacked_fields(load_from_files=False, results_in_memory=results_in_memory)
+                
+        config.clear_results()

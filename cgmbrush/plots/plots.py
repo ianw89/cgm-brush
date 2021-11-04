@@ -34,16 +34,3 @@ def fields_comparison_plot(fields, vmin, vmax):
 
     return fig,axs
 
-def compare_4_profile_fields(STH2, NFW, FIRE, PRE, resolution, z):
-    """Creates a plot comparing the fields from 4 CGM profiles (see variable names)."""
-
-    vmin = 0
-    vmax = max(np.max(STH2), np.max(NFW), np.max(FIRE), np.max(PRE))
-    vhigh = vmax*0.25
-    vmax = int(round(vhigh, -int(math.floor(math.log10(vhigh)))))  
-
-
-    fig, axs = fields_comparison_plot([('NFW', NFW), ('FIRE', FIRE), ('Precipitation', PRE), ('Tophat $2R_{vir}$', STH2)], vmin, vmax)
-
-    filename = 'stacked_field_images_{}_z{:.1f}.pdf'.format(resolution, z)
-    saveFig(filename, fig, bbox_inches='tight')
