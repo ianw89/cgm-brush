@@ -824,15 +824,10 @@ class PrecipitationProfile(CGMProfile):
         #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
     #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
         rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='linear', fill_value='extrapolate')
-    #     conv = (1.989e33/(1.67e-24))/(3.086e21)**3  #constants: use your values, should have mean molecular weight, which is 1.2 
+
         conv = (msun*1E3/(mu*mp))/KPCTOCM**3
-        conv1 = (1.989e33/(1.67e-24))/(3.086e21)**3  #constants: use your values TODO
-        assert (np.isclose(conv, conv1))
         mtotal = integrate.quad(rhointerp, 0, np.log(XRvir*Rvirkpc))[0]/conv
 
-
-
-        
         #add in rest of mass 
         neconstant =(10**logMhalo*fbaryon-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
     #     print(neconstant)
@@ -846,9 +841,6 @@ class PrecipitationProfile(CGMProfile):
         #print("ftotal =", mtotal/10**logMhalo/fbaryon, neconstant) #.2 is fraction of baryons
         cellsize_kpc = cellsize * 1000 # kpc
         
-    #     x = np.ogrid[-10*resolution: 10*resolution]
-        y,x = np.ogrid[-20*resolution: 20*resolution, -20*resolution:20*resolution] # TODO delete this line
-
     #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
         f1= lambda x, y, z: precipitation_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift)
                     
@@ -1565,19 +1557,16 @@ class Configuration:
 
         if load_from_files:
             try:
+                print("Loading data... ", end="")
                 self.npz = np.load(file_path, allow_pickle=True)
-
-                # This is the non-lazy approach
-                #for file in npz.files:
-                #    self.results[file] = npz[file] 
-                #npz.close()
+                print("done")
                             
             except IOError:
                 print("Cache miss: " + filename)
                 #pass # File cache doesn't exist, swallow and compute it instead
 
         if self.npz is None:
-            print("Performing Calculations for " + filename)
+            print("Performing Calculations for {}... ".format(filename))
                                    
             if trace:
                 pr = cProfile.Profile()
@@ -1589,6 +1578,7 @@ class Configuration:
             
             self.convert_and_save()
             self.npz = np.load(file_path, allow_pickle=True)
+            print("done")
 
             if trace:
                 pr.disable()
