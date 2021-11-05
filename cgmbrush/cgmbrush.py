@@ -314,8 +314,6 @@ class BolshoiProvider(SimulationProvider):
     be re-written as per your application.
     """
 
-#Ncel= 256  # number of cells of density field
-#dx= L/Ncel # width of each cell
     def __init__(self):
         # Associative array of (redshift, resolution) => 3D numpy grid 
         # This works very well with np.savez, which is much faster to read
@@ -802,9 +800,19 @@ class PrecipitationProfile(CGMProfile):
         reducedarr = fitarray[(fitarray[:, 3] == Z_METAL) & (fitarray[:, 2] ==  TRATCRIT)]
         reducedarr = reducedarr[::-1] #reverses array           
 
-        logMhalo_zp2_old = logMhalo*((1+0.2)/(1+redshift))**(3/2)
-        logMhalo_zp2 = logMhalo + np.log10( ((1+0.2)/(1+redshift))**(-3/2) )
-        print("Old: {}  New: {}".format(logMhalo_zp2_old, logMhalo_zp2))
+        #logMhalo_zp2_old = logMhalo*((1+0.2)/(1+redshift))**(3/2)
+
+        #logn1_old = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo_zp2_old)   
+        #n1_old = 10**logn1_old
+        #xi1_old = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(logMhalo_zp2_old) 
+        #logn2_old = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(logMhalo_zp2_old)   
+        #n2_old = 10**logn2_old
+        #xi2_old = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(logMhalo_zp2_old) 
+        
+        #print("OLD WAY: log10(Halo Mass): {}".format(logMhalo))
+        #print("logMhalo_zp2 = {} n1={} xi1={} n2={} xi2={}".format(logMhalo_zp2_old, n1_old, xi1_old, n2_old, xi2_old))
+
+        logMhalo_zp2 = logMhalo + np.log10( ((1)/(1+redshift))**(-3/2) )
 
         #better interpolation
         logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo_zp2)   
@@ -814,6 +822,9 @@ class PrecipitationProfile(CGMProfile):
         n2 = 10**logn2
         xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(logMhalo_zp2) 
             
+        #print("NEW WAY:")
+        #print("logMhalo_zp2 = {} n1={} xi1={} n2={} xi2={}".format(logMhalo_zp2, n1, xi1, n2, xi2))
+
         #print(logMhalo, n1, xi1, n2, xi2)
 
         rkpc = np.logspace(0, np.log10(Rvirkpc*XRvir), 300)#number of radial bins
