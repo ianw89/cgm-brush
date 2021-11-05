@@ -760,9 +760,6 @@ class PrecipitationProfile(CGMProfile):
         #Zmetal is the metalicity; tratcrit is the coolin crieteria -- both of these don't need to change
         Z_METAL = 0.3
         TRATCRIT = 10
-
-        fbaryon=0.2 #put in correct value TODO
-    #     Rvirkpc = 300 #put in correct value here
         
         fitarray = np.array([[350, 8e12, 10, 0.5, 2.7,  0.73, 1.2e-1, 1.2, 3.8e-4,  2.1], \
             [350, 8e12, 10, 0.3, 2.4,  0.74, 1.5e-1, 1.2, 4.2e-4, 2.1], \
@@ -805,7 +802,10 @@ class PrecipitationProfile(CGMProfile):
         reducedarr = fitarray[(fitarray[:, 3] == Z_METAL) & (fitarray[:, 2] ==  TRATCRIT)]
         reducedarr = reducedarr[::-1] #reverses array           
 
-        logMhalo_zp2 = logMhalo*((1+0.2)/(1+redshift))**(3/2)
+        logMhalo_zp2_old = logMhalo*((1+0.2)/(1+redshift))**(3/2)
+        logMhalo_zp2 = logMhalo + np.log10( ((1+0.2)/(1+redshift))**(-3/2) )
+        print("Old: {}  New: {}".format(logMhalo_zp2_old, logMhalo_zp2))
+
         #better interpolation
         logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo_zp2)   
         n1 = 10**logn1
@@ -829,7 +829,7 @@ class PrecipitationProfile(CGMProfile):
         mtotal = integrate.quad(rhointerp, 0, np.log(XRvir*Rvirkpc))[0]/conv
 
         #add in rest of mass 
-        neconstant =(10**logMhalo*fbaryon-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
+        neconstant =(10**logMhalo*fb-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
     #     print(neconstant)
         length = len(rkpc)
     #     print("shape = ", length)
@@ -838,7 +838,7 @@ class PrecipitationProfile(CGMProfile):
     #             rhoarr[1, i] = np.array([1/np.sqrt(1/(n1*(rkpc)**-xi1+ 1e-20)**2 + 1/(n2*(rkpc/100)**-xi2 + 1e-20)**2)])[1,i] + neconstant
                 rhoarr[1, i] = rhoarr[1, i] + neconstant
         
-        #print("ftotal =", mtotal/10**logMhalo/fbaryon, neconstant) #.2 is fraction of baryons
+        #print("ftotal =", mtotal/10**logMhalo/fb, neconstant) #.2 is fraction of baryons
         cellsize_kpc = cellsize * 1000 # kpc
         
     #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
