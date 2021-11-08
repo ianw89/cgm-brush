@@ -695,11 +695,18 @@ class FireProfile(CGMProfile):
 
         Msun =  1.9889e33  # gr 
         adjustmentfactor = 1  #probably we want to range between 0.5-2 as the numbers look sensible in this range
-        
+             
         # These are specifications taken from the fire simulations
         RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
         logMinterp = np.array([10., 11., 12.])  # these are log10 of the halo masses they consider
-        nHinterp = np.array([0.5e-4, 0.8e-4, 1e-4])  # these are their number densities in cubic cm
+        
+        MfbMh = np.array([0.1,0.2,0.3])
+        Mh = msun*np.array([10**10,10**11,10**12])
+
+        rv = Mpc*np.array([comoving_radius_for_halo(10**10,0),comoving_radius_for_halo(10**11,0),comoving_radius_for_halo(10**12,0)]) # radii for the given mass bins
+        r0= .3*rv
+        nHinterp = MfbMh*Mh*fb /((np.pi*4*r0**2*rv*1.22*mprot))
+
         nHinterp = interp1d(logMinterp, nHinterp, fill_value="extrapolate")
 
         rho0 = adjustmentfactor * nHinterp(np.log10(mass))
@@ -708,7 +715,7 @@ class FireProfile(CGMProfile):
         Ntot = mass*Msun*fb/(mu*mp)/(MPCTOCM**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
         rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
 
-        # TODO these two lines are dead code, they were returned but not used before. What is the deal?
+        # If a 3D function is desired, these two lines can be used to plot it
         #rarr = np.logspace(-2, np.log10(5*rmax), 100) # Cut off at 5 times exponential cutoff
         #rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
         
@@ -1577,7 +1584,7 @@ class Configuration:
                 #pass # File cache doesn't exist, swallow and compute it instead
 
         if self.npz is None:
-            print("Performing Calculations for {}... ".format(filename))
+            print("Performing Calculations for {}... ".format(filename), end="")
                                    
             if trace:
                 pr = cProfile.Profile()
