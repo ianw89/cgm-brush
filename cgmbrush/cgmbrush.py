@@ -83,7 +83,7 @@ def q(z):
 # Virial Radius is the critical density of the universe at the given redshift times an 
 # overdensity constant Δ_c. Several Δ_c conventions exist; some are redshift dependent.
 def rho_vir(z):
-    return (18*pi**2 + 82*q(z) - 39*q(z)**2)*(rho_c*(OmegaL + OmegaM *(1+z)**3))
+    return (18*pi**2 - 82*q(z) - 39*q(z)**2)*(rho_c*(OmegaL + OmegaM *(1+z)**3))
 
 def Rvir_den(z):
     return (4/3 * np.pi * rho_vir(z))**(1/3) # physical, units in 1/r**3
@@ -473,7 +473,7 @@ def my_convolve(a, b):
     return np.fft.irfft2(np.fft.rfft2(a2) * np.fft.rfft2(b, a2.shape))
 
 # Create halo array from halo table for convolution
-def create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
+def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     """Creates an array of indexes corresponding to indexes in pdHalos at the edges of logarithmic mass bins.
 
     The length will be logchunks."""
@@ -508,6 +508,15 @@ def NFW2D(x, y, rho_nought, R_s, Rvir):
     else:
         #print("Boundary: {}".format(boundary))
         return 2 * integrate.quad(lambda x, y, z: rho_nought/(((offset+(x**2+y**2+z**2)**.5)/R_s)*(1+((x**2+y**2+z**2)**.5)/R_s)**2), 0, boundary, args=(x,y))[0]
+
+
+# NFW in 3D
+def NFW3D(r,rho_nought,R_s):
+    offset=.1
+    return rho_nought/(((offset+r)/R_s)*((1+(r/R_s))**2))
+
+
+
 
 # Function creates a smaller grid from a larger grid by smoothing
 def smoothfield(big, nbig, nsmall):
@@ -691,39 +700,14 @@ class FireProfile(CGMProfile):
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
+        x,y,rmax,Rinterp,rho0 = self.shared(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
 
-        Msun =  1.9889e33  # gr 
-        adjustmentfactor = 1  #probably we want to range between 0.5-2 as the numbers look sensible in this range
-             
-        # These are specifications taken from the fire simulations
-        RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
-        logMinterp = np.array([10., 11., 12.])  # these are log10 of the halo masses they consider
-        
-        MfbMh = np.array([0.1,0.2,0.3])
-        Mh = msun*np.array([10**10,10**11,10**12])
-
-        rv = Mpc*np.array([comoving_radius_for_halo(10**10,0),comoving_radius_for_halo(10**11,0),comoving_radius_for_halo(10**12,0)]) # radii for the given mass bins
-        r0= .3*rv
-        nHinterp = MfbMh*Mh*fb /((np.pi*4*r0**2*rv*1.22*mprot))
-
-        nHinterp = interp1d(logMinterp, nHinterp, fill_value="extrapolate")
-
-        rho0 = adjustmentfactor * nHinterp(np.log10(mass))
-        Rinterp = RinterpinRvir * comoving_radius #rvir(mass, z)
-        
-        Ntot = mass*Msun*fb/(mu*mp)/(MPCTOCM**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
-        rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
-
-        # If a 3D function is desired, these two lines can be used to plot it
-        #rarr = np.logspace(-2, np.log10(5*rmax), 100) # Cut off at 5 times exponential cutoff
-        #rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
-        
         ## creating a mask
         # TODO perf bottleneck is here
         # TODO use symmetry to save computation
+        print(rho0)
         f1 = lambda x, y, z: fire_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
-        
+
         vec_integral = np.vectorize(project_spherical_3Dto2D)   
 
         fine_mask = vec_integral(f1, x, y, rmax / cellsize) 
@@ -735,6 +719,67 @@ class FireProfile(CGMProfile):
         fine_mask = fine_mask.astype(float)
 
         return fine_mask
+
+    def get_analytic_profile(self, mass: float, comoving_radius: float):
+
+        x,y,rmax,Rinterp,rho0 = self.shared(mass, comoving_radius, 0, 0, 0, 0, 20)
+
+        # Testing outputing analytic function for fire
+        rvals = np.logspace(-3, 2, num=200, base=10)
+        radial_profile = fire_func_test(rvals, rmax, Rinterp, rho0)
+        return rvals, radial_profile
+
+    def shared(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+
+        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
+
+        Msun =  1.9889e33  # gr 
+        adjustmentfactor = 1  #probably we want to range between 0.5-2 as the numbers look sensible in this range
+             
+        # These are specifications taken from the fire simulations
+        RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
+        logMinterp = np.array([10., 11., 12.])  # these are log10 of the halo masses they consider
+        
+        # MfbMh = np.array([0.1,0.2,0.3])
+        # Mh = msun*np.array([10**10,10**11,10**12])
+
+        # MfbMh = np.array([0.1,0.2,0.3])
+        # Mh = msun*np.array([10**10,10**11,10**12])
+        # rv = Mpc*np.array([comoving_radius_for_halo(10**10,0),comoving_radius_for_halo(10**11,0),comoving_radius_for_halo(10**12,0)]) # radii for the given mass bins
+
+        MfbMh = np.array([0.1,0.2,0.3,0.5,0.8,1])
+        Mh = msun*np.array([10**10,10**11,10**12,10**13,10**14,10**15])
+        rv = Mpc*np.array([comoving_radius_for_halo(10**10,0),comoving_radius_for_halo(10**11,0),comoving_radius_for_halo(10**12,0),comoving_radius_for_halo(10**13,0),comoving_radius_for_halo(10**14,0),comoving_radius_for_halo(10**15,0)]) # radii for the given mass bins
+
+        
+        
+        # rv = Mpc*np.array([comoving_radius_for_halo(10**10,0),comoving_radius_for_halo(10**11,0),comoving_radius_for_halo(10**12,0)]) # radii for the given mass bins
+        r0= .3*rv
+        nHinterp = MfbMh*Mh*fb /((np.pi*4*r0**2*rv*1.22*mprot))
+        # nHinterp = interp1d(logMinterp, nHinterp, fill_value="extrapolate")
+
+
+        # use when higher masses included
+        nHinterp = interp1d(np.array([10., 11., 12.,13.,14.,15.]), nHinterp, fill_value="extrapolate")
+        
+        
+        nHinterp_old = np.array([0.5e-4, 0.8e-4, 1e-4])  # these are their number densities in cubic cm
+        nHinterp_old = interp1d(logMinterp, nHinterp_old, fill_value="extrapolate")
+
+        # print(np.log10(mass),comoving_radius, nHinterp(np.log10(mass)),nHinterp_old(np.log10(mass)),nHinterp(np.log10(mass))/nHinterp_old(np.log10(mass)))
+        
+        rho0 = adjustmentfactor * nHinterp(np.log10(mass))
+        Rinterp = RinterpinRvir * comoving_radius #rvir(mass, z)
+        
+        Ntot = mass*Msun*fb/(mu*mp)/(MPCTOCM**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
+        rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
+
+        # If a 3D function is desired, these two lines can be used to plot it
+        #rarr = np.logspace(-2, np.log10(5*rmax), 100) # Cut off at 5 times exponential cutoff
+        #rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
+        
+        return x,y,rmax,Rinterp,rho0
+
     
 # From rhogas Fire, TODO reorganize
 # The user can create their own function
@@ -745,6 +790,17 @@ def fire_func(r, rmax, Rinterp, rho0, cellsize):
     R2 = Rinterp/cellsize
     #print('r: {}, result: {}'.format(r, rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2))
     return rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2
+
+
+def fire_func_test(r, rmax, Rinterp, rho0):
+    R1 = rmax # Convert length scale into units of cellsize
+    R2 = Rinterp
+    #print('r: {}, result: {}'.format(r, rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2))
+    
+    # print([r,rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2].shape)
+    return rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2
+
+
 
 class PrecipitationProfile(CGMProfile):
     """
