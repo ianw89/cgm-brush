@@ -1224,6 +1224,9 @@ def make_halo_square(DM_field, ix, iy, halo_index, crop_grid):
 
 # Single function for radial profile of DM for a given DM array and grid size
 def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers):    
+    """Creates radial profile of the DM for halos in the DM_field provided. Uses the halo_data_frame, which is a DataFrame and must be sorted in ascending mass order,
+     alongside the bin_markers which provides the indexes where mass bins change in the halo_data_frame. crop_grid_dim is used to choose how large a square around the halo
+     centers to cutout. """
     
     # TODO: Matt says we can calculate using every 1/4 the pixels or something.
     
@@ -1255,8 +1258,8 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers):
     arr = np.array(rad_prof_mass_bin)
     return arr, DM_mass_bin
     
-# Calculate profiles of masks 
 def profile_of_masks(mask_array):
+    """This calculate a radial profile of all the masks provided in mask_array, seperately processing each mass bin into an average values by radius."""
     
     mask_prof_ar_shape = mask_array.shape
     prof_num=mask_prof_ar_shape[0]
@@ -1748,8 +1751,17 @@ class Configuration:
             self.stacked_final_field = None
         
 
-    def generate_DM_vs_radius_profile(self, load_from_files=False):
+    def generate_DM_vs_radius_profile(self, load_from_files=False, index=0):
+        """Generates DM vs Radius profiles. By default this uses the 1st box available, other boxes may be chosen by specifying the index.
+
+        Note that the DM_vs_R1 variable only holds the most recently generated (or loaded) DM vs Radius info. So if two calls are made to this method
+        for different boxes, the DM_vs_R1 field will contain the results of the second call only. It is better to use the data returned from this method.
+        """
+        self.DM_vs_R1 = None
+
         profile_file = '%s_DMvsR_prof' % self.get_filename()
+        if index > 0:
+            profile_file = profile_file + '_for_box_{}'.format(index)
 
         if load_from_files:
             try:
@@ -1758,16 +1770,28 @@ class Configuration:
                 print("Cache miss: " + profile_file)
 
         if self.DM_vs_R1 is None:       
-            print("Generating DM vs R profile")
-            df = create_halo_array_for_convolution(self.provider.get_halos(self.RS_array[0]), self.min_mass, self.max_mass, self.log_bins)
+            print("Generating DM vs R profile for box {}".format(index))
+            df = create_halo_array_for_convolution(self.provider.get_halos(self.RS_array[index]), self.min_mass, self.max_mass, self.log_bins)
 
             trim_dim = int(10*self.resolution)
 
-            self.DM_vs_R1 = DM_vs_radius(self.get_final_field()[0,:,:], df[0], trim_dim, df[1]) [0]
+            self.DM_vs_R1 = DM_vs_radius(self.get_final_field()[index], df[0], trim_dim, df[1]) [0]
+
             saveArray(profile_file, self.DM_vs_R1, folder=self.folder)
+  
+        return self.DM_vs_R1
     
-    def generate_profile_of_masks(self, load_from_files=False):
+    def generate_profile_of_masks(self, load_from_files=False, index=0):
+        """Generates mask profiles. By default this uses the 1st box available, other boxes may be chosen by specifying the index.
+
+        Note that the mask_profiles variable only holds the most recently generated (or loaded) DM vs Radius info. So if two calls are made to this method
+        for different boxes, the mask_profiles field will contain the results of the second call only. It is better to use the data returned from this method.
+        """
+        self.mask_profiles = None
+        
         mask_file = '%s_masks' % self.get_filename()
+        if index > 0:
+            mask_file = mask_file + '_for_box_{}'.format(index)
 
         if load_from_files:
             try:
@@ -1776,15 +1800,16 @@ class Configuration:
                 print("Cache miss: " + mask_file)
 
         if self.mask_profiles is None:
-            # using 0'th index (first available redshift) here
-            print("Generating Mask Profiles")
+            print("Generating Mask Profiles for box {}".format(index))
 
             # zoom in on middle of masks
             full_mask_len = self.resolution * 20
             zoom_start = full_mask_len // 4
             zoom_end = 3 * zoom_start
-            self.mask_profiles = profile_of_masks(self.get_addition_masks()[0, :, zoom_start:zoom_end, zoom_start:zoom_end])
+            self.mask_profiles = profile_of_masks(self.get_addition_masks()[index, :, zoom_start:zoom_end, zoom_start:zoom_end])
             saveArray('%s_masks' % self.get_filename(), self.mask_profiles, folder=self.folder)
+        
+        return self.mask_profiles
 
     def clear_results(self):
         """Clears memory-intense results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
