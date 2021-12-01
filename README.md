@@ -26,7 +26,7 @@ $ pip install -r requirements.txt
 ```
 
 ### Virtual Environment Setup
-If you know what a virtual environement is and want to use one, you can follow these instructions to setup a virtual environment in the root folder of the respository. Open a terminal and navigate to the base folder of the respository. Type these commands:
+If you know what a virtual environement is and want to use one, you can follow these instructions to setup a virtual environment in the root folder of the respository instead. Open a terminal and navigate to the base folder of the respository. Type these commands:
 ```
 $ python -m venv dev_env
 $ source dev_env/bin/activate
@@ -45,6 +45,6 @@ By default, output files will be created in "\~/cgmbrush/var" and CGMBrush will 
 
 ## Checking your work
 
-Presently, cgmbrush has a tests.ipynb notebook that can be used to gain some confidence that cgmbrush is performing correctly. Currently these tests utilize data from the Bolshoi simulations. If you want to be able to run all of these tests or use cgmbrush with this data, you will need to visit https://www.cosmosim.org/cms/simulations/bolshoi/ and download the Dens256_z0 and BDMV (for z=0) tables. These files should be saved off to your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.csv.gz' and 'halo-z-0.csv.gz'
+Presently, cgmbrush has a tests.ipynb notebook that can be used to gain some confidence that cgmbrush is performing correctly. Currently these tests utilize data from the Bolshoi simulations. If you want to be able to run all of these tests or use cgmbrush with this data, you will need to visit https://www.cosmosim.org/cms/simulations/bolshoi/ and download the Dens256_z0 and BDMWProf (for z=0) tables. These files should be saved off to your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.csv.gz' and 'halo-z-0.csv.gz'
 
 When you think all is done, open tests.ipynb with the ipython kernel you setup (or your system one that you installed to) and run the file. All the tests should pass.
