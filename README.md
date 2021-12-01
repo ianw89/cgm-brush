@@ -40,7 +40,7 @@ This will setup a virtual environment in the root folder of the respository and 
 
 ## Input and Output Files
 
-By default, output files will be created in '~/cgmbrush/var' and CGMBrush will look for input files (simulation halo tables, etc) from '~/cgmbrush/sims'. Unless this is desirable, you should set environment variables for CGMB_VAR_DIR and CGMB_SIMS_DIR. On linux or mac this could be done by adding "export CGMB_VAR_DIR='...'" to .bashrc, and on Windows via the System Properties / Environment Variables... dialog. Alternatively, you could update the values in settings.py of the cgmbrush library.
+By default, output files will be created in "~/cgmbrush/var" and CGMBrush will look for input files (simulation halo tables, etc) from "~/cgmbrush/sims". Unless this is desirable, you should set environment variables for CGMB_VAR_DIR and CGMB_SIMS_DIR. On linux or mac this could be done by adding "export CGMB_VAR_DIR='...'" to .bashrc, and on Windows via the System Properties / Environment Variables... dialog. Alternatively, you could update the values in settings.py of the cgmbrush library.
 
 
 ## Checking your work
