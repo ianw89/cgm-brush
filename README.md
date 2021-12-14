@@ -1,10 +1,12 @@
-# cgm-brush
+# CGMBrush: what is it?
 
-Baryonic post-processing of N-body simulations. 
+CGM Brush is a python library for baryonic post-processing of N-body simulations. CGM Brush was initially built with the goal of redistributing mass from dark matter only cosmological simulations in accordance with various models of the circumgalactic medium (CGM). The routines work in 2D and utiltze fast convolutions, which allows the library to work very quickly, and allows the the library to work at much higher resolutions than the original cosmological simulations grid.
+
+This tool can be used for a variety of purposes, but the initial application is using fast radio bursts to study and constrain the CGM.
 
 Presently CGMBrush is hardcoded to work with data from the Bolshoi Simulations. In the near future it will be organized so that you can easily work with data from other N-body simulations.
 
-Tested on various versions of Python 3. Not tested on Python 2.
+CGMBrush is Tested on various versions of Python 3 and sci-py the latest scipy packages as of 2021. It is not tested on Python 2.
 
 ## Installation Instructions
 
