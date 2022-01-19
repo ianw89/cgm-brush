@@ -412,7 +412,7 @@ class BolshoiProvider(SimulationProvider):
         # Have to hardcode z=0 table because of the unique column names
         if z_name == '0':
             # reading density field and halos data
-            file_path= os.path.join(SIMS_DIR, 'dens'+resStr+'-z-0.csv.gz')
+            file_path= os.path.join(SIMS_DIR, 'dens'+resStr+'-z-0.0.csv.gz')
             pdDens=pd.read_csv(file_path)
 
             # extracting columns
