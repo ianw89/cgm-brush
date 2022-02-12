@@ -401,7 +401,7 @@ class BolshoiProvider(SimulationProvider):
         return result
 
     def import_density_field(self, z_name, resolution):
-        """Imports the density field for a given redshift and smooths it. Stores the result in a cache that is faster to access."""
+        """Imports the density field for a given redshift and smooths it. Stores the result in a numpy file that is faster to access."""
         
         if resolution != 256 and resolution != 512:
             raise ValueError("Only resolution 256 or 512 is supported.")
@@ -700,7 +700,7 @@ class FireProfile(CGMProfile):
         ## creating a mask
         # TODO perf bottleneck is here
         # TODO use symmetry to save computation
-        print(rho0)
+        #print(rho0)
         f1 = lambda x, y, z: fire_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
 
         vec_integral = np.vectorize(project_spherical_3Dto2D)   
@@ -1731,8 +1731,15 @@ class Configuration:
         
         return self.halo_masses
 
+    def get_add_mask_for_mass(self, mass, z_index):
+        """Selects the addition mask closest to the specified halo mass (in solar masses) for the data from the given redshift's index and returns it."""
+        masses = self.get_halo_masses()
+        index = np.argmin(np.abs(masses - mass))
+        masks = self.get_addition_masks()
+        return masks[z_index][index]
+
     def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
-        """Run this configuration."""
+        """Run convolutions for this configuration."""
 
         filename = self.get_filename()
         file_path = os.path.join(self.folder, filename + ".npz")
@@ -1744,11 +1751,11 @@ class Configuration:
                 print("done")
                             
             except IOError:
-                print("Cache miss: " + filename)
-                #pass # File cache doesn't exist, swallow and compute it instead
+                print("Previous results '" + filename + "' not found. Calculations will be made.")
+                #pass # previous results file for this config doesn't exist, swallow and compute it instead
 
         if self.npz is None:
-            print("Performing Calculations for {}... ".format(filename), end="")
+            print("Performing calculations for {}... ".format(filename), end="")
                                    
             if trace:
                 pr = cProfile.Profile()
@@ -1864,7 +1871,7 @@ class Configuration:
                 self.stacked_npz = np.load(file_path, allow_pickle=True)
                 print("done")        
             except IOError:
-                print("Cache miss: " + stacked_file)
+                print("Previous results '" + stacked_file + "' not found. Calculations will be made.")
 
         if self.stacked_npz is None:
 
@@ -1925,7 +1932,7 @@ class Configuration:
             try:
                 self.DM_vs_R1 = loadArray(profile_file, folder=self.folder)            
             except IOError:
-                print("Cache miss: " + profile_file)
+                print("Previous results '" + profile_file + "' not found. Calculations will be made.")
 
         if self.DM_vs_R1 is None:       
             print("Generating DM vs R profile for box {}".format(index))
@@ -1955,7 +1962,8 @@ class Configuration:
             try:
                 self.mask_profiles = loadArray(mask_file, folder=self.folder)            
             except IOError:
-                print("Cache miss: " + mask_file)
+                print("Previous results '" + mask_file + "' not found. Calculations will be made.")
+
 
         if self.mask_profiles is None:
             print("Generating Mask Profiles for box {}".format(index))

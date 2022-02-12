@@ -47,12 +47,12 @@ CGM Brush uses .csv.gz density field and halo table files from the Bolshoi simul
 ```
 SELECT * FROM Bolshoi.Dens256_z0
 ```
-to get the density field at 256x256 resolution for z=0. You also need the halo tables (BDMProf), which should be acquired and saved off seperatly for each redshift snapshot desired. After you queries complete, you can download a .csv file from the cosmosim job and then run gzip on it. These files should be saved off and renamed your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.0.csv.gz' and 'halo-z-0.0.csv.gz', for instance. Naming of higher reshift files is more complicated; see the comments in the BolshoiProvider class in the cgmbrush.py file.
+to get the density field at 256x256 resolution for z=0. You also need the halo tables (BDMProf), which should be acquired and saved off seperatly for each redshift snapshot desired. After you queries complete, you can download a .csv file from the cosmosim job and then run gzip on it. These files should be saved off and renamed your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.0.csv.gz' and 'halo-z-0.0.csv.gz', for instance. Naming of higher reshift files is more complicated; see the comments in the BolshoiProvider class in the cgmbrush.py file. To get started we suggest ignoring higher redshift data (and the relevent tests).
 
 
 ## Checking your work
 
-Presently, cgmbrush has a tests.ipynb notebook that can be used to gain some confidence that cgmbrush is performing correctly. Currently these tests utilize data from the Bolshoi simulations, so you must have some of these files available as described above.
+Presently, cgmbrush has a test/tests.ipynb notebook that can be used to gain some confidence that cgmbrush is performing correctly. Currently these tests utilize data from the Bolshoi simulations, so you must have some of these files available as described above.
 
 When you think you are ready, open tests.ipynb with the ipython kernel you setup (or your system one that you installed to) and run the file. If you've downloaded and set up the z=0 density field and halo table correctly, most of the tests will pass (a few require higher redshift files, and this is noted in the tests comments). After you are satisfied, we suggest that you then proceed to the tutorial.ipynb to learn a little more about how to use CGM Brush.
 
