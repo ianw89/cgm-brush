@@ -24,79 +24,12 @@ import math
 import sys
 from scipy.interpolate import interp1d
 
-from cgmbrush.settings import *
-from cgmbrush.constants import *
+from settings import *
+from constants import *
+#from settings import *  #for debugging
+#from constants import *
+from cosmology import cosmology as cosmo
 
-########################################
-# Parameters, Constants, and Functions
-########################################
-
-# Cosmological parameters
-z = 0
-h = .7
-rho_c = 9.31000324385361 *10**(-30) * (Mpc**3 / (msun*1000))*(h/.7)**2 # M./Mpc^3 from #pcrit = 9.31000324385361e-30 g / cm3
-OmegaM = 0.27
-OmegaL = 1- OmegaM #assumes flat universe
-OmegaB = 0.0469 
-rho_m = OmegaM*rho_c
-fd = 1 # fraction of baryons in diffused ionized gas (FRB paper)
-fb = OmegaB/OmegaM #fraction of matter in baryons
-
-def rhoB(z):
-    return OmegaB*rho_c*(1+z)**3
-
-def rhoM(z):
-    return OmegaM*rho_c*(1+z)**3
-
-# units: #/cm^3
-def elecD(z):
-    return fd*rhoB(z)*(1-Yhe/2)/(mprot/msun)/Mpc**3
-
-
-
-
-########################################
-# Configuration of the simulation
-# ########################################
-
-# TODO Bolshoi specific; need to make these properties of the SimulationProvider
-L=250/h # length of box in Mpc
-
-
-########################################
-# Properties of halos
-########################################
-
-# Concentration c of a halo:
-def halo_conc(redshift,halo_mass):
-    return (9/(1+redshift))*(halo_mass/(5*10**12))**-0.13  #MM added the exponent
-
-# function for rho_0 of NFW
-def rho_0(redshift,halo_mass,R_s):
-    c=halo_conc(redshift,halo_mass)
-    return halo_mass/ (4*pi*R_s*(np.log(1+c) - c/(1+c)))
-
-# virial radius of a halo: 
-def q(z):
-    return OmegaL/ ((OmegaM*(1+z)**3)+ OmegaL)  
-
-# Virial Radius is the critical density of the universe at the given redshift times an 
-# overdensity constant Δ_c. Several Δ_c conventions exist; some are redshift dependent.
-def rho_vir(z):
-    return (18*pi**2 - 82*q(z) - 39*q(z)**2)*(rho_c*(OmegaL + OmegaM *(1+z)**3))
-
-def Rvir_den(z):
-    return (4/3 * np.pi * rho_vir(z))**(1/3) # physical, units in 1/r**3
-
-def comoving_radius_for_halo(Mhalo, z):
-    """Get the co-moving radius for a halo of a given mass at a given redshift usign the Bryan+Norman '98 definition."""
-    return (1+z)*((Mhalo)**(1/3) / Rvir_den(z))
-
-#radius that is 200 times the matter density in Mpc  (very similar to rvir)
-def r200Mz(Mhalo, z):
-    rhocrit = 2.7755e11*h*h
-    rhomatter = rhocrit*OmegaM
-    return (Mhalo/((4*np.pi/3)*200.*rhomatter))**(1./3.)
 
 
 
@@ -209,7 +142,7 @@ def DM_analytical(z):
 
 # integrand of dispersion measure
 def integrandDM(z):
-    return 10**6*dConfDistdz(z)*elecD(z)/(1+z)**2 
+    return MpcInPc*dConfDistdz(z)*elecD(z)/(1+z)**2 
 
 def redshifted_DM(DM,z):
     return DM *(1+z)  # Psc cm-2
@@ -243,18 +176,18 @@ def elecDforBox(n):
 def avgZ(n): 
     return max((CDtoRS(n*L,1)+CDtoRS((n-1)*L,1))/2,0)
     
-def z_eff(zmin,zmax,L_box):
-    return ((DM_analytical(zmax)-DM_analytical(zmin))/((L_box*10**6)*elecD(0)))**(1) - 1
+def z_eff(zmin,zmax,Lbox):
+    return ((DM_analytical(zmax)-DM_analytical(zmin))/((Lbox*MpcInPc)*elecD(0)))**(1) - 1
 
-def RS_array_gen(z_max,L):
+def RS_array_gen(z_max,Lbox):
     """Computes redshift values for each box when stacking boxes of length L out to redshift z_max.
     
     Returns an array of these z values.
     """
     RS_array = []
-    RS_array.append(CDtoRS(L,1))
+    RS_array.append(CDtoRS(Lbox,1))
     for i in range(1,int(numBoxes(z_max))):
-        RS_array.append(z_eff(CDtoRS(float(L*i),z_max),CDtoRS(float(L*(i+1)),z_max),L))
+        RS_array.append(z_eff(CDtoRS(float(Lbox*i),z_max),CDtoRS(float(Lbox*(i+1)),z_max),Lbox))
 
     return RS_array
 
@@ -284,6 +217,8 @@ class SimulationProvider(metaclass=abc.ABCMeta):
         callable(subclass.get_halos) or
         NotImplemented)
 
+
+    
     @abc.abstractmethod
     def get_density_field(self, redshift: float, resolution: int):
         """Gets the density field for the given redshift and grid resolution."""
@@ -333,10 +268,11 @@ class BolshoiProvider(SimulationProvider):
             str(round(0.7454876185015988,2)): '0.8', 
             str(round(0.8931355846491102,2)): '0.9'
         }
+        self.Lbox=250/cosmo.h # comoving length of Bolshoi box in Mpc
 
     # normalize DM
     def normDM(self, DM, z, resolution):
-        return DM *10**6* L/resolution * elecD(z) /(1+z)**2  # Psc cm-2
+        return DM *MpcInPc* self.Lbox/resolution * cosmo.elecD(z) /(1+z)**2  # Psc cm-2
 
     def get_z_name(self, redshift: float) -> str: 
         return self.z_to_filename[str(round(redshift, 2))]
@@ -641,7 +577,7 @@ class SphericalTophatProfile(CGMProfile):
         
         # TODO r should always be less than Rv...
         Rv = (scaling_radius * scale_down * comoving_radius / cellsize)
-        fine_mask = fine_mask * ((1-((r/Rv)**2))**(2))**(1/4)
+        fine_mask = fine_mask * ((1-((r/Rv)**2))**(2))**(1./4.)
         return fine_mask
 
 class NFWProfile(CGMProfile):
@@ -771,7 +707,7 @@ class FireProfile(CGMProfile):
         rho0 = adjustmentfactor * nHinterp(np.log10(mass))
         Rinterp = RinterpinRvir * comoving_radius #rvir(mass, z)
         
-        Ntot = mass*Msun*fb/(mu*mp)/(MPCTOCM**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
+        Ntot = mass*Msun*fb/(mu*mp)/(Mpc**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
         rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
 
         # If a 3D function is desired, these two lines can be used to plot it
@@ -899,7 +835,7 @@ class PrecipitationProfile(CGMProfile):
     #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
         rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='linear', fill_value='extrapolate')
 
-        conv = (msun*1E3/(mu*mp))/KPCTOCM**3
+        conv = (msun*1E3/(mu*mp))/kpc**3
         mtotal = integrate.quad(rhointerp, 0, np.log(XRvir*Rvirkpc))[0]/conv
 
         #add in rest of mass 

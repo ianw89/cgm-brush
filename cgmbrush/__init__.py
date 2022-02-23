@@ -1,1 +1,1 @@
-__all__ = ['cgmbrush', 'constants', 'settings', 'plots', 'test']
+__all__ = ['cgmbrush', 'constants', 'settings', 'plots', 'test', 'cosmology']
