@@ -11,10 +11,10 @@ from cgmbrush.constants import *
 ###############################################
 class cosmology():
     h = .7
+    rho_c = 9.31000324385361 *10**(-30) * (Mpc**3 / (msun*1000))*(h/.7)**2 # Msun/Mpc^3 from #pcrit = 9.31000324385361e-30 g / cm3
     OmegaM = 0.27
     OmegaB = 0.0469
     OmegaL = 1- OmegaM #assumes flat universe
-    rho_c = 9.31000324385361 *10**(-30) * (Mpc**3 / (msun*1000))*(h/.7)**2 # Msun/Mpc^3 from #pcrit = 9.31000324385361e-30 g / cm3
     rho_m = OmegaM*rho_c #density in matter
     #fd = 1 # fraction of baryons in diffuse ionized gas (FRB paper)
     fb = OmegaB/OmegaM #fraction of matter in baryons
@@ -39,7 +39,7 @@ class cosmology():
     # number of electrons per/cm^3 assuming helium contributes two electrons
     @classmethod
     def elecD(self, z):
-        return self.rhoB(z)*(1-Yhe/2)/(mprot/msun)/Mpc**3
+        return self.fb*self.rhoB(z)*(1-Yhe/2)/(mprot/msun)/Mpc**3
 
 
 
@@ -99,11 +99,10 @@ class halo():
     # function for rho_0 of NFW
     @classmethod
     def rho_0(self, cosmo, redshift,halo_mass,R_s):
-        c=self.halo_conc(cosmo, redshift,halo_mass)
+        c=self.halo_conc(redshift,halo_mass)
         return halo_mass/ (4*np.pi*R_s*(np.log(1+c) - c/(1+c)))
 
     # used to compute virial radius of a hal (important when dark energy is present)
-    @classmethod
     def q(self, cosmo, z):
         return cosmo.OmegaL/ ((cosmo.OmegaM*(1+z)**3)+ cosmo.OmegaL)  
 

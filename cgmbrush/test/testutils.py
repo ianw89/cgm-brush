@@ -14,7 +14,7 @@ def plot_grid_comparison(new, baseline):
     fig, ax = plt.subplots(1,2,figsize=(24, 12))
 
     vmin = 0
-    vmax = max(np.max(new), np.max(baseline))
+    vmax = 1000 #max(np.max(new), np.max(baseline))
     norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
     pos = ax[0].imshow(new, norm=norm)

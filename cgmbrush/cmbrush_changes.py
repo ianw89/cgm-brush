@@ -552,16 +552,18 @@ class SphericalTophatProfile(CGMProfile):
 
 class NFWProfile(CGMProfile):
     
-    def __init__(self):
+    def __init__(self, halo, cosmo):
         print("Initialized NFW Profile")
         self.name = "NFW"
+        self.halo = halo
+        self.cosmo = cosmo
         super().__init__()
 
     def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
-        print("Making NFW mask for M = ", mass)
+        print("Making NFW mask")
         # TODO ? add redshift to the function above ?
-        R_s= comoving_radius/(halo.halo_conc(cosmo, redshift,mass)*cellsize)  
-        rho_nought = halo.rho_0(cosmo, redshift,mass,R_s)
+        R_s= comoving_radius/(self.halo.halo_conc(redshift,mass)*cellsize)  
+        rho_nought = self.halo.rho_0(redshift,mass,R_s)
         scale_down = 2  # making the grid coarser    
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
@@ -586,7 +588,7 @@ class NFWProfile(CGMProfile):
 
         return fine_mask
 
-class FireProfile(CGMProfile):
+class FireProfile(CGMProfile, cosmo, halo):
     """
     This is FIRE simulation profile (from https://arxiv.org/pdf/1811.11753.pdf and using their $r^{-2}$ scaling)
     I'm using the $r^{-2}$ profile they find, with an exponetial cutoff at rmax, where we use conservation of mass to determine rmax. 
@@ -601,9 +603,11 @@ class FireProfile(CGMProfile):
     Note that sometimes I'm working with number densities and sometimes mass densities.
     """
     
-    def __init__(self):
+    def __init__(self, cosmo, halo):
         print("Initialized Fire Profile")
         self.name = "fire"
+        self.halo = halo
+        self.cosmo = cosmo
         super().__init__()
         
 
@@ -615,7 +619,7 @@ class FireProfile(CGMProfile):
         ## creating a mask
         # TODO perf bottleneck is here
         # TODO use symmetry to save computation
-        
+        print(rho0)
         f1 = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
 
         vec_integral = np.vectorize(project_spherical_3Dto2D)   
@@ -630,12 +634,11 @@ class FireProfile(CGMProfile):
 
         return fine_mask
 
-    #For testing:  outputs array showing analytic function for fire profile 
     def get_analytic_profile(self, mass: float, comoving_radius: float):
 
         x,y,rmax,Rinterp,rho0 = self.shared(mass, comoving_radius, 0, 0, 0, 0, 20)
 
-   
+        # Testing outputing analytic function for fire
         rvals = np.logspace(-3, 2, num=200, base=10)
         radial_profile = self.fire_func_Mpc(rvals, rmax, Rinterp, rho0)
         return rvals, radial_profile
@@ -643,6 +646,9 @@ class FireProfile(CGMProfile):
     def shared(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
+
+
+        adjustmentfactor = 1  #probably we want to range between 0.5-2 as the numbers look sensible in this range
              
         # These are specifications taken from the fire simulations
         RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
@@ -652,12 +658,12 @@ class FireProfile(CGMProfile):
         #profile taken from https://arxiv.org/pdf/1811.11753.pdf as described in CGM bursh paper
         MfbMh = np.array([0.1,0.2,0.3,0.5,0.8,1])
         Mh = msun*np.array([10**10,10**11,10**12,10**13,10**14,10**15])
-        rv = Mpc*np.array([halo.comoving_radius_for_halo(cosmo, 10**10,0), halo.comoving_radius_for_halo(cosmo, 10**11,0), halo.comoving_radius_for_halo(cosmo, 10**12,0), halo.comoving_radius_for_halo(cosmo, 10**13,0), halo.comoving_radius_for_halo(cosmo, 10**14,0), halo.comoving_radius_for_halo(cosmo, 10**15,0)]) # radii for the given mass bins
+        rv = Mpc*np.array([self.halo.comoving_radius_for_halo(10**10,0),self.halo.comoving_radius_for_halo(10**11,0), self.halo.comoving_radius_for_halo(10**12,0),self.halo.comoving_radius_for_halo(10**13,0),self.halo.comoving_radius_for_halo(10**14,0),self.halo.comoving_radius_for_halo(10**15,0)]) # radii for the given mass bins
 
         
         # rv = Mpc*np.array([halo.comoving_radius_for_halo(10**10,0),halo.comoving_radius_for_halo(10**11,0),halo.comoving_radius_for_halo(10**12,0)]) # radii for the given mass bins
         r0= .3*rv
-        nHinterp = MfbMh*Mh*cosmo.fb /((np.pi*4*r0**2*rv*mean_molecular_weight_electrons*mprot))
+        nHinterp = MfbMh*Mh*cosmo.fb /((np.pi*4*r0**2*rv*mean_molecular_weight_baryons*mprot))*fhydrogen
         # nHinterp = interp1d(logMinterp, nHinterp, fill_value="extrapolate")
 
 
@@ -670,7 +676,7 @@ class FireProfile(CGMProfile):
 
         # print(np.log10(mass),comoving_radius, nHinterp(np.log10(mass)),nHinterp_old(np.log10(mass)),nHinterp(np.log10(mass))/nHinterp_old(np.log10(mass)))
         
-        rho0 = nHinterp(np.log10(mass))
+        rho0 = adjustmentfactor * nHinterp(np.log10(mass))
         Rinterp = RinterpinRvir * comoving_radius #rvir(mass, z)
         
         Ntot = mass*msun*cosmo.fb/(mean_molecular_weight_electrons*mp)/(Mpc**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
@@ -787,26 +793,26 @@ class PrecipitationProfile(CGMProfile):
         rhoarr = np.array([rkpc, 1/np.sqrt(1/(n1*(rkpc)**-xi1+ 1e-20)**2 + 1/(n2*(rkpc/100)**-xi2 + 1e-20)**2)])
         
         #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
-        #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
+    #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
         rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='linear', fill_value='extrapolate')
 
         conv = (msun*1E3/(mu*mp))/kpc**3
         mtotal = integrate.quad(rhointerp, 0, np.log(XRvir*Rvirkpc))[0]/conv
 
         #add in rest of mass 
-        neconstant =(10**logMhalo*cosmo.fb-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
-        #     print(neconstant)
+        neconstant =(10**logMhalo*fb-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
+    #     print(neconstant)
         length = len(rkpc)
-        #     print("shape = ", length)
+    #     print("shape = ", length)
         for i in range(length):
             if rhoarr[0,  i] < XRvir*Rvirkpc:
-
+    #             rhoarr[1, i] = np.array([1/np.sqrt(1/(n1*(rkpc)**-xi1+ 1e-20)**2 + 1/(n2*(rkpc/100)**-xi2 + 1e-20)**2)])[1,i] + neconstant
                 rhoarr[1, i] = rhoarr[1, i] + neconstant
         
         #print("ftotal =", mtotal/10**logMhalo/fb, neconstant) #.2 is fraction of baryons
         cellsize_kpc = cellsize * 1000 # kpc
         
-        #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
+    #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
         f1= lambda x, y, z: precipitation_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift)
                     
         vec_integral=np.vectorize(project_spherical_3Dto2D)
@@ -816,7 +822,7 @@ class PrecipitationProfile(CGMProfile):
         mask1=mask1.astype(float)
         mask1[r > (XRvir*Rvirkpc/cellsize_kpc)]=0         
 
-        #     mask1[r <= (XRvir*Rvirkpc/cellsize_kpc)] =+ neconstant 
+    #     mask1[r <= (XRvir*Rvirkpc/cellsize_kpc)] =+ neconstant 
             
         return mask1
 
@@ -872,7 +878,7 @@ def subtract_halos(provider, haloArray, bin_markers, profile: CGMProfile, scalin
             continue
 
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/cosmo.h
-        conv_rad[j] = halo.comoving_radius_for_halo(cosmo, Mvir_avg[j], redshift) # comoving radius
+        conv_rad[j] = halo.comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, 1, scaling_radius, cellsize, fine_mask_len)
 
@@ -947,7 +953,7 @@ def add_halos(provider, haloArray, resolution: int, bin_markers, profile: CGMPro
             continue
 
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h
-        conv_rad[j] = halo.comoving_radius_for_halo(cosmo, Mvir_avg[j], redshift) # comoving radius
+        conv_rad[j] = halo.comoving_radius_for_halo(Mvir_avg[j], redshift) # comoving radius
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
 
@@ -984,9 +990,9 @@ def add_halos(provider, haloArray, resolution: int, bin_markers, profile: CGMPro
         convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
 
         # store addition masks
-        addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*cosmo.fb*coarse_mask
+        addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM)*coarse_mask
         
-    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*cosmo.fb, conv_rad, addition_masks, Mvir_avg
+    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*(OmegaB/OmegaM), conv_rad, addition_masks, Mvir_avg
 
 
 # Halos removed field
@@ -1089,7 +1095,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
 
 # TODO clean this up, we've basically made it do nothign over halo_subtraction_addition
 def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, min_mass, max_mass,
-                                       log_bins, subtraction_halo_profile, addition_profile: CGMProfile, scaling_radius, resolution):
+                                       log_bins, subtraction_halo_profile, addition_profile: CGMProfile, scaling_radius, resolution, halo):
     """
     This function runs the convolution code (subtraction and addition).
 
@@ -1314,7 +1320,7 @@ def saveFig(filename_base, fig, **kwargs):
 
     print("saving output to ", file_path)
     fig.savefig(file_path, **kwargs)
-    
+    exit()
 
 def saveResults(filename, folder = VAR_DIR, **arrays):
     """Saves numpy arrays to a specified folder (defaults to a var folder outside verion control)."""
@@ -1375,7 +1381,7 @@ class Configuration:
     
         
         # Profile used for subtracting halos from the density field
-        self.subtraction_halo_profile = NFWProfile()
+        self.subtraction_halo_profile = NFWProfile(cosmo)
 
 
         self.min_mass = 10**10 # halos smaller than this shouldn't have much of a CGM
@@ -1547,7 +1553,7 @@ class Configuration:
 
             self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
-                                                self.addition_profile, self.scaling_radius, self.resolution)
+                                                self.addition_profile, self.scaling_radius, self.resolution, self.halo)
             
             self.convert_and_save()
             self.npz = np.load(file_path, allow_pickle=True)
