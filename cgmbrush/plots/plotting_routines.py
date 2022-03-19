@@ -9,7 +9,7 @@ error = True makes same assumptions as Kahn++2022 to compute the error  (data fr
 xstart and xend
 M_chosen are mass bins
 '''
-def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider):
+def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider, avg_mass_ar):
 
     orig_den_256 = provider.get_density_field(0, 256)
 
@@ -17,10 +17,10 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolutio
     mean_DM=np.mean(orig_den_256)
 
     # dimension of the small grid around the halo we want to crop
-    trim_dim=int((10*resolution))
+    trim_dim=int((10*resolution))  #Matt: ideally this 10 is defined somewhere as it appears also in CGMBrush
 
     # Radial extent of the plots in Mpc
-    extent = (provider.Lbox/grid_size)*(trim_dim/2)
+    #extent = (provider.Lbox/grid_size)*(trim_dim/2)
 
     SMALL_SIZE = 8
     MEDIUM_SIZE = 10
@@ -43,8 +43,11 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolutio
 
 
     # X-axis: mask grid has a diagonal of length sqrt(2) that needs to be factored in after the profile is calculated
-    x_axis = np.sqrt(2)*MpctoKpc*np.linspace(0, extent, series[0][0].shape[1])
-
+    xmin = 0 #0.5*extent/series[0][0].shape[1] #half a cell
+    #x_axis = np.sqrt(2)*MpctoKpc*np.linspace(xmin, extent-xmin, series[0][0].shape[1])
+    dx = (provider.Lbox/grid_size)  #cell size
+    x_axis = MpctoKpc*(0.5+np.arange(0, series[0][0].shape[1]))*dx     
+    
     plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[0], M_chosen[0], series, not error)
     plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[1], M_chosen[1], series, not error)
     plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[2], M_chosen[2], series, not error)
@@ -134,9 +137,9 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolutio
     #DM_Rad_axs[2].add_patch(Rectangle((0,0), 45, 1500,facecolor='yellow'))
 
     # mass labels
-    DM_Rad_axs[0].text(x_end*0.4, ymax1*0.85, r'$1.2 × 10^{11} M_\odot$ ',fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[1]]),fontsize=30)
-    DM_Rad_axs[1].text(x_end*0.4, ymax2*0.85, r'$1.3 × 10^{12} M_\odot$ ',fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[2]]),fontsize=30)
-    DM_Rad_axs[2].text(x_end*0.4, ymax3*0.85, r'$1.3 × 10^{13} M_\odot$ ',fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[3]]),fontsize=30)
+    DM_Rad_axs[0].text(x_end*0.4, ymax1*0.85, r'$10^{%.1f} M_\odot$ '%np.log10(avg_mass_ar[M_chosen[0]]),fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[1]]),fontsize=30)
+    DM_Rad_axs[1].text(x_end*0.4, ymax2*0.85, r'$10^{%.1f} M_\odot$ '%np.log10(avg_mass_ar[M_chosen[1]]),fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[2]]),fontsize=30)
+    DM_Rad_axs[2].text(x_end*0.4, ymax3*0.85, r'$10^{%.1f} M_\odot$ '%np.log10(avg_mass_ar[M_chosen[2]]),fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[3]]),fontsize=30)
 
     # DM_Rad_axs[0].rc('xtick', labelsize=35)    # fontsize of the tick labels
     # # plt.rc('ytick', labelsize=35)    # fontsize of the tick labels
@@ -154,6 +157,8 @@ def plot_DM_vs_Rad(x_axis, mean_DM, axis, massbin, series, plot_masks):
     # axis.set_title('Mass = %.1E' % Decimal(df[2][massbin]),fontsize=14)
     
     for data in series:
+        #print("terms = ", mean_DM, data[0][massbin,:]-mean_DM, x_axis,data[1][massbin,:])
+        axis.semilogx(x_axis,data[0][massbin,:]-mean_DM,'-', label=data[2],lw=5,color=data[3])
 
         if plot_masks:
             axis.semilogx(x_axis,data[1][massbin,:],'--', lw=2,color=data[3])

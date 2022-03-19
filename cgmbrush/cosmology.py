@@ -88,6 +88,15 @@ class halo():
     #    self.cosmo = cosmology
     #    # z = 0
     #    self.whatthisfor = 0  #
+
+
+
+        
+    # 3D NFW profile with r
+    #epsilon is a softening
+    @classmethod
+    def NFW_profile(self, r,rho_nought,R_s, epsilon=0):
+        return rho_nought/(((epsilon+r)/R_s)*((1+(r/R_s))**2))    
     
     # Concentration c of a halo from fit to simulation #Matt: we need to cite reference!!!!
     @classmethod
@@ -108,7 +117,7 @@ class halo():
         return cosmo.OmegaL/ ((cosmo.OmegaM*(1+z)**3)+ cosmo.OmegaL)  
 
     # Virial Radius is the critical density of the universe at the given redshift times an 
-    # overdensity constant Delta_c using Bryan and Norman (MM: DATE) prescription
+    # overdensity constant Delta_c using Bryan and Norman (1998), eqn 6, prescription
     @classmethod
     def rho_vir(self, cosmo, z):
         return (18.*np.pi**2 - 82.*self.q(cosmo, z) - 39.*self.q(cosmo, z)**2)*(cosmo.rho_c*(cosmo.OmegaL + cosmo.OmegaM *(1+z)**3))
@@ -120,11 +129,11 @@ class halo():
         return (4./3. * np.pi * self.rho_vir(cosmo, z))**(1./3.) 
 
     @classmethod
-    def comoving_radius_for_halo(self, cosmo, Mhalo, z):
+    def comoving_rvir(self, cosmo, Mhalo, z):
         """Get the co-moving radius for a halo of a given mass at a given redshift usign the Bryan+Norman '98 definition."""
         return (1+z)*((Mhalo)**(1./3.) / self.Rvir_den(cosmo, z))
 
-    #radius that is 200 times the matter density in Mpc  (very similar to rvir; not used by code)
+    #comoving radius that is 200 times the matter density in Mpc  (very similar to comoving_rvir; not used by code)
     @classmethod
     def r200Mz(self, cosmo, Mhalo, z):
         rhomatter = cosmo.rho_c*cosmo.OmegaM

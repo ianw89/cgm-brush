@@ -8,13 +8,12 @@ import numpy as np
 
 kpc = 3.086*10**21 # cm
 Mpc = 3.086*10**24 # cm
-msun =1.9891 * 10**30 #kilograms
-mprot = 1.6726219 * 10**-27 #kilograms
+msun =1.9891 * 10**33 #grams           
+mprot = 1.6726219 * 10**-24 #grams
+lightspeed = 2.99792e5 #km/s
 
-
-lightspeed = 3e5 #km/s
-pi = np.pi
-mp = 1.6726216e-24  #proton mass in gr
+#pi = np.pi 
+#mp = 1.6726216e-24  #proton mass in gr
 
 Yhe =.25 #Helium mass fraction
 nPS = msun/mprot*(1-Yhe/2) # accounts for the fact that some mass is in helium 
@@ -25,4 +24,5 @@ fhydrogen = (1-Yhe)/((1-Yhe) + Yhe/4)  #fraction of atoms that are hyrogen
 #print(mu, mean_molecular_weight_baryons, fhydrogen)
 
 RadtoSec= 206265 #radians to arsec
-MpcInPc = 1e6 
+MpcInPc = 1e6 #MATT: THIS IS PREALLY PcInMpc
+KPCINMPC = 1e3

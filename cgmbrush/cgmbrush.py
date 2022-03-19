@@ -48,15 +48,6 @@ def histArray(arr,nbin,Ncel,DMmin,DMmax):
     return center, hist, cumulative[-1]
 
 
-# Histogram array without min and max
-# def histArray(arr,nbin,Ncel):
-#     hist, bins = np.histogram(arr,bins=nbin)#,range= (np.mean(arr),5*np.mean(arr)))
-#     dv=bins[1]-bins[0]
-#     hist=(hist)/(dv*Ncel**2)
-#     cumulative = (np.cumsum(hist)*dv)
-#     center = (bins[:-1] + bins[1:]) / 2
-#     return center, hist, cumulative[-1]
-
 # plots the histogram of the dispersion measures
 def plothist(arr,nbin,xmin,xmax,title,Ncel):
     hist, bins = np.histogram(arr,bins=nbin)
@@ -113,6 +104,7 @@ def DM_analytical(z):
 def integrandDM(z):
     return MpcInPc*dConfDistdz(z)*cosmo.elecD(z)/(1+z)**2 
 
+#DM is redshifted by a factor of 1+z
 def redshifted_DM(DM,z):
     return DM *(1+z)  # Psc cm-2
 
@@ -250,6 +242,9 @@ class BolshoiProvider(SimulationProvider):
     def get_density_field(self, redshift: float, resolution: int):
         """Gets the density field for the given redshift and grid resolution."""
 
+        print("density field specs", redshift, resolution, self.Lbox,cosmo.elecD(redshift))
+        
+        
         if str(round(redshift, 2)) not in self.z_to_filename:
             raise ValueError("There is no file associated with the z={}. Add an entry to the z_to_filname dictionary on this object.".format(redshift))
         z_name = self.get_z_name(redshift)
@@ -259,7 +254,7 @@ class BolshoiProvider(SimulationProvider):
             return self.density_fields[(z_name, resolution)]
 
         # If not, try fast reading from saved off numpy array            
-        filename = "bol_den_field_" + z_name + '_' + str(resolution) 
+        filename = "bol_den_field_" + z_name + '_' + str(resolution)
         result = []
         try:
             result = loadArray(filename)
@@ -268,6 +263,7 @@ class BolshoiProvider(SimulationProvider):
         
         # Do the slow reading from the bolshoi file and save off fast copy
         if len(result) == 0:
+            print("I'm hoping it does this")
             result = self.import_density_field(z_name, resolution)
             if len(result) == 0:
                 raise IOError("There was a problem importing the Bolshoi density field for (" + str(redshift) + ", " + str(resolution) + ")")
@@ -315,6 +311,7 @@ class BolshoiProvider(SimulationProvider):
 
         resStr = str(resolution)
 
+  
         # Have to hardcode z=0 table because of the unique column names
         if z_name == '0':
             # reading density field and halos data
@@ -379,6 +376,7 @@ def my_convolve(a, b):
     return np.fft.irfft2(np.fft.rfft2(a2) * np.fft.rfft2(b, a2.shape))
 
 # Create halo array from halo table for convolution
+#returns histogram and bins
 def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     """Creates an array of indexes corresponding to indexes in pdHalos at the edges of logarithmic mass bins.
 
@@ -389,7 +387,16 @@ def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     histH, binsH = np.histogram(sorted_haloMasses,bins=np.logspace(np.log10(M_min),np.log10(M_max), logchunks))
     bins=np.append([0],histH.cumsum()).tolist()
 
-    return df,bins
+
+    #   #gives the mean mass in each bin
+    #    mean_mass_bins = np.zeros(len(binsH)-1)
+    #    for i in range(len(binsH)-1):
+    #        lbool = (sorted_haloMasses[:] > binsH[i]) & (sorted_haloMasses[:] < binsH[i+1])
+    #       #print("shape", np.shape(lbool),binsH[i], binsH[i+1] )
+    #        mean_mass_bins[i] = np.mean(sorted_haloMasses[lbool])
+
+    
+    return df, bins
 
 def project_spherical_3Dto2D(f, x, y, Rvir):
     """Project a spherically symmetric profile from 3D to 2D.
@@ -402,24 +409,7 @@ def project_spherical_3Dto2D(f, x, y, Rvir):
     else:
         #print("Boundary: {}".format(boundary))
         return 2 * integrate.quad(f, 0, boundary, args=(x,y))[0] 
-    
-def NFW2D(x, y, rho_nought, R_s, Rvir):
-    """Project NFW profile from 3D to 2D.
-    
-    Rvir is in units of virial radii per cell.""" 
-    offset=float(.1) # TODO .5 and move offset
-    boundary = math.sqrt(max(0.0, Rvir**2-(x**2+y**2)))
-    if boundary == 0.0:
-        return 0.0
-    else:
-        #print("Boundary: {}".format(boundary))
-        return 2 * integrate.quad(lambda x, y, z: rho_nought/(((offset+(x**2+y**2+z**2)**.5)/R_s)*(1+((x**2+y**2+z**2)**.5)/R_s)**2), 0, boundary, args=(x,y))[0]
 
-
-# NFW in 3D
-def NFW3D(r,rho_nought,R_s):
-    offset=.1
-    return rho_nought/(((offset+r)/R_s)*((1+(r/R_s))**2))
 
 
 
@@ -486,7 +476,7 @@ class CGMProfile(metaclass=abc.ABCMeta):
         NotImplemented)
 
     @abc.abstractmethod
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
         """Constructs and returns a 2D mask to convolve with the halo locations
            for the specified halo parameters and redshift."""
         raise NotImplementedError
@@ -501,11 +491,11 @@ class MassDependentProfile(CGMProfile):
         self.cutoff_mass = cutoff_mass
         super().__init__()
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
         if mass <= self.cutoff_mass:
-            return self.lower_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
+            return self.lower_profile.get_mask(mass, comoving_rvir, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
         else:
-            return self.higher_profile.get_mask(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
+            return self.higher_profile.get_mask(mass, comoving_rvir, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
 
 
 class TophatProfile(CGMProfile):
@@ -514,7 +504,7 @@ class TophatProfile(CGMProfile):
         self.name = "tophat"
         super().__init__()
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
         # fine mask
         # fine mask size has to correspond to the size of the mask that I eventually trim
@@ -523,7 +513,7 @@ class TophatProfile(CGMProfile):
         
         # TODO Why are we multiplying by scale_down
         r = (x**2+y**2)**.5
-        fine_mask = r <= (scaling_radius * scale_down * comoving_radius / cellsize) 
+        fine_mask = r <= (scaling_radius * scale_down * comoving_rvir / cellsize) 
         return fine_mask.astype(float)
 
 class SphericalTophatProfile(CGMProfile):
@@ -533,7 +523,7 @@ class SphericalTophatProfile(CGMProfile):
         self.extra = extra
         super().__init__()
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
         scale_down = 2  # making the grid coarser    
@@ -542,11 +532,11 @@ class SphericalTophatProfile(CGMProfile):
 
         # TODO this 'extra' thing I added was for compatibility with the 2RVSTH_and_NFW_X profiles, which for some reason have an extra *2 in the fine mask line below. 
         # I think it's a BUG, but all the profiles like 2RVSTH_and_NFW_13.5 had it in their spherical tophat code (not the NFW side, curiosuly)
-        fine_mask = r <= (self.extra * scaling_radius * scale_down * comoving_radius / cellsize)
+        fine_mask = r <= (self.extra * scaling_radius * scale_down * comoving_rvir / cellsize)
         fine_mask=fine_mask.astype(float)
         
         # TODO r should always be less than Rv...
-        Rv = (scaling_radius * scale_down * comoving_radius / cellsize)
+        Rv = (scaling_radius * scale_down * comoving_rvir / cellsize)
         fine_mask = fine_mask * ((1-((r/Rv)**2))**(2))**(1./4.)
         return fine_mask
 
@@ -557,10 +547,35 @@ class NFWProfile(CGMProfile):
         self.name = "NFW"
         super().__init__()
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_analytic_profile(self, mass: float, redshift: float):
+        
+        comoving_rvir = halo.comoving_rvir(cosmo, mass, redshift) # comoving radius
+
+        
+        rvals = np.logspace(np.log10(.01*comoving_rvir), np.log10(comoving_rvir_, num=500, base=10)
+        R_s= comoving_rvir/(halo.halo_conc(cosmo, redshift,mass))  
+        rho_nought = halo.rho_0(cosmo, redshift,mass,R_s)
+         
+        return rvals, halo.NFW_profile(rvals,rho_nought,R_s, 0)
+
+        
+    def NFW2D(x, y, rho_nought, R_s, Rvir):
+        """Project NFW profile from 3D to 2D.
+        Rvir is in units of virial radii per cell.""" 
+        offset=float(.5) # TODO .5 and move offset
+        boundary = math.sqrt(max(0.0, Rvir**2-(x**2+y**2)))
+        if boundary == 0.0: #x, y lie outside of virial radius
+            return 0.0
+        else:
+            #return 2 * integrate.quad(lambda x, y, z: rho_nought/(((offset+(x**2+y**2+z**2)**.5)/R_s)*(1+((x**2+y**2+z**2)**.5)/R_s)**2), 0, boundary, args=(x,y))[0]
+            return 2 * integrate.quad(lambda x, y, z:  halo.NFW_profile(np.sqrt(x**2+y**2+z**2),rho_nought,R_s, offset), 0, boundary, args=(x,y))[0]
+
+
+
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
         print("Making NFW mask for M = ", mass)
         # TODO ? add redshift to the function above ?
-        R_s= comoving_radius/(halo.halo_conc(cosmo, redshift,mass)*cellsize)  
+        R_s= comoving_rvir/(halo.halo_conc(cosmo, redshift,mass)*cellsize)  
         rho_nought = halo.rho_0(cosmo, redshift,mass,R_s)
         scale_down = 2  # making the grid coarser    
 
@@ -568,10 +583,10 @@ class NFWProfile(CGMProfile):
         
         if self.debug:
             with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
-                print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_radius / cellsize))
+                print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_rvir / cellsize))
 
         vec_integral = np.vectorize(NFW2D)
-        fine_mask = vec_integral(x, y, rho_nought, R_s, scale_down * comoving_radius / cellsize)
+        fine_mask = vec_integral(x, y, rho_nought, R_s, scale_down * comoving_rvir / cellsize)
 
         if self.debug:
             with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
@@ -582,7 +597,7 @@ class NFWProfile(CGMProfile):
         r=np.sqrt(x*x+y*y) 
         
         fine_mask = fine_mask.astype(float)
-        fine_mask[r > scale_down * comoving_radius / cellsize] = 0 # sets very small numbers to 0
+        fine_mask[r > scale_down * comoving_rvir / cellsize] = 0 # sets very small numbers to 0
 
         return fine_mask
 
@@ -608,19 +623,21 @@ class FireProfile(CGMProfile):
         
 
     #This is the mask used to convolve the profile with halo postion
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        x,y,rmax,Rinterp,rho0 = self.shared(mass, comoving_radius, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
+        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
+         
+        rmax,Rinterp,rho0 =   self.get_Fire_params(mass, comoving_rvir, redshift) 
 
         ## creating a mask
         # TODO perf bottleneck is here
         # TODO use symmetry to save computation
         
-        f1 = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax, Rinterp, rho0, cellsize)
+        f1 = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5)*cellsize, rmax, Rinterp, rho0, 0.5*cellsize)
 
         vec_integral = np.vectorize(project_spherical_3Dto2D)   
 
-        fine_mask = vec_integral(f1, x, y, rmax / cellsize) 
+        fine_mask = vec_integral(f1, x, y, rmax / cellsize) #would be better to capt at rmax*-(x**2+y**2)*cellsize but doens't matter for FIRE since we go out so far
         if self.debug:
             with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
                 print("From vec integral:")
@@ -631,80 +648,68 @@ class FireProfile(CGMProfile):
         return fine_mask
 
     #For testing:  outputs array showing analytic function for fire profile 
-    def get_analytic_profile(self, mass: float, comoving_radius: float):
+    def get_analytic_profile(self, mass: float, redshift: float):
 
-        x,y,rmax,Rinterp,rho0 = self.shared(mass, comoving_radius, 0, 0, 0, 0, 20)
+        comoving_rvir = halo.comoving_rvir(cosmo, mass, redshift) # comoving radius
 
-   
-        rvals = np.logspace(-3, 2, num=200, base=10)
-        radial_profile = self.fire_func_Mpc(rvals, rmax, Rinterp, rho0)
+        rmax,Rinterp,rho0 = self.get_Fire_params(mass, comoving_rvir, redshift)
+
+        #print("Fire parameters", rmax,Rinterp,rho0 )
+        
+        rvals = np.logspace(np.log10(.01*comoving_rvir), np.log10(5*rmax), num=500, base=10)
+        radial_profile = self.fire_func(rvals, rmax, Rinterp, rho0, 0)
         return rvals, radial_profile
 
-    def shared(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
-
-        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
-             
+    def get_Fire_params(self, mass: float, comoving_rvir: float, redshift: float):
+    
         # These are specifications taken from the fire simulations
         RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
-        logMinterp = np.array([10., 11., 12.])  # these are log10 of the halo masses they consider
-        
 
         #profile taken from https://arxiv.org/pdf/1811.11753.pdf as described in CGM bursh paper
         MfbMh = np.array([0.1,0.2,0.3,0.5,0.8,1])
         Mh = msun*np.array([10**10,10**11,10**12,10**13,10**14,10**15])
-        rv = Mpc*np.array([halo.comoving_radius_for_halo(cosmo, 10**10,0), halo.comoving_radius_for_halo(cosmo, 10**11,0), halo.comoving_radius_for_halo(cosmo, 10**12,0), halo.comoving_radius_for_halo(cosmo, 10**13,0), halo.comoving_radius_for_halo(cosmo, 10**14,0), halo.comoving_radius_for_halo(cosmo, 10**15,0)]) # radii for the given mass bins
+        rv = Mpc*np.array([halo.comoving_rvir(cosmo, 10**10,0), halo.comoving_rvir(cosmo, 10**11,0), halo.comoving_rvir(cosmo, 10**12,0), halo.comoving_rvir(cosmo, 10**13,0), halo.comoving_rvir(cosmo, 10**14,0), halo.comoving_rvir(cosmo, 10**15,0)]) # radii for the given mass bins
 
         
-        # rv = Mpc*np.array([halo.comoving_radius_for_halo(10**10,0),halo.comoving_radius_for_halo(10**11,0),halo.comoving_radius_for_halo(10**12,0)]) # radii for the given mass bins
+        # rv = Mpc*np.array([halo.comoving_rvir(10**10,0),halo.comoving_rvir(10**11,0),halo.comoving_rvir(10**12,0)]) # radii for the given mass bins
         r0= .3*rv
-        nHinterp = MfbMh*Mh*cosmo.fb /((np.pi*4*r0**2*rv*mean_molecular_weight_electrons*mprot))
-        # nHinterp = interp1d(logMinterp, nHinterp, fill_value="extrapolate")
+        nHarr = MfbMh*Mh*cosmo.fb /((np.pi*4*r0**2*rv*mean_molecular_weight_electrons*mprot))
 
 
         # use when higher masses included
-        nHinterp = interp1d(np.array([10., 11., 12.,13.,14.,15.]), nHinterp, fill_value="extrapolate")
+        nHinterp = interp1d(np.array([10., 11., 12.,13.,14.,15.]), nHarr, fill_value="extrapolate")
         
-        
-        nHinterp_old = np.array([0.5e-4, 0.8e-4, 1e-4])  # these are their number densities in cubic cm
-        nHinterp_old = interp1d(logMinterp, nHinterp_old, fill_value="extrapolate")
+        #nHinterp_old = np.array([0.5e-4, 0.8e-4, 1e-4])  # these are their number densities in cubic cm
+        #nHinterp_old = interp1d(logMinterp, nHinterp_old, fill_value="extrapolate")
 
-        # print(np.log10(mass),comoving_radius, nHinterp(np.log10(mass)),nHinterp_old(np.log10(mass)),nHinterp(np.log10(mass))/nHinterp_old(np.log10(mass)))
+        # print(np.log10(mass),comoving_rvir, nHinterp(np.log10(mass)),nHinterp_old(np.log10(mass)),nHinterp(np.log10(mass))/nHinterp_old(np.log10(mass)))
         
-        rho0 = nHinterp(np.log10(mass))
-        Rinterp = RinterpinRvir * comoving_radius #rvir(mass, z)
+        rho0 = nHinterp(np.log10(mass)) #pivot density at r0
+        Rinterp = RinterpinRvir * comoving_rvir #rvir(mass, z)
         
-        Ntot = mass*msun*cosmo.fb/(mean_molecular_weight_electrons*mp)/(Mpc**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
+        Ntot = mass*msun*cosmo.fb/(mean_molecular_weight_electrons*mprot)/(Mpc**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
         rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
 
         # If a 3D function is desired, these two lines can be used to plot it
         #rarr = np.logspace(-2, np.log10(5*rmax), 100) # Cut off at 5 times exponential cutoff
         #rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
         
-        return x,y,rmax,Rinterp,rho0
+        return rmax,Rinterp,rho0
 
     
     # From rhogas Fire, TODO reorganize
     # The user can create their own function
-    # All length scales have to be converted into units of cellsize
-    def fire_func(self, r, rmax, Rinterp, rho0, cellsize):
-        R1 = rmax/cellsize  # Convert length scale into units of cellsize
-        assert r < R1, 'r should always be less than R1, but r={} and R1={}.'.format(r, rmax)
-        R2 = Rinterp/cellsize
-        #print('r: {}, result: {}'.format(r, rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2))
-        return rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2
-
-
-    #same put physical profile
-    def fire_func_Mpc(self, r, rmax, Rinterp, rho0):
+    # epsilon is to avoid divergence from center cell
+    def fire_func(self, r, rmax, Rinterp, rho0, epsilon):
         R1 = rmax 
+        #assert r < R1, 'r should always be less than R1, but r={} and R1={}.'.format(r, rmax)  #actually should be fine if larger than this
         R2 = Rinterp
         #print('r: {}, result: {}'.format(r, rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2))
-    
-        # print([r,rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2].shape)
-        return rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2
+        return rho0 * np.exp(-r/R1) * ((r +epsilon)/R2)**-2  #Matt: the point 5 is to eliminate divergence in center, but before this was evalulated in cell sizes
 
 
-#This is the percipitation model of Voit et al ()
+#This is the percipitation model of Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf
+#as well as many other papers
 class PrecipitationProfile(CGMProfile):
     """
     Voit Perciptation limited model from Appendix A in https://arxiv.org/pdf/1811.04976.pdf.
@@ -714,18 +719,49 @@ class PrecipitationProfile(CGMProfile):
         self.name = "precipitation"
         super().__init__()
 
-    def get_mask(self, mass: float, comoving_radius: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
+    #density profile in comoving units
+    #Mvir is the halo mass
+    def get_analytic_profile(self, Mvir: float, redshift: float):
+        #rvals = np.logspace(-3, 2, num=200, base=10)
 
-        logMhalo = np.log10(mass)
-        Rvirkpc = 1000 * comoving_radius
-        XRvir = 2 # XRvir is how many virial radii to go out
+        comoving_rvir= halo.comoving_rvir(cosmo, Mvir, redshift)
+        rvirkpc = KPCINMPC * comoving_rvir
+        epsilon = 10  #kpc -- shouldn't trust model at smaller values so always soften with this scale 
+
+        #parameters of our percipitation profile
+        n1,n2,xi1,xi2,neconstant, XRvir = self.get_precipitation_params(np.log10(Mvir), rvirkpc, redshift)
+        rcomoving_kpc = np.logspace(1, np.log10(XRvir*rvirkpc), num=500, base=10)
+        print("neconst = ", neconstant, n1,n2,xi1,xi2, XRvir)
+        
+        final_ar = self.precipitation_func(rcomoving_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, rvirkpc/(1+redshift),XRvir, epsilon)
+        
+
+        return rcomoving_kpc/KPCINMPC, final_ar/(1+redshift)**3  #care to go back to comoving quantities
+
+    #profile in physical units at z=0 (from appendix of https://arxiv.org/pdf/1811.04976.pdf) in physical distance units (In contrast to all other parts of code)
+    #the constant density out to XRvir times the virial radius is so that the total mass in baryons is included
+    def precipitation_func(self, rphyskpc, n1,n2,xi1,xi2,neconstant, rvir_physkpc,XRvir, epsilon):
+        x = (np.array(rphyskpc) <= XRvir*rvir_physkpc)
+        y = (np.array(rphyskpc) <= rvir_physkpc)
+        # TODO I got this line broken from Adnan and had to guess where the ) goes to make it valid
+        final_ar =   y.astype(int)*1/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2) + x.astype(int)*neconstant
+        return final_ar
+
+    #outputs percipitation model parmameters plus the constnat d
+    def get_precipitation_params(self, log10Mhalo: float, comoving_rvir: float, redshift: float, calc_neconst_flag = True):
+        log10Mhalo_z0 = log10Mhalo + 3/2*np.log10(1+redshift)  #This is how the Voit profile maps in redshift (the gas profile is fixed at vcir)
+        
+
+        #Parameterization of percipitation model used in CGMBrush.  
+        XRvir = 2 # XRvir is how many virial radii to go out for extended profile (default for CGMBrush is 2; this makes it so integrates to total mass within this radius)
         #Zmetal is the metalicity; tratcrit is the coolin crieteria -- both of these don't need to change
-        Z_METAL = 0.3
-        TRATCRIT = 10
+        Z_METAL = 0.3  #Table also has 0.1 and 0.5 options (although 0.1 is only for lower mass halos)
+        TRATCRIT = 10  #cooling time to dynamical time ratio that specifies model.  This is only option for below table.  See Voit et al 2018 for more options
 
-        #Table taken from appendix in Voit et al (); different entries vary metalicity
+        rvir_physkpc = KPCINMPC* comoving_rvir/(1+redshift)
+
+        #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
         fitarray = np.array([[350, 8e12, 10, 0.5, 2.7,  0.73, 1.2e-1, 1.2, 3.8e-4,  2.1], \
             [350, 8e12, 10, 0.3, 2.4,  0.74, 1.5e-1, 1.2, 4.2e-4, 2.1], \
             [300, 5.1e12,  10,  0.5, 2.6,  0.72, 8.0e-2, 1.2, 2.3e-4,  2.1], \
@@ -754,83 +790,72 @@ class PrecipitationProfile(CGMProfile):
         reducedarr = fitarray[(fitarray[:, 3] == Z_METAL) & (fitarray[:, 2] ==  TRATCRIT)]
         reducedarr = reducedarr[::-1] #reverses array           
 
-        #logMhalo_zp2_old = logMhalo*((1+0.2)/(1+redshift))**(3/2)
 
-        #logn1_old = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo_zp2_old)   
-        #n1_old = 10**logn1_old
-        #xi1_old = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(logMhalo_zp2_old) 
-        #logn2_old = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(logMhalo_zp2_old)   
-        #n2_old = 10**logn2_old
-        #xi2_old = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(logMhalo_zp2_old) 
-        
-        #print("OLD WAY: log10(Halo Mass): {}".format(logMhalo))
-        #print("logMhalo_zp2 = {} n1={} xi1={} n2={} xi2={}".format(logMhalo_zp2_old, n1_old, xi1_old, n2_old, xi2_old))
-
-        logMhalo_zp2 = logMhalo + np.log10( ((1)/(1+redshift))**(-3/2) )
 
         #better interpolation
-        logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(logMhalo_zp2)   
+        logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(log10Mhalo_z0)   
         n1 = 10**logn1
-        xi1 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(logMhalo_zp2) 
-        logn2 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(logMhalo_zp2)   
+        xi1 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
+        logn2 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(log10Mhalo_z0)   
         n2 = 10**logn2
-        xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(logMhalo_zp2) 
+        xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
+
+        #Calculates the constant density need to conserve mass assuming this extends to XRvir times the virial radius
+        if calc_neconst_flag == True:
+            r_physkpc = np.logspace(1, np.log(rvir_physkpc), 500)#radial bin array 
+
+            #Voit 2018 fitting formulae 
+            rhoarr = np.array(1/np.sqrt((n1*(r_physkpc)**-xi1)**-2 + (n2*(r_physkpc/100)**-xi2)**-2))
+
+      
+
+            #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
+            #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
+            rhointerp = interp1d(np.log(r_physkpc), 4.*np.pi*r_physkpc**3*rhoarr, kind='cubic')
+
+            #print("n1 n2, xi1, xi2", n1, n2, xi1, xi2)
+            #print("rhoarr at 10 kpc = ", rhointerp(np.log(10))/( 4.*np.pi*10**3))
+            #print("rhoarr at 100 kpc = ", rhointerp(np.log(100))/( 4.*np.pi*10**6))
+
             
-        #print("NEW WAY:")
-        #print("logMhalo_zp2 = {} n1={} xi1={} n2={} xi2={}".format(logMhalo_zp2, n1, xi1, n2, xi2))
+            conv = (msun/(mu*mprot))/kpc**3
+            mtotal = integrate.quad(rhointerp, np.log(r_physkpc[0]), np.log(r_physkpc[-1]))[0]/conv
+            print("mtot percip in 1e12 = ", mtotal/cosmo.fb/1e12, 10**(log10Mhalo-12))
+            
+            #add in rest of mass (this should compensate for actual halo mass and not rescaled)
+            neconst =(10**log10Mhalo*cosmo.fb-mtotal)/(4.*np.pi/3.*(XRvir*rvir_physkpc)**3)*conv      #Matt: Why is this not 4pi/3?????????....but make sure this is okay, but I added a 3 on 3/17... seems like mass average should be off
+        else:
+            neconst = 0
 
-        #print(logMhalo, n1, xi1, n2, xi2)
+        return n1, n2, xi1, xi2, neconst,  XRvir
+        #return rkpc, rhoarr
 
-        rkpc = np.logspace(0, np.log10(Rvirkpc*XRvir), 300)#number of radial bins
+    #outputs mask; All length scales have to be converted into units of cellsize
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
-        #Voit 2018 fitting formulae
-        rhoarr = np.array([rkpc, 1/np.sqrt(1/(n1*(rkpc)**-xi1+ 1e-20)**2 + 1/(n2*(rkpc/100)**-xi2 + 1e-20)**2)])
-        
-        #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
-        #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
-        rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='linear', fill_value='extrapolate')
+        y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
-        conv = (msun*1E3/(mu*mp))/kpc**3
-        mtotal = integrate.quad(rhointerp, 0, np.log(XRvir*Rvirkpc))[0]/conv
+        rvirkpc = KPCINMPC * comoving_rvir
+        cellsize_kpc = KPCINMPC *cellsize  # kpc
 
-        #add in rest of mass 
-        neconstant =(10**logMhalo*cosmo.fb-mtotal)/(4.*np.pi*(XRvir*Rvirkpc)**3)*conv
-        #     print(neconstant)
-        length = len(rkpc)
-        #     print("shape = ", length)
-        for i in range(length):
-            if rhoarr[0,  i] < XRvir*Rvirkpc:
-
-                rhoarr[1, i] = rhoarr[1, i] + neconstant
-        
-        #print("ftotal =", mtotal/10**logMhalo/fb, neconstant) #.2 is fraction of baryons
-        cellsize_kpc = cellsize * 1000 # kpc
+        #parameters of our percipitation profile
+        n1,n2,xi1,xi2,neconstant, XRvir = self.get_precipitation_params(np.log10(mass), comoving_rvir, redshift, True)
         
         #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
-        f1= lambda x, y, z: precipitation_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift)
+
+        #integrate to project to 2D
+        f1= lambda x, y, z: self.precipitation_func(((x**2+y**2+z**2)**.5)*cellsize_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, rvirkpc/(1+redshift),XRvir, 0.5*cellsize_kpc)
                     
         vec_integral=np.vectorize(project_spherical_3Dto2D)
         
-        mask1 = vec_integral(f1,x,y,XRvir*Rvirkpc/cellsize_kpc)
+        mask1 = vec_integral(f1,x,y,np.sqrt(XRvir*rvirkpc/cellsize_kpc)**2 - (x**2+y**2))
         r=(x**2+y**2)**.5 # * scale_down
         mask1=mask1.astype(float)
-        mask1[r > (XRvir*Rvirkpc/cellsize_kpc)]=0         
-
-        #     mask1[r <= (XRvir*Rvirkpc/cellsize_kpc)] =+ neconstant 
+        mask1[r > (XRvir*rvirkpc/cellsize_kpc)]=0         
             
         return mask1
 
-# The user can create their own function
-# All length scales have to be converted into units of cellsize
-def precipitation_func(r, n1,n2,xi1,xi2,neconstant,cellsize_kpc,Rvirkpc,XRvir,redshift):
-        
-    #final_ar = np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc)**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/100)**-xi2)**2)])# + neconstant
-    x = (np.array(r) <= XRvir*Rvirkpc)
 
-    # TODO I got this line broken from Adnan and had to guess where the ) goes to make it valid
-    final_ar =   np.array([1/np.sqrt(1/(n1*((r+.5)*cellsize_kpc/(1+redshift))**-xi1)**2 + 1/(n2*((r+.5)*cellsize_kpc/(100*(1+redshift))**-xi2)**2)) + x.astype(int)*neconstant])
-
-    return final_ar
 
 
 # This function subtracts the halos from the density field
@@ -872,7 +897,7 @@ def subtract_halos(provider, haloArray, bin_markers, profile: CGMProfile, scalin
             continue
 
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/cosmo.h
-        conv_rad[j] = halo.comoving_radius_for_halo(cosmo, Mvir_avg[j], redshift) # comoving radius
+        conv_rad[j] = halo.comoving_rvir(cosmo, Mvir_avg[j], redshift) # comoving radius
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, 1, scaling_radius, cellsize, fine_mask_len)
 
@@ -946,8 +971,8 @@ def add_halos(provider, haloArray, resolution: int, bin_markers, profile: CGMPro
             convolution[j,:,:] = 0
             continue
 
-        Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h
-        conv_rad[j] = halo.comoving_radius_for_halo(cosmo, Mvir_avg[j], redshift) # comoving radius
+        Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h  #Matt: Would be much better to put in h at time we read in file
+        conv_rad[j] = halo.comoving_rvir(cosmo, Mvir_avg[j], redshift) # comoving radius
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
 
@@ -1145,8 +1170,11 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, min
 def radial_profile(data, center_x,center_y):
     y, x = np.indices((data.shape))
     r = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+    #print(r)
     r = r.astype(np.int)
-
+    #print(r)
+    #exit()
+    
     tbin = np.bincount(r.ravel(), data.ravel())
     nr = np.bincount(r.ravel())
     radialprofile = tbin / nr
@@ -1340,6 +1368,7 @@ def saveArray(filename, *arrays, folder = VAR_DIR):
 def loadArray(filename, folder = VAR_DIR):
     """Loads numpy arrays that were saved with saveArray."""
     file_path = os.path.join(folder, filename + ".npy")
+    print("trying to load ", file_path)
     try:
         return np.load(file_path, allow_pickle=True)
     except FileNotFoundError:
