@@ -546,20 +546,21 @@ class NFWProfile(CGMProfile):
         print("Initialized NFW Profile")
         self.name = "NFW"
         super().__init__()
+        self.vec_NFW2D = np.vectorize(self.NFW2D)
 
     def get_analytic_profile(self, mass: float, redshift: float):
         
         comoving_rvir = halo.comoving_rvir(cosmo, mass, redshift) # comoving radius
 
         
-        rvals = np.logspace(np.log10(.01*comoving_rvir), np.log10(comoving_rvir_, num=500, base=10)
+        rvals = np.logspace(np.log10(.01*comoving_rvir), np.log10(comoving_rvir, num=500, base=10))
         R_s= comoving_rvir/(halo.halo_conc(cosmo, redshift,mass))  
         rho_nought = halo.rho_0(cosmo, redshift,mass,R_s)
          
         return rvals, halo.NFW_profile(rvals,rho_nought,R_s, 0)
 
         
-    def NFW2D(x, y, rho_nought, R_s, Rvir):
+    def NFW2D(self, x, y, rho_nought, R_s, Rvir):
         """Project NFW profile from 3D to 2D.
         Rvir is in units of virial radii per cell.""" 
         offset=float(.5) # TODO .5 and move offset
@@ -585,8 +586,7 @@ class NFWProfile(CGMProfile):
             with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
                 print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_rvir / cellsize))
 
-        vec_integral = np.vectorize(NFW2D)
-        fine_mask = vec_integral(x, y, rho_nought, R_s, scale_down * comoving_rvir / cellsize)
+        fine_mask = self.vec_NFW2D(x, y, rho_nought, R_s, scale_down * comoving_rvir / cellsize)
 
         if self.debug:
             with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
