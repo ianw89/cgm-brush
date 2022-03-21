@@ -1,6 +1,6 @@
 ###################################################################################################
 #
-# DM_vs_R_plot.py 	                (c) Ian Williams, Adnan Khan, Matt McQuinn
+# testfile.py 	                (c) Ian Williams, Adnan Khan, Matt McQuinn
 #     				    	        ianw89@live.com
 #
 ###################################################################################################
@@ -122,7 +122,7 @@ x_axis = MpctoKpc*(0.5+np.arange(0, series[0][0].shape[1]))*dx     #np.linspace(
 
 for data in series:
     Mass= np.sum(data[1][massbin,1:]*(x_axis[1:]**2-x_axis[0:-1]**2)*np.pi)
-    Mass = Mass/cosmo.fb*Mpc/MpcInPc*mean_molecular_weight_electrons*mprot/msun*Mpc*Mpc/MpctoKpc**2
+    Mass = Mass/cosmo.fb*Mpc/PcinMpc*mean_molecular_weight_electrons*mprot/msun*Mpc*Mpc/MpctoKpc**2
     print("label = ", data[2], " mass in 1e12 = ", Mass/1e12)
 
 print(avg_mass_ar[M_chosen[1]]/1)

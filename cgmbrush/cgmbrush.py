@@ -102,7 +102,7 @@ def DM_analytical(z):
 
 # integrand of dispersion measure
 def integrandDM(z):
-    return MpcInPc*dConfDistdz(z)*cosmo.elecD(z)/(1+z)**2 
+    return PcinMpc*cosmo.dConfDistdz(z)*cosmo.elecD(z)/(1+z)**2 
 
 #DM is redshifted by a factor of 1+z
 def redshifted_DM(DM,z):
@@ -114,7 +114,7 @@ def RSvsCDar(z):
     ar=np.linspace(0,z,100)
     for i in range(0,len(ar)):
         RSvsCD[i,0] = ar[i]
-        RSvsCD[i,1] = Dconf(ar[i])
+        RSvsCD[i,1] = cosmo.Dconf(ar[i])
     return RSvsCD
 
 # function to get redshift from the comoving distance by interpolating upto z, returns Mpc/h 
@@ -126,19 +126,19 @@ def CDtoRS(CD,z):
     
 # number of boxes needed for a given redshift
 def numBoxes(z):
-    return float(round(Dconf(z)/(L)))
+    return float(round(cosmo.Dconf(z)/(L)))
 
 
 # finds electron density for a given box number n of the stack
 def elecDforBox(n):
     avgZ = (CDtoRS(n*L,1)+CDtoRS((n-1)*L,1))/2
-    return elecD(avgZ)
+    return cosmo.elecD(avgZ)
 
 def avgZ(n): 
     return max((CDtoRS(n*L,1)+CDtoRS((n-1)*L,1))/2,0)
     
 def z_eff(zmin,zmax,Lbox):
-    return ((DM_analytical(zmax)-DM_analytical(zmin))/((Lbox*MpcInPc)*elecD(0)))**(1) - 1
+    return ((DM_analytical(zmax)-DM_analytical(zmin))/((Lbox*PcinMpc)*cosmo.elecD(0)))**(1) - 1
 
 def RS_array_gen(z_max,Lbox):
     """Computes redshift values for each box when stacking boxes of length L out to redshift z_max.
@@ -154,7 +154,7 @@ def RS_array_gen(z_max,Lbox):
 
 # normalize DM  #Matt -- Understand this beetter
 def normDM(DM, z, resolution, Lbox):
-  return DM *MpcInPc* Lbox/resolution * cosmo.elecD(z) /(1+z)**2  # Psc cm-2  
+  return DM *PcinMpc* Lbox/resolution * cosmo.elecD(z) /(1+z)**2  # Psc cm-2  
 
 
 
@@ -667,7 +667,7 @@ class FireProfile(CGMProfile):
 
         #profile taken from https://arxiv.org/pdf/1811.11753.pdf as described in CGM bursh paper
         MfbMh = np.array([0.1,0.2,0.3,0.5,0.8,1])
-        Mh = msun*np.array([10**10,10**11,10**12,10**13,10**14,10**15])
+        Mh = msun*np.array([10**10,10**11,10**12,10**13,10**14,10**15]) # halo masses in grams
         rv = Mpc*np.array([halo.comoving_rvir(cosmo, 10**10,0), halo.comoving_rvir(cosmo, 10**11,0), halo.comoving_rvir(cosmo, 10**12,0), halo.comoving_rvir(cosmo, 10**13,0), halo.comoving_rvir(cosmo, 10**14,0), halo.comoving_rvir(cosmo, 10**15,0)]) # radii for the given mass bins
 
         
@@ -687,7 +687,7 @@ class FireProfile(CGMProfile):
         rho0 = nHinterp(np.log10(mass)) #pivot density at r0
         Rinterp = RinterpinRvir * comoving_rvir #rvir(mass, z)
         
-        Ntot = mass*msun*cosmo.fb/(mean_molecular_weight_electrons*mprot)/(Mpc**3) # TODO msun here is is grams, but elsewhere it is in kg. Double check math.
+        Ntot = mass*msun*cosmo.fb/(mean_molecular_weight_electrons*mprot)/(Mpc**3) # number density (cm^-3)
         rmax = Ntot/(4.*np.pi*rho0*Rinterp**2 )  #from integrating above expression for rho
 
         # If a 3D function is desired, these two lines can be used to plot it

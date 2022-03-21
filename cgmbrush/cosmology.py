@@ -1,15 +1,17 @@
+###################################################################################################
+#
+# cosmology.py 	        (c) Ian Williams, Adnan Khan, Matt McQuinn
+#     				    	ianw89@live.com
+#
+###################################################################################################
 import numpy as np
 import scipy.integrate as integrate
 from cgmbrush.constants import *
-# Cosmological parameters
 
-
-
-
-################################################################
-
-###############################################
 class cosmology():
+    """
+    Cosmological parameters
+    """
     h = .7
     OmegaM = 0.27
     OmegaB = 0.0469
@@ -76,13 +78,10 @@ class cosmology():
         return lightspeed*integrate.quad(self.dConfDistdz,z,np.inf)[0]
 
     
-
-#from cgmbrush.cosmology import cosmology as cosmo
-
-########################################
-# Properties of halos
-########################################
 class halo():
+    """
+    Properties of halos.
+    """
 
     #def __init__(self, cosmology):
     #    self.cosmo = cosmology
