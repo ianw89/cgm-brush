@@ -14,7 +14,7 @@ class cosmology():
     OmegaM = 0.27
     OmegaB = 0.0469
     OmegaL = 1- OmegaM #assumes flat universe
-    rho_c = 9.31000324385361 *10**(-30) * (Mpc**3 / (msun*1000))*(h/.7)**2 # Msun/Mpc^3 from #pcrit = 9.31000324385361e-30 g / cm3
+    rho_c = 9.31000324385361 *10**(-30) * (Mpc**3 / msun) * (h/.7)**2 # Msun/Mpc^3 from #pcrit = 9.31000324385361e-30 g / cm3
     rho_m = OmegaM*rho_c #density in matter
     #fd = 1 # fraction of baryons in diffuse ionized gas (FRB paper)
     fb = OmegaB/OmegaM #fraction of matter in baryons
@@ -127,6 +127,7 @@ class halo():
     @classmethod
     def Rvir_den(self,cosmo, z):
         return (4./3. * np.pi * self.rho_vir(cosmo, z))**(1./3.) 
+
 
     @classmethod
     def comoving_rvir(self, cosmo, Mhalo, z):
