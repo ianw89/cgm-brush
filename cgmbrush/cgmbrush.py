@@ -125,17 +125,8 @@ def CDtoRS(CD,z):
     return ((p - CD).roots()[0])
     
 # number of boxes needed for a given redshift
-def numBoxes(z):
-    return float(round(cosmo.Dconf(z)/(L)))
-
-
-# finds electron density for a given box number n of the stack
-def elecDforBox(n):
-    avgZ = (CDtoRS(n*L,1)+CDtoRS((n-1)*L,1))/2
-    return cosmo.elecD(avgZ)
-
-def avgZ(n): 
-    return max((CDtoRS(n*L,1)+CDtoRS((n-1)*L,1))/2,0)
+def numBoxes(z, Lbox):
+    return float(round(cosmo.Dconf(z)/(Lbox)))
     
 def z_eff(zmin,zmax,Lbox):
     return ((DM_analytical(zmax)-DM_analytical(zmin))/((Lbox*PcinMpc)*cosmo.elecD(0)))**(1) - 1
@@ -147,7 +138,7 @@ def RS_array_gen(z_max,Lbox):
     """
     RS_array = []
     RS_array.append(CDtoRS(Lbox,1))
-    for i in range(1,int(numBoxes(z_max))):
+    for i in range(1,int(numBoxes(z_max, Lbox))):
         RS_array.append(z_eff(CDtoRS(float(Lbox*i),z_max),CDtoRS(float(Lbox*(i+1)),z_max),Lbox))
 
     return RS_array
@@ -543,7 +534,7 @@ class SphericalTophatProfile(CGMProfile):
 class NFWProfile(CGMProfile):
     
     def __init__(self):
-        print("Initialized NFW Profile")
+        #print("Initialized NFW Profile")
         self.name = "NFW"
         super().__init__()
         self.vec_NFW2D = np.vectorize(self.NFW2D)
@@ -574,7 +565,7 @@ class NFWProfile(CGMProfile):
 
 
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
-        print("Making NFW mask for M = ", mass)
+        #print("Making NFW mask for M = ", mass)
         # TODO ? add redshift to the function above ?
         R_s= comoving_rvir/(halo.halo_conc(cosmo, redshift,mass)*cellsize)  
         rho_nought = halo.rho_0(cosmo, redshift,mass,R_s)
@@ -1273,25 +1264,6 @@ def translate_array(array):
 def empty_stack(num_boxes,dim):
     empty_array = np.zeros([num_boxes,dim,dim])
     return empty_array
-
-def complete_stacking(stack,to_redshift):
-    
-    dim_stack = stack.shape[0]
-    
-    num_arrays_to_stack=int(numBoxes(to_redshift))
-    empty_array_for_stacking = empty_stack(num_arrays_to_stack,dim_stack)
-
-
-    empty_array_for_stacking[0,:,:] = stack*(1+avgZ(1))
-    for i in range(1,num_arrays_to_stack):
-        translated_stack = translate_array(stack)*(1+avgZ(i+1))
-        empty_array_for_stacking[i,:,:] = translated_stack
-    
-
-
-    stacked_array = sum(empty_array_for_stacking[:,:,:]) # sums the outermost array
-    
-    return stacked_array
 
 def translate_field_stack(halos_reAdded, RS_array, seed):
 

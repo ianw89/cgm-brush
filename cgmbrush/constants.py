@@ -8,7 +8,7 @@ import numpy as np
 
 kpc = 3.086*10**21
 """Kiloparsec in centimeters."""
-Mpc = 3.096*10**24 # TODO 3.086
+Mpc = 3.086*10**24
 """Megaparsec in centimeters."""
 msun =1.9891 * 10**33 
 """Solar mass in grams."""       
