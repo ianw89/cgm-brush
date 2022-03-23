@@ -171,7 +171,15 @@ class SimulationProvider(metaclass=abc.ABCMeta):
         callable(subclass.get_halos) or
         NotImplemented)
 
+    @property
+    @abc.abstractmethod
+    def Lbox(self):
+        pass
 
+    @property
+    @abc.abstractmethod
+    def halofieldresolution(self):
+        pass
     
     @abc.abstractmethod
     def get_density_field(self, redshift: float, resolution: int):
@@ -203,6 +211,9 @@ class BolshoiProvider(SimulationProvider):
     be re-written as per your application.
     """
 
+    Lbox = 250/cosmo.h # comoving length of Bolshoi box in Mpc
+    halofieldresolution = 1024
+
     def __init__(self):
         # Associative array of (redshift, resolution) => 3D numpy grid 
         # This works very well with np.savez, which is much faster to read
@@ -222,8 +233,6 @@ class BolshoiProvider(SimulationProvider):
             str(round(0.7454876185015988,2)): '0.8', 
             str(round(0.8931355846491102,2)): '0.9'
         }
-        self.Lbox=250/cosmo.h # comoving length of Bolshoi box in Mpc
-        self.halofieldresolution = 1024
 
  
 
@@ -509,9 +518,9 @@ class TophatProfile(CGMProfile):
 
 class SphericalTophatProfile(CGMProfile):
 
-    def __init__(self, extra=1):
+    def __init__(self, rvir_factor=1):
         self.name = "STH"
-        self.extra = extra
+        self.rvir_factor = rvir_factor # how many rvir's should the tophat extend to
         super().__init__()
 
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
@@ -521,9 +530,7 @@ class SphericalTophatProfile(CGMProfile):
 
         r = (x**2+y**2)**.5
 
-        # TODO this 'extra' thing I added was for compatibility with the 2RVSTH_and_NFW_X profiles, which for some reason have an extra *2 in the fine mask line below. 
-        # I think it's a BUG, but all the profiles like 2RVSTH_and_NFW_13.5 had it in their spherical tophat code (not the NFW side, curiosuly)
-        fine_mask = r <= (self.extra * scaling_radius * scale_down * comoving_rvir / cellsize)
+        fine_mask = r <= (self.rvir_factor * scaling_radius * scale_down * comoving_rvir / cellsize)
         fine_mask=fine_mask.astype(float)
         
         # TODO r should always be less than Rv...
@@ -619,23 +626,22 @@ class FireProfile(CGMProfile):
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
          
         rmax,Rinterp,rho0 =   self.get_Fire_params(mass, comoving_rvir, redshift) 
+        with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
+            print("Fire parameters: rmax={} Mpc or {} cells, Rinterp={} Mpc, rho0={}".format(rmax,rmax/cellsize,Rinterp,rho0))
 
         ## creating a mask
         # TODO perf bottleneck is here
         # TODO use symmetry to save computation
         
-        f1 = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5)*cellsize, rmax, Rinterp, rho0, 0.5*cellsize)
+        # x, y, z are cells, the computed r is also in cells. 
+        # rmax and Rinterp are in Mpc as per above, so divide to convert to cells. Epsilon is half a cellsize.
+        f1 = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/cellsize, Rinterp/cellsize, rho0, 0.5)
 
+        # spherical project works in cellular units but f1 above is written in Mpc Units. TODO BUG this is the issue.
         vec_integral = np.vectorize(project_spherical_3Dto2D)   
 
-        fine_mask = vec_integral(f1, x, y, rmax / cellsize) #would be better to capt at rmax*-(x**2+y**2)*cellsize but doens't matter for FIRE since we go out so far
-        if self.debug:
-            with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
-                print("From vec integral:")
-                print(fine_mask)                
-
+        fine_mask = vec_integral(f1, x, y, rmax / cellsize) #would be better to capt at rmax*-(x**2+y**2)*cellsize but doens't matter for FIRE since we go out so far         
         fine_mask = fine_mask.astype(float)
-
         return fine_mask
 
     #For testing:  outputs array showing analytic function for fire profile 
@@ -668,7 +674,7 @@ class FireProfile(CGMProfile):
 
 
         # use when higher masses included
-        nHinterp = interp1d(np.array([10., 11., 12.,13.,14.,15.]), nHarr, fill_value="extrapolate")
+        nHinterp = interp1d(np.array([10., 11., 12., 13., 14., 15.]), nHarr, fill_value="extrapolate")
         
         #nHinterp_old = np.array([0.5e-4, 0.8e-4, 1e-4])  # these are their number densities in cubic cm
         #nHinterp_old = interp1d(logMinterp, nHinterp_old, fill_value="extrapolate")
@@ -685,21 +691,17 @@ class FireProfile(CGMProfile):
         #rarr = np.logspace(-2, np.log10(5*rmax), 100) # Cut off at 5 times exponential cutoff
         #rhoarr = rho0*(rarr/Rinterp)**-2*np.exp(-rarr/rmax) #number density: per cm3
         
-        return rmax,Rinterp,rho0
+        return rmax, Rinterp, rho0
 
-    
-    # From rhogas Fire, TODO reorganize
-    # The user can create their own function
+
     # epsilon is to avoid divergence from center cell
     def fire_func(self, r, rmax, Rinterp, rho0, epsilon):
-        R1 = rmax 
-        #assert r < R1, 'r should always be less than R1, but r={} and R1={}.'.format(r, rmax)  #actually should be fine if larger than this
-        R2 = Rinterp
-        #print('r: {}, result: {}'.format(r, rho0 * np.exp(-r/R1) * ((r+.5)/R2)**-2))
-        return rho0 * np.exp(-r/R1) * ((r +epsilon)/R2)**-2  #Matt: the point 5 is to eliminate divergence in center, but before this was evalulated in cell sizes
+        result =  rho0 * np.exp(-r / rmax) * ((r + epsilon) / Rinterp)**-2  #Matt: the point 5 is to eliminate divergence in center, but before this was evalulated in cell sizes
+        #print("Fire Projection: r={} cells rmax={} cells, Rinterp={} cells, rho0={}, result={}".format(r,rmax,Rinterp,rho0,result))
+        return result
 
 
-#This is the percipitation model of Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf
+#This is the precipitation model of Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf
 #as well as many other papers
 class PrecipitationProfile(CGMProfile):
     """
@@ -928,10 +930,10 @@ def subtract_halos(provider, haloArray, bin_markers, profile: CGMProfile, scalin
 # bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
-def add_halos(provider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
+def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
 
     df = haloArray
-    no_cells = 1024 * resolution
+    no_cells = provider.halofieldresolution * resolution
     cellsize = provider.Lbox / no_cells
     chunks = len(bin_markers) - 1
 

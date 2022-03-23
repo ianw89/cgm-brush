@@ -110,7 +110,7 @@ class halo():
         c=self.halo_conc(cosmo, redshift,halo_mass)
         return halo_mass/ (4*np.pi*R_s*(np.log(1+c) - c/(1+c)))
 
-    # used to compute virial radius of a hal (important when dark energy is present)
+    # used to compute virial radius of a halo (important when dark energy is present)
     @classmethod
     def q(self, cosmo, z):
         return cosmo.OmegaL/ ((cosmo.OmegaM*(1+z)**3)+ cosmo.OmegaL)  
