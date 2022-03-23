@@ -398,12 +398,12 @@ def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     
     return df, bins
 
-def project_spherical_3Dto2D(f, x, y, Rvir):
+def project_spherical_3Dto2D(f, x, y, Rmax):
     """Project a spherically symmetric profile from 3D to 2D.
     
-    Rvir is in units of virial radii per cell, and is used as a hard boundary of the sphere.""" 
+    Rmax is in units of virial radii per cell, and is used to compute as a hard boundary of the sphere.""" 
     #print("Rvir, x, y: {}, {}, {}".format(Rvir, x, y))
-    boundary = math.sqrt(max(0.0, Rvir**2-(x**2+y**2)))
+    boundary = math.sqrt(max(0.0, Rmax**2-(x**2+y**2)))
     if boundary == 0.0:
         return 0.0
     else:
@@ -618,7 +618,6 @@ class FireProfile(CGMProfile):
         print("Initialized Fire Profile")
         self.name = "fire"
         super().__init__()
-        
 
     #This is the mask used to convolve the profile with halo postion
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
@@ -633,15 +632,17 @@ class FireProfile(CGMProfile):
         # TODO perf bottleneck is here
         # TODO use symmetry to save computation
         
-        # x, y, z are cells, the computed r is also in cells. 
+        # x, y, z are cells, the computed r is therefor also in cells. 
         # rmax and Rinterp are in Mpc as per above, so divide to convert to cells. Epsilon is half a cellsize.
-        f1 = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/cellsize, Rinterp/cellsize, rho0, 0.5)
+        fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/cellsize, Rinterp/cellsize, rho0, 0.5)
 
-        # spherical project works in cellular units but f1 above is written in Mpc Units. TODO BUG this is the issue.
-        vec_integral = np.vectorize(project_spherical_3Dto2D)   
+        project = np.vectorize(project_spherical_3Dto2D)   
 
-        fine_mask = vec_integral(f1, x, y, rmax / cellsize) #would be better to capt at rmax*-(x**2+y**2)*cellsize but doens't matter for FIRE since we go out so far         
+        fine_mask = project(fire_integral, x, y, rmax / cellsize) 
+        print(type(fine_mask[0][0]))
         fine_mask = fine_mask.astype(float)
+        print(type(fine_mask[0][0]))
+
         return fine_mask
 
     #For testing:  outputs array showing analytic function for fire profile 
