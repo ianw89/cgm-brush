@@ -263,7 +263,7 @@ class BolshoiProvider(SimulationProvider):
         
         # Do the slow reading from the bolshoi file and save off fast copy
         if len(result) == 0:
-            print("I'm hoping it does this")
+            print("Reading from raw Bolshoi Files")
             result = self.import_density_field(z_name, resolution)
             if len(result) == 0:
                 raise IOError("There was a problem importing the Bolshoi density field for (" + str(redshift) + ", " + str(resolution) + ")")
@@ -289,6 +289,7 @@ class BolshoiProvider(SimulationProvider):
         try:
             result = loadArray(filename)
             # The rest of the code expects this to be a DataFrame, so convert it back
+            # x,y,z are in Mpc/h
             result = pd.DataFrame(result, columns = ['row_id','x','y','z','Mvir','Mtot','Rvir','ix','iy','iz'])
         except IOError:
             pass 
@@ -625,8 +626,8 @@ class FireProfile(CGMProfile):
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
          
         rmax,Rinterp,rho0 =   self.get_Fire_params(mass, comoving_rvir, redshift) 
-        with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
-            print("Fire parameters: rmax={} Mpc or {} cells, Rinterp={} Mpc, rho0={}".format(rmax,rmax/cellsize,Rinterp,rho0))
+        #with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
+        #    print("Fire parameters: rmax={} Mpc or {} cells, Rinterp={} Mpc, rho0={}".format(rmax,rmax/cellsize,Rinterp,rho0))
 
         ## creating a mask
         # TODO perf bottleneck is here
@@ -639,9 +640,7 @@ class FireProfile(CGMProfile):
         project = np.vectorize(project_spherical_3Dto2D)   
 
         fine_mask = project(fire_integral, x, y, rmax / cellsize) 
-        print(type(fine_mask[0][0]))
         fine_mask = fine_mask.astype(float)
-        print(type(fine_mask[0][0]))
 
         return fine_mask
 
@@ -814,7 +813,7 @@ class PrecipitationProfile(CGMProfile):
             
             conv = (msun/(mu*mprot))/kpc**3
             mtotal = integrate.quad(rhointerp, np.log(r_physkpc[0]), np.log(r_physkpc[-1]))[0]/conv
-            print("mtot percip in 1e12 = ", mtotal/cosmo.fb/1e12, 10**(log10Mhalo-12))
+            #print("mtot percip in 1e12 = ", mtotal/cosmo.fb/1e12, 10**(log10Mhalo-12))
             
             #add in rest of mass (this should compensate for actual halo mass and not rescaled)
             neconst =(10**log10Mhalo*cosmo.fb-mtotal)/(4.*np.pi/3.*(XRvir*rvir_physkpc)**3)*conv      #Matt: Why is this not 4pi/3?????????....but make sure this is okay, but I added a 3 on 3/17... seems like mass average should be off
@@ -1176,14 +1175,15 @@ def radial_profile(data, center_x,center_y):
 
 
 def make_halo_square(DM_field, ix, iy, halo_index, crop_grid):
-    """Createa a square cutout of the DM field from around the ix, iy point 
+    """Creates a square cutout of the DM field from around the ix, iy point 
     for the halo_index halo with dimensions crop_grid x crop_grid."""
     
+
     res=DM_field.shape[0]    
     DM_rad = np.zeros([crop_grid,crop_grid])
     i = halo_index
             
-    # BUG I think this ignose halos near the edge? But then we use them in the average? Hmm...
+    # BUG This ignores halos near the edge, but then we use them in the average.
     if ix[i] > int(crop_grid) and ix[i] < res - int(crop_grid) and iy[i] > int(crop_grid) and iy[i] < res- int(crop_grid):
         trimmed = DM_field[ix[i]-int(crop_grid/2):ix[i]+int(crop_grid/2),iy[i]-int(crop_grid/2):iy[i]+int(crop_grid/2)]
         DM_rad = trimmed
@@ -1192,33 +1192,38 @@ def make_halo_square(DM_field, ix, iy, halo_index, crop_grid):
 
 
 # Single function for radial profile of DM for a given DM array and grid size
-def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers):    
+def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider: SimulationProvider):    
     """Creates radial profile of the DM for halos in the DM_field provided. Uses the halo_data_frame, which is a DataFrame and must be sorted in ascending mass order,
      alongside the bin_markers which provides the indexes where mass bins change in the halo_data_frame. crop_grid_dim is used to choose how large a square around the halo
      centers to cutout. """
     
     # TODO: Matt says we can calculate using every 1/4 the pixels or something.
     
+    assert crop_grid_dim % 2 == 0, "The present implementation requires crop_grid_dim to be even." # BUG We should probably make it odd actually.
+
     num_bins = len(bin_markers) -1 
     center = int(crop_grid_dim/2)
     
-    DM_mass_bin= np.zeros([num_bins, crop_grid_dim, crop_grid_dim]) # TODO previously this had an extra empty bin at end I think. mistake
+    DM_mass_bin= np.zeros([num_bins, crop_grid_dim, crop_grid_dim])
     rad_prof_mass_bin = []
 
     res=DM_field.shape[0]
-    ix = ((np.around((4*res/1024)*((halo_data_frame['x'].values)/(250/256))))%(res)).astype(int)
-    iy = ((np.around((4*res/1024)*((halo_data_frame['y'].values)/(250/256))))%(res)).astype(int)
+    #print(res)
+    ix = (np.around(res*((halo_data_frame['x'].values)/(provider.Lbox*cosmo.h)))).astype(int)
+    iy = (np.around(res*((halo_data_frame['y'].values)/(provider.Lbox*cosmo.h)))).astype(int)
+
+    #print("ix: {}".format(ix))
+    #print("iy: {}".format(iy))
 
     # Go through each mass bin
     for i in range(0, num_bins):
         # get a square cutout from the DM field around the center of each halo within this mass bin
         num_halos = bin_markers[i+1] - bin_markers[i]
-        #halo_squares = DM_for_mass_bin(DM_field, halo_data_frame[bin_markers[i]:bin_markers[i+1]], crop_grid_dim)
+        #print("Mass bin {}: {} halos".format(i,num_halos))
 
-        # Take all the halos in this mass bin, and get the mean DM for each pixel in the trimmed square.
-        # Running sum for memory reasons
         for halo_index in range(bin_markers[i], bin_markers[i+1]):
             halo_square = make_halo_square(DM_field, ix, iy, halo_index, crop_grid_dim)
+            #print(halo_square)
             DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] + halo_square
 
         DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] / num_halos # finishing computing average
@@ -1731,7 +1736,7 @@ class Configuration:
 
             trim_dim = int(10*self.resolution)
 
-            self.DM_vs_R1 = DM_vs_radius(self.get_final_field()[index], df[0], trim_dim, df[1]) [0]
+            self.DM_vs_R1 = DM_vs_radius(self.get_final_field()[index], df[0], trim_dim, df[1], self.provider) [0]
 
             saveArray(profile_file, self.DM_vs_R1, folder=self.folder)
   

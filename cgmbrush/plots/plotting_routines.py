@@ -5,22 +5,18 @@ from cgmbrush.cgmbrush import *  #need this because of saveFig call
 
 
 ''' This plots the radial profile.  
-error = True makes same assumptions as Kahn++2022 to compute the error  (data from a precomputation of the error of PDF is included)
+error = True makes same assumptions as Khan++2022 to compute the error  (data from a precomputation of the error of PDF is included)
 xstart and xend
 M_chosen are mass bins
 '''
-def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider, avg_mass_ar):
+def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider, avg_mass_ar, ylims):
 
     orig_den_256 = provider.get_density_field(0, 256)
 
     # Mean DM of single box
     mean_DM=np.mean(orig_den_256)
 
-    # dimension of the small grid around the halo we want to crop
-    trim_dim=int((10*resolution))  #Matt: ideally this 10 is defined somewhere as it appears also in CGMBrush
-
-    # Radial extent of the plots in Mpc
-    #extent = (provider.Lbox/grid_size)*(trim_dim/2)
+    plots_to_make = len(M_chosen)
 
     SMALL_SIZE = 8
     MEDIUM_SIZE = 10
@@ -38,8 +34,8 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolutio
     MpctoKpc =1000
     hspace = 0.015
 
-    DM_Rad_fig, DM_Rad_axs = plt.subplots(3, 1,
-                            gridspec_kw={'hspace': hspace, 'wspace': .2},figsize=(20,30))
+    DM_Rad_fig, DM_Rad_axs = plt.subplots(plots_to_make, 1,
+                            gridspec_kw={'hspace': hspace, 'wspace': .2},figsize=(20,plots_to_make*10))
 
 
     # X-axis: mask grid has a diagonal of length sqrt(2) that needs to be factored in after the profile is calculated
@@ -48,11 +44,12 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolutio
     dx = (provider.Lbox/grid_size)  #cell size
     x_axis = MpctoKpc*(0.5+np.arange(0, series[0][0].shape[1]))*dx     
     
-    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[0], M_chosen[0], series, not error)
-    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[1], M_chosen[1], series, not error)
-    plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[2], M_chosen[2], series, not error)
+    for i in range(plots_to_make):
+        plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[i], M_chosen[i], series, plot_masks)
 
     if error:
+
+        assert plots_to_make == 3, "Error plots only coded to work with 3 mass bins right now"
 
         ### For error bar plot
         # Variances should be extracted from the redshift plots at redshift = 0.5.
@@ -100,36 +97,25 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolutio
     # DM_Rad_axs[0].tick_params(axis='x', which='minor',fontsize=10)
     # DM_Rad_axs[2].xaxis.set_tick_params(width=5)
 
-    DM_Rad_axs[0].tick_params('both', length=10, width=4, which='major')
-    DM_Rad_axs[0].tick_params('both', length=10, width=4, which='minor')
-    DM_Rad_axs[1].tick_params('both', length=10, width=4, which='major')
-    DM_Rad_axs[1].tick_params('both', length=10, width=4, which='minor')
-    DM_Rad_axs[2].tick_params('both', length=10, width=4, which='major')
-    DM_Rad_axs[2].tick_params('both', length=10, width=4, which='minor')
-
+    for i in range(plots_to_make):
+        DM_Rad_axs[i].tick_params('both', length=10, width=4, which='major')
+        DM_Rad_axs[i].tick_params('both', length=10, width=4, which='minor')
+        # x and y axis limits
+        DM_Rad_axs[i].set_xlim([x_start, x_end])
+        DM_Rad_axs[i].set_ylim([0, ylims[i]])
 
     # legend
     DM_Rad_axs[0].legend(loc='right',prop={'size':28}, frameon=False)
     # DM_Rad_axs[0].set_ylabel('DM - <DM> [pc $cm^{-3}$]',fontsize=30)
-    DM_Rad_axs[1].set_ylabel('DM - <DM> [pc cm$^{-3}$]',fontsize=50)
+    DM_Rad_axs[math.floor((plots_to_make-1)/2)].set_ylabel('DM - <DM> [pc cm$^{-3}$]',fontsize=50)
     # DM_Rad_axs[2].set_ylabel('DM - <DM> [pc cm$^{-3}$]',fontsize=30)
-    DM_Rad_axs[2].set_xlabel('Impact Parameter [kpc]',fontsize=50)
+    DM_Rad_axs[plots_to_make-1].set_xlabel('Impact Parameter [kpc]',fontsize=50)
 
-    # Adding virial radii
-    DM_Rad_axs[0].axvline(MpctoKpc*(vir_rad_ar[M_chosen[0]]), color='k', linestyle='--', linewidth=1)
-    DM_Rad_axs[1].axvline(MpctoKpc*(vir_rad_ar[M_chosen[1]]), color='k', linestyle='--', linewidth=1)
-    DM_Rad_axs[2].axvline(MpctoKpc*(vir_rad_ar[M_chosen[2]]), color='k', linestyle='--', linewidth=1)
+    # Adding virial radii vertical line
+    if (vir_rad_ar is not None):
+        for i in range(plots_to_make):
+            DM_Rad_axs[i].axvline(MpctoKpc*(vir_rad_ar[M_chosen[i]]), color='k', linestyle='--', linewidth=1)
 
-    # x and y axis limits
-    ymax1 = 129
-    ymax2 = 309
-    ymax3 = 799
-    DM_Rad_axs[0].set_ylim([0, ymax1])
-    DM_Rad_axs[0].set_xlim([x_start, x_end])
-    DM_Rad_axs[1].set_ylim(ymin=0,ymax=ymax2)
-    DM_Rad_axs[1].set_xlim([x_start, x_end])
-    DM_Rad_axs[2].set_ylim(ymin=0,ymax=ymax3)
-    DM_Rad_axs[2].set_xlim([x_start, x_end])
 
     # Rectangular patch for region too far inside resolution limit
     #DM_Rad_axs[0].add_patch(Rectangle((0,0), 45, 130,facecolor='yellow'))
@@ -137,9 +123,8 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, x_start, x_end, resolutio
     #DM_Rad_axs[2].add_patch(Rectangle((0,0), 45, 1500,facecolor='yellow'))
 
     # mass labels
-    DM_Rad_axs[0].text(x_end*0.4, ymax1*0.85, r'$10^{%.1f} M_\odot$ '%np.log10(avg_mass_ar[M_chosen[0]]),fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[1]]),fontsize=30)
-    DM_Rad_axs[1].text(x_end*0.4, ymax2*0.85, r'$10^{%.1f} M_\odot$ '%np.log10(avg_mass_ar[M_chosen[1]]),fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[2]]),fontsize=30)
-    DM_Rad_axs[2].text(x_end*0.4, ymax3*0.85, r'$10^{%.1f} M_\odot$ '%np.log10(avg_mass_ar[M_chosen[2]]),fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[3]]),fontsize=30)
+    for i in range(plots_to_make):
+        DM_Rad_axs[i].text(x_end*0.4, ylims[i]*0.85, r'$10^{%.1f} M_\odot$ '%np.log10(avg_mass_ar[M_chosen[i]]),fontsize=34) #'Mass = %.1E $M_\odot$' % Decimal(df[2][M_chosen[1]]),fontsize=30)
 
     # DM_Rad_axs[0].rc('xtick', labelsize=35)    # fontsize of the tick labels
     # # plt.rc('ytick', labelsize=35)    # fontsize of the tick labels

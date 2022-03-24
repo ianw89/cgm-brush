@@ -7,7 +7,7 @@ results_in_memory = False # Do not keep results in memeory, just want them saved
 plots = False 
 trace = False
 seed = '50g89Gfh03f4Gh0r38h2TfM08'
-RS_values = RS_array_gen(1,L)
+RS_values = RS_array_gen(1,provider.Lbox)
 # TODO having all the data for all the redshifts together is too big at large resolutions
 # TODO design an alternative
 
