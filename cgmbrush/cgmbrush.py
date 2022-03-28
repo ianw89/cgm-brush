@@ -1390,7 +1390,7 @@ class Configuration:
 
         self.min_mass = 10**10 # halos smaller than this shouldn't have much of a CGM
         self.max_mass = 8.3*10**14 # this is a little bigger than the biggest halo in Bolshoi
-        self.log_bins = 60
+        self.log_bins = 61 # this means 60 bins; TODO make this more intuitive... 
         self.datestamp = str(datetime.date.today())
         self.seed = None
 
