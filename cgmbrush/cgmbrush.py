@@ -1385,15 +1385,12 @@ class Configuration:
         # User provides a redshift array
         self.RS_array = RS_array # For a single box, we only use the redshift 0 box
 
-    
-        
         # Profile used for subtracting halos from the density field
         self.subtraction_halo_profile = NFWProfile()
 
-
         self.min_mass = 10**10 # halos smaller than this shouldn't have much of a CGM
-        self.max_mass = 9*10**15 # this is a little bigger than the biggest halo in Bolshoi
-        self.log_bins = 30
+        self.max_mass = 8.3*10**14 # this is a little bigger than the biggest halo in Bolshoi
+        self.log_bins = 60
         self.datestamp = str(datetime.date.today())
         self.seed = None
 
@@ -1417,7 +1414,6 @@ class Configuration:
         self.stacked_removed_field = None
         self.stacked_addition_field = None
         self.stacked_final_field = None
-
 
 
 
