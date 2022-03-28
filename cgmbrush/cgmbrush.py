@@ -174,16 +174,18 @@ class SimulationProvider(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def Lbox(self):
+        """Length of a boxside in Mpc/h."""
         pass
 
     @property
     @abc.abstractmethod
     def halofieldresolution(self):
+        """Resolution of the halo field (in pixels), which may differ from the raw density field."""
         pass
     
     @abc.abstractmethod
     def get_density_field(self, redshift: float, resolution: int):
-        """Gets the density field for the given redshift and grid resolution."""
+        """Gets the density field (in pixels) for the given redshift and grid resolution."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -1174,21 +1176,18 @@ def radial_profile(data, center_x,center_y):
     return radialprofile 
 
 
-def make_halo_square(DM_field, ix, iy, halo_index, crop_grid):
+def make_halo_square(DM_field, ix, iy, crop_grid):
     """Creates a square cutout of the DM field from around the ix, iy point 
-    for the halo_index halo with dimensions crop_grid x crop_grid."""
-    
+    with dimensions crop_grid x crop_grid."""
 
     res=DM_field.shape[0]    
-    DM_rad = np.zeros([crop_grid,crop_grid])
-    i = halo_index
-            
-    # BUG This ignores halos near the edge, but then we use them in the average.
-    if ix[i] > int(crop_grid) and ix[i] < res - int(crop_grid) and iy[i] > int(crop_grid) and iy[i] < res- int(crop_grid):
-        trimmed = DM_field[ix[i]-int(crop_grid/2):ix[i]+int(crop_grid/2),iy[i]-int(crop_grid/2):iy[i]+int(crop_grid/2)]
-        DM_rad = trimmed
+    trimmed = -1 # signal to caller to drop this halo square
+     
+    # TODO This ignores halos near the edge
+    if ix > int(crop_grid) and ix < res - int(crop_grid) and iy > int(crop_grid) and iy < res- int(crop_grid):
+        trimmed = DM_field[ix-int(crop_grid/2):ix+int(crop_grid/2),iy-int(crop_grid/2):iy+int(crop_grid/2)]
 
-    return DM_rad
+    return trimmed
 
 
 # Single function for radial profile of DM for a given DM array and grid size
@@ -1222,10 +1221,15 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider
         #print("Mass bin {}: {} halos".format(i,num_halos))
 
         for halo_index in range(bin_markers[i], bin_markers[i+1]):
-            halo_square = make_halo_square(DM_field, ix, iy, halo_index, crop_grid_dim)
+            halo_square = make_halo_square(DM_field, ix[halo_index], iy[halo_index], crop_grid_dim)
             #print(halo_square)
-            DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] + halo_square
-
+            if halo_square is not -1:
+                DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] + halo_square
+            else:
+                # currently we drop halos near the edge that we don't have room to cutout the halo square
+                # TODO if easy, use periodic boudnaries to calculate it all correctly.
+                num_halos -= 1 
+                
         DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] / num_halos # finishing computing average
         rad_prof_mass_bin.append(radial_profile(DM_mass_bin[i,:,:],center,center))
     
