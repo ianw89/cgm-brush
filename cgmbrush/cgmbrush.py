@@ -1229,7 +1229,12 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider
                 # currently we drop halos near the edge that we don't have room to cutout the halo square
                 # TODO if easy, use periodic boudnaries to calculate it all correctly.
                 num_halos -= 1 
-                
+           
+        #print("Bin {}: {} usable halos.".format(i, num_halos))
+             
+        if (num_halos <= 0):
+            num_halos = 1
+
         DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] / num_halos # finishing computing average
         rad_prof_mass_bin.append(radial_profile(DM_mass_bin[i,:,:],center,center))
     
