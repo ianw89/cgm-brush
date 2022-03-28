@@ -1,7 +1,7 @@
 ###################################################################################################
 #
-# cgmbrush.py 	        (c) Ian Williams, Adnan Khan, Matt McQuinn
-#     				    	ianw89@live.com
+# cgmbrush.py 	        (c) Ian Williams, Adnan Khan, Carter Archuleta, Owen Fairbairn, Matt McQuinn
+#     				    	ianw89@live.com, ianw89@uw.edu
 #
 ###################################################################################################
 
@@ -30,7 +30,6 @@ from cgmbrush.constants import *
 #from constants import *
 from cgmbrush.cosmology import cosmology as cosmo
 from cgmbrush.cosmology import halo as halo
-
 
 ########################################
 # Histogram functions
@@ -307,7 +306,7 @@ class BolshoiProvider(SimulationProvider):
         return result
 
     def import_density_field(self, z_name, resolution):
-        """Imports the density field for a given redshift and smooths it. Stores the result in a cache that is faster to access."""
+        """Imports the density field for a given redshift and smooths it. Stores the result in a numpy file that is faster to access."""
         
         if resolution != 256 and resolution != 512:
             raise ValueError("Only resolution 256 or 512 is supported.")
@@ -318,7 +317,7 @@ class BolshoiProvider(SimulationProvider):
         # Have to hardcode z=0 table because of the unique column names
         if z_name == '0':
             # reading density field and halos data
-            file_path= os.path.join(SIMS_DIR, 'dens'+resStr+'-z-0.csv.gz')
+            file_path= os.path.join(SIMS_DIR, 'dens'+resStr+'-z-0.0.csv.gz')
             pdDens=pd.read_csv(file_path)
 
             # extracting columns
@@ -381,6 +380,7 @@ def my_convolve(a, b):
 # Create halo array from halo table for convolution
 #returns histogram and bins
 def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
+
     """Creates an array of indexes corresponding to indexes in pdHalos at the edges of logarithmic mass bins.
 
     The length will be logchunks."""
@@ -412,10 +412,6 @@ def project_spherical_3Dto2D(f, x, y, Rmax):
     else:
         #print("Boundary: {}".format(boundary))
         return 2 * integrate.quad(f, 0, boundary, args=(x,y))[0] 
-
-
-
-
 
 # Function creates a smaller grid from a larger grid by smoothing
 def smoothfield(big, nbig, nsmall):
@@ -919,22 +915,131 @@ def subtract_halos(provider, haloArray, bin_markers, profile: CGMProfile, scalin
         
     return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*cosmo.fb
 
+def T_vir(M, z):    
+    """
+    Calculates the virial temperature of a halo.
+
+    Arguments:
+    M: halo mass (solar masses)
+    z: redshift
+    """
+    # TODO look into this contribution to virial temperature
+    #k = 0.01720209895 #rad
+    #H0 = 100 #h km s^−1 Mpc^−1
+    #Omegak = -k/(H0**2)
+    #OmegaMz = (OmegaM*(1+z)**3)/((OmegaM*(1+z)**3)+OmegaL+(Omegak*(1+z)**2))
+    mu = 0.6
+    
+    temperature = 1.98e4 * (mu / 0.6) * pow(M / 1e8, 2/3) * ((1+z)/10) # * (OmegaM/OmegaMz)**(1/3)
+    return temperature
+
+def T_anisotropy(DM, T_vir, z):
+    """
+    Calculates the temperature anisotropy of a halo.
+    
+    Arguments:
+    DM: dispersion measure (parsec cm^-3)
+    T_vir: virial temperature (K)
+    z: redshift
+    """
+    # CMB temperature accounting for redshift
+    T_cmb = 2.725 * (1+z) #K
+    e_charge = 4.8032e-10 #cm^3/2 g^1/2 s^-1
+    m_e = 9.10938356e-28 #g
+    c = 2.99792458e10 #cm s^-1
+    k_b = 1.3807e-16 #cm^2 g s^-2 K^-1
+    
+    #sigma_T = 8*np.pi/3 * pow(e_charge**2/(m_e*c**2), 2)
+    sigma_T = 6.6524587158e-25 #cm^2
+    
+    dT = DM * kpc/10**3 * T_cmb * T_vir * sigma_T * 2 * k_b / (m_e * c**2)
+    
+    return dT
 
 
+def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
+    """
+    Creates a map of dispersion measure.
 
-# Status: This is the latest convolution function
+    Arguments:
+    haloArray: DataFrame of halos, sorted by mass.
+    resolution: resolution of the halo field
+    bin_markers: array giving the indexes of halos at the edges of mass bins
+    profile: tophat, NFW etc
+    scaling_radius: scale radius for tophat halos
+    redshift: redshift of halos
+    """
 
-# The function add halos
+    chunks = len(bin_markers) - 1
+    no_cells = provider.halofieldresolution * resolution
+    cellsize = provider.Lbox / no_cells
+    
+    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, scaling_radius, redshift)
+    
+    # loops through the list of dataframes each ordered by ascending mass
+    for j in range(0,chunks):
+        # Area of cells needed for normalization
+        totalcellArea4 = sum(sum(addition_masks[j])) * ((cellsize)**2)
+        
+        # If the mass bin is empty, then skip convolution step
+        if totalcellArea4 != 0:
+            # convolve the mask and the halo positions
+            convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * convolution[j,:,:]
+            
+            # store addition masks
+            addition_masks[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(cosmo.fb) * addition_masks[j,:,:]
+            
+    return convolution.sum(0)*(Mpc**-3 *10**6)*nPS*cosmo.fb, conv_rad, addition_masks, Mvir_avg
 
-# arguments: 
-# haloArray: dataframe of halos, sorted by mass.
-# resolution: int of resolution, will be multiplied by 1024
-# bin_markers: array giving the indexes of halos at the edges of mass bins
-# profile: tophat, NFW etc
-# scaling_radius: scale radius for tophat halos
+def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
+    """
+    Creates a map of CBM temperature anisotropy from the provided halos.
+    
+    Arguments:
+    haloArray: dataframe of halos, sorted by mass.
+    resolution: resolution of the halo field
+    bin_markers: array giving the indexes of halos at the edges of mass bins
+    profile: tophat, NFW etc
+    scaling_radius: scale radius for tophat halos
+    redshift: redshift of halos
+    """
+
+    chunks = len(bin_markers) - 1
+    no_cells = provider.halofieldresolution * resolution
+    cellsize = provider.Lbox / no_cells
+    
+    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(haloArray, resolution, bin_markers, profile, scaling_radius, redshift)
+    
+    Tvir_avg = T_vir(Mvir_avg, redshift)
+    
+    # loops through the list of dataframes each ordered by ascending mass
+    for j in range(0,chunks):
+        # Area of cells needed for normalization
+        totalcellArea4 = sum(sum(addition_masks[j])) * ((cellsize)**2)
+        
+        # If the mass bin is empty, then skip convolution step
+        if totalcellArea4 != 0:
+            # convolve the mask and the halo positions
+            convolution[j,:,:] = T_anisotropy((Mvir_avg[j]/(totalcellArea4)) * (Mpc**-3 *10**6)*nPS*cosmo.fb, Tvir_avg[j], redshift) * convolution[j,:,:]
+                        
+            # store addition masks
+            addition_masks[j,:,:] = T_anisotropy((Mvir_avg[j]/(totalcellArea4)) * (Mpc**-3 *10**6)*nPS*cosmo.fb, Tvir_avg[j], redshift) * addition_masks[j,:,:]
+
+    return convolution.sum(0), conv_rad, addition_masks, Tvir_avg
+
+
 def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
+    """
+    Performs a convolution between halo positions (via the haloArray parameter) and profile (via the profile parameter).
 
-    df = haloArray
+    Arguments:
+    haloArray: DataFrame of halos, sorted by mass.
+    resolution: int of resolution, will be multiplied by 1024
+    bin_markers: array giving the indexes of halos at the edges of mass bins
+    profile: tophat, NFW etc
+    scaling_radius: scale radius for tophat halos
+    """
+    
     no_cells = provider.halofieldresolution * resolution
     cellsize = provider.Lbox / no_cells
     chunks = len(bin_markers) - 1
@@ -966,7 +1071,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
             convolution[j,:,:] = 0
             continue
 
-        Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h  #Matt: Would be much better to put in h at time we read in file
+        Mvir_avg[j] = np.mean((haloArray['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h  #Matt: Would be much better to put in h at time we read in file
         conv_rad[j] = halo.comoving_rvir(cosmo, Mvir_avg[j], redshift) # comoving radius
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
@@ -993,21 +1098,20 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         
         # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
         # TODO the resolution math here can be written in a more intuitive way
-        ix = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
-        iy = ((((np.around(4*resolution*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
+        ix = ((((np.around(4*resolution*((haloArray[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
+        iy = ((((np.around(4*resolution*((haloArray[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
         xy=(ix,iy)
 
         # Adnan: BUG issue: the method does not add repeated coordinates. Ian: Is that right?
         halo_cell_pos[xy] += 1
 
         # convolve the mask and the halo positions
-        convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)
-
-        # store addition masks
-        addition_masks[j,:,:]= (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*cosmo.fb*coarse_mask
+        convolution[j,:,:] = my_convolve(halo_cell_pos,coarse_mask)
         
-    return (convolution.sum(0))*(Mpc**-3 *10**6)*nPS*cosmo.fb, conv_rad, addition_masks, Mvir_avg
-
+        # store addition masks
+        addition_masks[j,:,:] = coarse_mask
+        
+    return convolution, conv_rad, addition_masks, Mvir_avg
 
 # Halos removed field
 
@@ -1045,7 +1149,7 @@ def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,de
     bin_markers= halo_array_for_convolution[1]
     
     # convolve halos for adding back
-    addition_profile_initial=add_halos(provider, df,resolution,bin_markers,addition_halo_profile,scaling_radius,redshift)
+    addition_profile_initial=make_halo_DM_map(provider, df,resolution,bin_markers,addition_halo_profile,scaling_radius,redshift)
     addition_profile = addition_profile_initial[0]
     addition_profile_masks=addition_profile_initial[2]
     
@@ -1195,7 +1299,7 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider
     """Creates radial profile of the DM for halos in the DM_field provided. Uses the halo_data_frame, which is a DataFrame and must be sorted in ascending mass order,
      alongside the bin_markers which provides the indexes where mass bins change in the halo_data_frame. crop_grid_dim is used to choose how large a square around the halo
      centers to cutout. """
-    
+
     # TODO: Matt says we can calculate using every 1/4 the pixels or something.
     
     assert crop_grid_dim % 2 == 0, "The present implementation requires crop_grid_dim to be even." # BUG We should probably make it odd actually.
@@ -1243,7 +1347,7 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider
     
 def profile_of_masks(mask_array):
     """This calculate a radial profile of all the masks provided in mask_array, seperately processing each mass bin into an average values by radius."""
-    
+
     mask_prof_ar_shape = mask_array.shape
     prof_num=mask_prof_ar_shape[0]
     mask_center=int(mask_prof_ar_shape[1]/2)
@@ -1535,8 +1639,15 @@ class Configuration:
         
         return self.halo_masses
 
+    def get_add_mask_for_mass(self, mass, z_index):
+        """Selects the addition mask closest to the specified halo mass (in solar masses) for the data from the given redshift's index and returns it."""
+        masses = self.get_halo_masses()
+        index = np.argmin(np.abs(masses - mass))
+        masks = self.get_addition_masks()
+        return masks[z_index][index]
+
     def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
-        """Run this configuration."""
+        """Run convolutions for this configuration."""
 
         filename = self.get_filename()
         file_path = os.path.join(self.folder, filename + ".npz")
@@ -1549,11 +1660,11 @@ class Configuration:
                 print("done")
                             
             except IOError:
-                print("Cache miss: " + filename)
-                #pass # File cache doesn't exist, swallow and compute it instead
+                print("Previous results '" + filename + "' not found. Calculations will be made.")
+                #pass # previous results file for this config doesn't exist, swallow and compute it instead
 
         if self.npz is None:
-            print("Performing Calculations for {}... ".format(filename), end="")
+            print("Performing calculations for {}... ".format(filename), end="")
                                    
             if trace:
                 pr = cProfile.Profile()
@@ -1659,9 +1770,6 @@ class Configuration:
 
     def generate_stacked_fields(self, results_in_memory=True, load_from_files=False):
 
-        # TODO do this operation for the original, removed, and addition fields too
-
-
         #translated_file = self.get_filename() + "_translated"
         stacked_file = self.get_filename() + "_stacked"
         file_path = os.path.join(self.folder, stacked_file + ".npz")
@@ -1672,7 +1780,7 @@ class Configuration:
                 self.stacked_npz = np.load(file_path, allow_pickle=True)
                 print("done")        
             except IOError:
-                print("Cache miss: " + stacked_file)
+                print("Previous results '" + stacked_file + "' not found. Calculations will be made.")
 
         if self.stacked_npz is None:
 
@@ -1733,7 +1841,7 @@ class Configuration:
             try:
                 self.DM_vs_R1 = loadArray(profile_file, folder=self.folder)            
             except IOError:
-                print("Cache miss: " + profile_file)
+                print("Previous results '" + profile_file + "' not found. Calculations will be made.")
 
         if self.DM_vs_R1 is None:       
             print("Generating DM vs R profile for box {}".format(index))
@@ -1763,7 +1871,8 @@ class Configuration:
             try:
                 self.mask_profiles = loadArray(mask_file, folder=self.folder)            
             except IOError:
-                print("Cache miss: " + mask_file)
+                print("Previous results '" + mask_file + "' not found. Calculations will be made.")
+
 
         if self.mask_profiles is None:
             print("Generating Mask Profiles for box {}".format(index))

@@ -12,10 +12,7 @@ CGMBrush is Tested on various versions of Python 3 and sci-py the latest scipy p
 
 CGMbrush is not yet available as a public package. For now, you can clone this repository and follow the developer instructions below.
 
-When publically available, you may run the following to install cgmbrush:
-```
-$ pip install cgmbrush
-```
+
 ## Developer Instructions
 If you are forking this repo and intend on working directly with its sources, setup instruction are here. You want to install CGMBrush in editable mode (pip install -e path_to_cgmbrush) so that changes made to the sources are picked by files that import it. Because of this, you may want to use an virtual environment so later on if you install a non-developer CGMBrush to your system's python you do not run into issues.
 
@@ -45,8 +42,21 @@ This will setup a virtual environment in the root folder of the respository and 
 By default, output files will be created in "\~/cgmbrush/var" and CGMBrush will look for input files (simulation halo tables, etc) from "\~/cgmbrush/sims". Unless this is desirable, you should set environment variables for CGMB_VAR_DIR and CGMB_SIMS_DIR. On linux or mac this could be done by adding "export CGMB_VAR_DIR='...'" to .bashrc, and on Windows via the System Properties / Environment Variables... dialog. Alternatively, you could update the values in settings.py of the cgmbrush library.
 
 
+## Bolshoi Simulations Files
+CGM Brush uses .csv.gz density field and halo table files from the Bolshoi simulations. You will need to visit https://www.cosmosim.org/cms/simulations/bolshoi/ and read and understand the Dens and BDMProf tables. The density field files are acquired by querying for Dens256_z0, Dens512, and/or Dens256 (for whatever redshifts). For instance, you go to https://www.cosmosim.org/query and enter
+```
+SELECT * FROM Bolshoi.Dens256_z0
+```
+to get the density field at 256x256 resolution for z=0. You also need the halo tables (BDMProf), which should be acquired and saved off seperatly for each redshift snapshot desired. After you queries complete, you can download a .csv file from the cosmosim job and then run gzip on it. These files should be saved off and renamed your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.0.csv.gz' and 'halo-z-0.0.csv.gz', for instance. Naming of higher reshift files is more complicated; see the comments in the BolshoiProvider class in the cgmbrush.py file. To get started we suggest ignoring higher redshift data (and the relevent tests).
+
+
 ## Checking your work
 
-Presently, cgmbrush has a tests.ipynb notebook that can be used to gain some confidence that cgmbrush is performing correctly. Currently these tests utilize data from the Bolshoi simulations. If you want to be able to run all of these tests or use cgmbrush with this data, you will need to visit https://www.cosmosim.org/cms/simulations/bolshoi/ and download the Dens256_z0 and BDMWProf (for z=0) tables. These files should be saved off to your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.csv.gz' and 'halo-z-0.csv.gz'
+Presently, cgmbrush has a test/tests.ipynb notebook that can be used to gain some confidence that cgmbrush is performing correctly. Currently these tests utilize data from the Bolshoi simulations, so you must have some of these files available as described above.
 
-When you think all is done, open tests.ipynb with the ipython kernel you setup (or your system one that you installed to) and run the file. All the tests should pass.
+When you think you are ready, open tests.ipynb with the ipython kernel you setup (or your system one that you installed to) and run the file. If you've downloaded and set up the z=0 density field and halo table correctly, most of the tests will pass (a few require higher redshift files, and this is noted in the tests comments). After you are satisfied, we suggest that you then proceed to the tutorial.ipynb to learn a little more about how to use CGM Brush.
+
+## Use and citations
+If you are using CGM Brush for scientific applications, we encourage you to contact ianw89@live.com, adnank@uw.edu, or mcquinn@uw.edu.
+
+The paper detailing the methods used in this library is not yet published under a peer-reviewed journal. Please check back later for details on how to cite your use of CGM Brush.
