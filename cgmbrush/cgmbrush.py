@@ -720,39 +720,41 @@ class PrecipitationProfile(CGMProfile):
 
         comoving_rvir= halo.comoving_rvir(cosmo, Mvir, redshift)
         rvirkpc = KPCINMPC * comoving_rvir
-        epsilon = 10  #kpc -- shouldn't trust model at smaller values so always soften with this scale 
+        epsilon = 1  #kpc -- shouldn't trust model at smaller values so always soften with this scale 
 
         #parameters of our percipitation profile
-        n1,n2,xi1,xi2,neconstant, XRvir = self.get_precipitation_params(np.log10(Mvir), rvirkpc, redshift)
+        n1,n2,xi1,xi2,neconstant, XRvir, rmax = self.get_precipitation_params(np.log10(Mvir), rvirkpc, redshift)
         rcomoving_kpc = np.logspace(1, np.log10(XRvir*rvirkpc), num=500, base=10)
-        print("neconst = ", neconstant, n1,n2,xi1,xi2, XRvir)
-        
-        final_ar = self.precipitation_func(rcomoving_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, rvirkpc/(1+redshift),XRvir, epsilon)
+        #neconstant = 0
+        #print("neconst = ", neconstant, n1,n2,xi1,xi2, XRvir, " rmax = ", rmax, rvirkpc)
+
+        final_ar = self.precipitation_func(rcomoving_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, rvirkpc/(1+redshift),XRvir, rmax, epsilon)
         
 
         return rcomoving_kpc/KPCINMPC, final_ar/(1+redshift)**3  #care to go back to comoving quantities
 
     #profile in physical units at z=0 (from appendix of https://arxiv.org/pdf/1811.04976.pdf) in physical distance units (In contrast to all other parts of code)
     #the constant density out to XRvir times the virial radius is so that the total mass in baryons is included
-    def precipitation_func(self, rphyskpc, n1,n2,xi1,xi2,neconstant, rvir_physkpc,XRvir, epsilon):
+    def precipitation_func(self, rphyskpc, n1,n2,xi1,xi2,neconstant, rvir_physkpc,XRvir, rmax, epsilon):
         x = (np.array(rphyskpc) <= XRvir*rvir_physkpc)
-        y = (np.array(rphyskpc) <= rvir_physkpc)
+        y = (np.array(rphyskpc) <= rmax)
         # TODO I got this line broken from Adnan and had to guess where the ) goes to make it valid
-        final_ar =   y.astype(int)*1/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2) + x.astype(int)*neconstant
+        final_ar =   y.astype(int)/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2) + x.astype(int)*neconstant
         return final_ar
 
     #outputs percipitation model parmameters plus the constnat d
     def get_precipitation_params(self, log10Mhalo: float, comoving_rvir: float, redshift: float, calc_neconst_flag = True):
+        Mvir = 10**log10Mhalo
         log10Mhalo_z0 = log10Mhalo + 3/2*np.log10(1+redshift)  #This is how the Voit profile maps in redshift (the gas profile is fixed at vcir)
         
 
         #Parameterization of percipitation model used in CGMBrush.  
-        XRvir = 2 # XRvir is how many virial radii to go out for extended profile (default for CGMBrush is 2; this makes it so integrates to total mass within this radius)
+        XRvir = 3 # XRvir is how many virial radii to go out for extended profile (default for CGMBrush is 2; this makes it so integrates to total mass within this radius)
         #Zmetal is the metalicity; tratcrit is the coolin crieteria -- both of these don't need to change
         Z_METAL = 0.3  #Table also has 0.1 and 0.5 options (although 0.1 is only for lower mass halos)
         TRATCRIT = 10  #cooling time to dynamical time ratio that specifies model.  This is only option for below table.  See Voit et al 2018 for more options
 
-        rvir_physkpc = KPCINMPC* comoving_rvir/(1+redshift)
+        rvir_physkpc = comoving_rvir/(1+redshift)
 
         #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
         fitarray = np.array([[350, 8e12, 10, 0.5, 2.7,  0.73, 1.2e-1, 1.2, 3.8e-4,  2.1], \
@@ -794,9 +796,10 @@ class PrecipitationProfile(CGMProfile):
         xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
 
         #Calculates the constant density need to conserve mass assuming this extends to XRvir times the virial radius
+        neconst = 0
         if calc_neconst_flag == True:
-            r_physkpc = np.logspace(1, np.log(rvir_physkpc), 500)#radial bin array 
-
+            r_physkpc = np.logspace(0, np.log10(XRvir*rvir_physkpc), 500)#radial bin array 
+            print("max r considered = ",  r_physkpc[-1], rvir_physkpc)
             #Voit 2018 fitting formulae 
             rhoarr = np.array(1/np.sqrt((n1*(r_physkpc)**-xi1)**-2 + (n2*(r_physkpc/100)**-xi2)**-2))
 
@@ -812,15 +815,22 @@ class PrecipitationProfile(CGMProfile):
 
             
             conv = (msun/(mu*mprot))/kpc**3
-            mtotal = integrate.quad(rhointerp, np.log(r_physkpc[0]), np.log(r_physkpc[-1]))[0]/conv
-            #print("mtot percip in 1e12 = ", mtotal/cosmo.fb/1e12, 10**(log10Mhalo-12))
+            mtotal = 0
+            rmax = XRvir*rvir_physkpc*1.1 #set to just a little larger
             
+            for i in range(1, len(r_physkpc)):
+                mtotal += integrate.quad(rhointerp, np.log(r_physkpc[i-1]), np.log(r_physkpc[i]))[0]/conv
+                if mtotal > Mvir*cosmo.fb:
+                    rmax = r_physkpc[i]
+                    break
+            #print("mtot percip in 1e12 = ", mtotal/cosmo.fb/1e12, 10**(log10Mhalo-12))
+        
             #add in rest of mass (this should compensate for actual halo mass and not rescaled)
-            neconst =(10**log10Mhalo*cosmo.fb-mtotal)/(4.*np.pi/3.*(XRvir*rvir_physkpc)**3)*conv      #Matt: Why is this not 4pi/3?????????....but make sure this is okay, but I added a 3 on 3/17... seems like mass average should be off
-        else:
-            neconst = 0
+            if rmax > XRvir*rvir_physkpc:
+                neconst =(Mvir*cosmo.fb-mtotal)/(4.*np.pi/3.*(XRvir*rvir_physkpc)**3)*conv      #Matt: Why is this not 4pi/3?????????....but make sure this is okay, but I added a 3 on 3/17... seems like mass average should be off
+        
 
-        return n1, n2, xi1, xi2, neconst,  XRvir
+        return n1, n2, xi1, xi2, neconst,  XRvir, rmax
         #return rkpc, rhoarr
 
     #outputs mask; All length scales have to be converted into units of cellsize
