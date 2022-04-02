@@ -13,6 +13,9 @@ import matplotlib.pyplot as plt
 def plot_grid_comparison(new, baseline):
     fig, ax = plt.subplots(1,2,figsize=(24, 12))
 
+    if np.shape(new) is not np.shape(baseline):
+        print("Differing shapes. Baseline: {0}.  New: {1}.".format(np.shape(baseline), np.shape(new)))
+
     vmin = 0
     vmax = max(np.max(new), np.max(baseline))
     norm = colors.Normalize(vmin=vmin, vmax=vmax)
@@ -25,6 +28,26 @@ def plot_grid_comparison(new, baseline):
     fig.colorbar(pos, ax=ax, shrink=0.85)
 
     return fig
+
+def plot_grid_comparison_delta(new, baseline):
+
+    fig, ax = plt.subplots(1,3,figsize=(36, 12))
+
+    if np.shape(new) is not np.shape(baseline):
+        print("Differing shapes. Baseline: {0}.  New: {1}.".format(np.shape(baseline), np.shape(new)))
+
+    vmin = 0
+    vmax = max(np.max(new), np.max(baseline))
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)
+
+    pos = ax[0].imshow(new, norm=norm)
+    ax[0].title.set_text('New Result')
+    pos = ax[1].imshow(baseline, norm=norm)
+    ax[1].title.set_text('Baseline')
+    fig.colorbar(pos, ax=ax[1])
+
+    pos = ax[2].imshow(new - baseline) # delta between them
+    fig.colorbar(pos, ax=ax[2])
 
 def compare_mask_lists(results, baseline, resolution):
     fig = None
