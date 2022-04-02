@@ -743,7 +743,7 @@ class PrecipitationProfile(CGMProfile):
         return final_ar
 
     #outputs percipitation model parmameters plus the constnat d
-    def get_precipitation_params(self, log10Mhalo: float, comoving_rvir: float, redshift: float, calc_neconst_flag = True):
+    def get_precipitation_params(self, log10Mhalo: float, comoving_rvir_kpc: float, redshift: float, calc_neconst_flag = True):
         Mvir = 10**log10Mhalo
         log10Mhalo_z0 = log10Mhalo + 3/2*np.log10(1+redshift)  #This is how the Voit profile maps in redshift (the gas profile is fixed at vcir)
         
@@ -754,7 +754,7 @@ class PrecipitationProfile(CGMProfile):
         Z_METAL = 0.3  #Table also has 0.1 and 0.5 options (although 0.1 is only for lower mass halos)
         TRATCRIT = 10  #cooling time to dynamical time ratio that specifies model.  This is only option for below table.  See Voit et al 2018 for more options
 
-        rvir_physkpc = comoving_rvir/(1+redshift)
+        rvir_physkpc = comoving_rvir_kpc/(1+redshift)
 
         #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
         fitarray = np.array([[350, 8e12, 10, 0.5, 2.7,  0.73, 1.2e-1, 1.2, 3.8e-4,  2.1], \
@@ -799,7 +799,7 @@ class PrecipitationProfile(CGMProfile):
         neconst = 0
         if calc_neconst_flag == True:
             r_physkpc = np.logspace(0, np.log10(XRvir*rvir_physkpc), 500)#radial bin array 
-            print("max r considered = ",  r_physkpc[-1], rvir_physkpc)
+            #print("max r considered = ",  r_physkpc[-1], rvir_physkpc)
             #Voit 2018 fitting formulae 
             rhoarr = np.array(1/np.sqrt((n1*(r_physkpc)**-xi1)**-2 + (n2*(r_physkpc/100)**-xi2)**-2))
 
@@ -834,27 +834,27 @@ class PrecipitationProfile(CGMProfile):
         #return rkpc, rhoarr
 
     #outputs mask; All length scales have to be converted into units of cellsize
-    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir_Mpc: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
-        rvirkpc = KPCINMPC * comoving_rvir
+        comoving_rvir_kpc = KPCINMPC * comoving_rvir_Mpc
         cellsize_kpc = KPCINMPC *cellsize  # kpc
 
         #parameters of our percipitation profile
-        n1,n2,xi1,xi2,neconstant, XRvir = self.get_precipitation_params(np.log10(mass), comoving_rvir, redshift, True)
+        n1,n2,xi1,xi2,neconstant, XRvir, rmax = self.get_precipitation_params(np.log10(mass), comoving_rvir_kpc, redshift, True)
         
         #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
 
         #integrate to project to 2D
-        f1= lambda x, y, z: self.precipitation_func(((x**2+y**2+z**2)**.5)*cellsize_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, rvirkpc/(1+redshift),XRvir, 0.5*cellsize_kpc)
+        f1= lambda x, y, z: self.precipitation_func(((x**2+y**2+z**2)**.5)*cellsize_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, comoving_rvir_kpc/(1+redshift),XRvir, rmax, 0.5*cellsize_kpc)
                     
         vec_integral=np.vectorize(project_spherical_3Dto2D)
         
-        mask1 = vec_integral(f1,x,y,np.sqrt(XRvir*rvirkpc/cellsize_kpc)**2 - (x**2+y**2))
-        r=(x**2+y**2)**.5 # * scale_down
+        mask1 = vec_integral(f1,x,y,np.sqrt((XRvir*comoving_rvir_kpc*(1+redshift)/cellsize_kpc)**2 - (x**2+y**2))) #found big mistake here
+        r=np.sqrt(x**2+y**2) # * scale_down
         mask1=mask1.astype(float)
-        mask1[r > (XRvir*rvirkpc/cellsize_kpc)]=0         
+        mask1[r > (XRvir*comoving_rvir_kpc*(1+redshift)/cellsize_kpc)]=0         
             
         return mask1
 

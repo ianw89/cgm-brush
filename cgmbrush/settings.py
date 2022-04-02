@@ -6,7 +6,7 @@
 ###################################################################################################
 import os
 
-VAR_DIR = "/Users/matt/Dropbox/CGMBrush/cgm-brush/cgmbrush/var" 
+VAR_DIR = "/Users/matt/cgmbrush/var" 
 """The directory in which CGMBrush stores files by default, such as the results from 
 the various functions of CGMBrush. It is advisable to set this to a location with ample storage.
 This can be done with by setting the environment variable CMB_VAR_DIR or by setting the VAR_DIR 
