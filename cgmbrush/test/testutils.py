@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 def plot_grid_comparison(new, baseline):
     fig, ax = plt.subplots(1,2,figsize=(24, 12))
 
-    if np.shape(new) is not np.shape(baseline):
+    if np.shape(new) != np.shape(baseline):
         print("Differing shapes. Baseline: {0}.  New: {1}.".format(np.shape(baseline), np.shape(new)))
 
     vmin = 0

@@ -4,7 +4,6 @@ import numpy as np
 provider = BolshoiProvider()
 load_from_files = True # If we already ran this run today, skip it
 results_in_memory = False # Do not keep results in memeory, just want them saved to npy files
-plots = False 
 trace = False
 seed = '50g89Gfh03f4Gh0r38h2TfM08'
 RS_values = RS_array_gen(1,provider.Lbox)
@@ -71,7 +70,7 @@ for config in configurations:
 
     if len(config.RS_array) > 1:
 
-        config.run(trace=trace, plots=plots, load_from_files=load_from_files, results_in_memory=results_in_memory)
+        config.run(trace=trace, load_from_files=load_from_files, results_in_memory=results_in_memory)
         config.generate_DM_vs_radius_profile(load_from_files=load_from_files)
         config.generate_profile_of_masks(load_from_files=load_from_files)
         if len(config.RS_array) > 1:

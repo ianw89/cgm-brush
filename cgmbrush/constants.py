@@ -33,3 +33,7 @@ RadtoSec= 206265
 PcinMpc = 1e6 
 """Parsec in a Megaparsec."""
 KPCINMPC = 1e3
+
+DEFAULT_MIN_MASS = 10**10
+DEFAULT_MAX_MASS = 8.3*10**14
+DEFAULT_MASS_BIN_COUNT = 60 

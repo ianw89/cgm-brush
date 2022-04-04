@@ -243,7 +243,7 @@ class BolshoiProvider(SimulationProvider):
     def get_density_field(self, redshift: float, resolution: int):
         """Gets the density field for the given redshift and grid resolution."""
 
-        print("density field specs", redshift, resolution, self.Lbox,cosmo.elecD(redshift))
+        #print("Density Field Specs: ", redshift, resolution, self.Lbox, cosmo.elecD(redshift))
         
         
         if str(round(redshift, 2)) not in self.z_to_filename:
@@ -383,7 +383,7 @@ def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
 
     """Creates an array of indexes corresponding to indexes in pdHalos at the edges of logarithmic mass bins.
 
-    The length will be logchunks."""
+    The length will be logchunks, and the effective number of mass bins is [logchunks-1]"""
     halos = haloArray_minmax(pdHalos,M_min,M_max)
     df = halos.sort_values(by='Mvir',ascending=True)
     sorted_haloMasses = df['Mvir'].values
@@ -614,7 +614,7 @@ class FireProfile(CGMProfile):
     """
     
     def __init__(self):
-        print("Initialized Fire Profile")
+        #print("Initialized Fire Profile")
         self.name = "fire"
         super().__init__()
 
@@ -1178,7 +1178,7 @@ def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,de
 
 
 # Multiple Redshift Convolution
-def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile,
+def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile: CGMProfile,
                              addition_profile: CGMProfile,scaling_radius,resolution, halo):
 
     # Details of halo profiles
@@ -1189,10 +1189,12 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     # nsinc is the full width of the box function. So 4 means two boxes on either side of the point.
     width_sinc = 4
 
-    halos_reAdded = np.zeros([len(RS_array),1024*resolution,1024*resolution])
+    grid_length = sim_provider.halofieldresolution * resolution
+
+    halos_reAdded = np.zeros([len(RS_array),grid_length,grid_length])
     
     halos_subtraction_coarse = np.zeros([len(RS_array),den_grid_size,den_grid_size])
-    halo_field = np.zeros([len(RS_array),1024*resolution,1024*resolution])
+    halo_field = np.zeros([len(RS_array),grid_length,grid_length])
     halo_masks = np.zeros([len(RS_array),int(log_bins-1),20*resolution,20*resolution]) # This should be the same as fine_mask_len in add_halos function
     halos_removed_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size]) # This should be the same as fine_mask_len in add_halos function
     
@@ -1295,7 +1297,7 @@ def make_halo_square(DM_field, ix, iy, crop_grid):
     with dimensions crop_grid x crop_grid."""
 
     res=DM_field.shape[0]    
-    trimmed = -1 # signal to caller to drop this halo square
+    trimmed = -1 # sentinal value to caller to drop this halo square
      
     # TODO This ignores halos near the edge
     if ix > int(crop_grid) and ix < res - int(crop_grid) and iy > int(crop_grid) and iy < res- int(crop_grid):
@@ -1337,7 +1339,7 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider
         for halo_index in range(bin_markers[i], bin_markers[i+1]):
             halo_square = make_halo_square(DM_field, ix[halo_index], iy[halo_index], crop_grid_dim)
             #print(halo_square)
-            if halo_square is not -1:
+            if isinstance(halo_square, (list, tuple, np.ndarray)):
                 DM_mass_bin[i,:,:] = DM_mass_bin[i,:,:] + halo_square
             else:
                 # currently we drop halos near the edge that we don't have room to cutout the halo square
@@ -1471,7 +1473,7 @@ def saveArray(filename, *arrays, folder = VAR_DIR):
 def loadArray(filename, folder = VAR_DIR):
     """Loads numpy arrays that were saved with saveArray."""
     file_path = os.path.join(folder, filename + ".npy")
-    print("trying to load ", file_path)
+    #print("Trying to load ", file_path)
     try:
         return np.load(file_path, allow_pickle=True)
     except FileNotFoundError:
@@ -1493,7 +1495,7 @@ class Configuration:
         self.addition_profile = addition_profile
         self.scaling_radius = scaling_radius
         self.provider = provider
-        self.resolution = resolution # x1024
+        self.resolution = resolution # actual fine grids are generally this x provider.halofieldresolution
         self.folder = folder
 
         # Resolution: choose between 256 and 512 grid TODO this is Bolshoi specific
@@ -1507,9 +1509,13 @@ class Configuration:
         # Profile used for subtracting halos from the density field
         self.subtraction_halo_profile = NFWProfile()
 
-        self.min_mass = 10**10 # halos smaller than this shouldn't have much of a CGM
-        self.max_mass = 8.3*10**14 # this is a little bigger than the biggest halo in Bolshoi
-        self.log_bins = 61 # this means 60 bins; TODO make this more intuitive... 
+        # TODO these values change the results but are not included in the filename for saved data,
+        # so two configuration that have different values here but are otherwise the same will collide.
+        # TODO: best fix is probably to make saved files have a hashed value for all parameters of the
+        # config that affect them. Fold in all the previo stuff into that. CGMProfiles must be hashable.
+        self.min_mass = DEFAULT_MIN_MASS # halos smaller than this shouldn't have much of a CGM
+        self.max_mass = DEFAULT_MAX_MASS # this is a little bigger than the biggest halo in Bolshoi
+        self.log_bins = DEFAULT_MASS_BIN_COUNT + 1 # this means 60 bins; TODO make this more intuitive... 
         self.datestamp = str(datetime.date.today())
         self.seed = None
 
@@ -1656,18 +1662,18 @@ class Configuration:
         masks = self.get_addition_masks()
         return masks[z_index][index]
 
-    def run(self, plots=False, trace=False, results_in_memory=True, load_from_files=False):
+    def run(self, trace=False, results_in_memory=True, load_from_files=False):
         """Run convolutions for this configuration."""
 
         filename = self.get_filename()
         file_path = os.path.join(self.folder, filename + ".npz")
 
-        print("load_from_files = ", load_from_files)
+        #print("load_from_files = ", load_from_files)
         if load_from_files:
             try:
-                print("Loading data from ", file_path, end=" ")
+                print("Trying to load data from ", file_path, end=" ")
                 self.npz = np.load(file_path, allow_pickle=True)
-                print("done")
+                print("done.")
                             
             except IOError:
                 print("Previous results '" + filename + "' not found. Calculations will be made.")
@@ -1686,7 +1692,7 @@ class Configuration:
             
             self.convert_and_save()
             self.npz = np.load(file_path, allow_pickle=True)
-            print("done")
+            print("done.")
 
             if trace:
                 pr.disable()
@@ -1699,35 +1705,6 @@ class Configuration:
                 perf_file_path = os.path.join(VAR_DIR, 'perf_convo_' + filename + '_v%s.txt' % version)
                 with open(perf_file_path, 'w') as f:
                     f.write(s.getvalue())
-
-        if plots: # TODO delete?
-            original = self.provider.get_density_field(0, self.den_grid_size)
-            background_dm = self.get_removed_field()[0]
-            cgm_only = self.get_addition_field()[0]
-            density_final = self.get_final_field()[0]
-
-            vmin = 10 # for a log color plot
-            vmax = max(np.max(original), np.max(background_dm), np.max(cgm_only), np.max(density_final))
-            norm = colors.LogNorm(vmin=vmin, vmax=vmax)
-
-            fig, axes = plt.subplots(2,2,figsize=(24, 24))
-            pos = axes[0][0].imshow(original, norm=norm) 
-            #fig.colorbar(pos, ax=axes[0][0])
-            axes[0][0].title.set_text('Original Density Field')
-            pos = axes[0][1].imshow(background_dm, norm=norm) 
-            #fig.colorbar(pos, ax=axes[0][1])
-            axes[0][1].title.set_text('Density minus halos')
-            pos = axes[1][0].imshow(cgm_only, norm=norm) 
-            #fig.colorbar(pos, ax=axes[1][0])
-            axes[1][0].title.set_text('CGM Profile to add')
-            pos = axes[1][1].imshow(density_final, norm=norm) 
-            axes[1][1].title.set_text('Final Density Field')
-
-            fig.colorbar(pos, ax=axes, shrink=0.85)
-
-
-            self.figure = fig
-            saveFig(filename + '_images', fig, folder=self.folder)
         
         if not results_in_memory:
             self.clear_results()
