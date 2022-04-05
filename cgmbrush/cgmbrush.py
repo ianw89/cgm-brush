@@ -866,11 +866,11 @@ class PrecipitationProfile(CGMProfile):
 # bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
 # scaling_radius: scale radius for tophat halos
-def subtract_halos(provider, haloArray, bin_markers, profile: CGMProfile, scaling_radius: float, redshift: float, halo):
+def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile: CGMProfile, scaling_radius: float, redshift: float, halo):
     
     # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
     df = haloArray
-    no_cells = provider.halofieldresolution
+    no_cells = provider.halofieldresolution # the resolution multiplier isn't used for subraction, only addition
     cellsize = provider.Lbox/provider.halofieldresolution 
     chunks = len(bin_markers) - 1
     
@@ -912,9 +912,9 @@ def subtract_halos(provider, haloArray, bin_markers, profile: CGMProfile, scalin
         # populate array with halos
         halo_cell_pos = np.zeros([no_cells,no_cells])   
         
-        # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
-        ix = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(1024)).astype(int)
-        iy = ((((np.around(4*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(1024)).astype(int)
+        # Translate coordinates for comomving Mpc to halo grid coordinates.
+        ix = ((np.rint(no_cells*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+        iy = ((np.rint(no_cells*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         xy=(ix,iy)
 
         # BUG issue: the method does not add repeated coordinates
@@ -1106,10 +1106,9 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         # populate array with halos
         halo_cell_pos = np.zeros([no_cells,no_cells])    
         
-        # The coordinates are being multiplied by 4 to yield the halo coordinates on the 1024 grid
-        # TODO the resolution math here can be written in a more intuitive way
-        ix = ((((np.around(4*resolution*((haloArray[bin_markers[j]:bin_markers[j+1]]['x'].values)/(250/256))))))%(resolution*1024)).astype(int)
-        iy = ((((np.around(4*resolution*((haloArray[bin_markers[j]:bin_markers[j+1]]['y'].values)/(250/256))))))%(resolution*1024)).astype(int)  
+        # Translate the x,y values from comoving coordinates to fine grid coordinates
+        ix = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]]['x'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+        iy = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]]['y'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         xy=(ix,iy)
 
         # Adnan: BUG issue: the method does not add repeated coordinates. Ian: Is that right?
@@ -1126,7 +1125,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
 # Halos removed field
 
 #This function combines many steps of subtraction and smoothing to yield a density field from which halos have been removed
-def halos_removed_field(provider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc, halo):
+def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc, halo):
     
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
     df= halo_array_for_convolution[0]
@@ -1139,7 +1138,7 @@ def halos_removed_field(provider, current_halo_file,min_mass,max_mass,density_fi
     assert not np.any(np.isnan(subtraction_profile_smooth))
     
     # create coarse grid
-    subtraction_coarse= smoothfield(subtraction_profile_smooth,1024,den_grid_size)
+    subtraction_coarse= smoothfield(subtraction_profile_smooth, provider.halofieldresolution, den_grid_size)
     assert not np.any(np.isnan(subtraction_coarse))
     
     # remove halos from the density field
@@ -1322,10 +1321,10 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider
     DM_mass_bin= np.zeros([num_bins, crop_grid_dim, crop_grid_dim])
     rad_prof_mass_bin = []
 
-    res=DM_field.shape[0]
-    #print(res)
-    ix = (np.around(res*((halo_data_frame['x'].values)/(provider.Lbox*cosmo.h)))).astype(int)
-    iy = (np.around(res*((halo_data_frame['y'].values)/(provider.Lbox*cosmo.h)))).astype(int)
+    no_cells=DM_field.shape[0]
+    # Translate coordinates from comoving Mpc to fine grid coordinates
+    ix = ((np.rint(no_cells*((halo_data_frame['x'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+    iy = ((np.rint(no_cells*((halo_data_frame['y'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
 
     #print("ix: {}".format(ix))
     #print("iy: {}".format(iy))
