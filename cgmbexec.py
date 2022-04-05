@@ -38,15 +38,15 @@ configurations = [
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=16),
     Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=32),
 
-""" Not used in paper
-    Configuration(TophatProfile(), 1, provider=provider, resolution=1),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=2),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=4),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=8),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=16),
-    Configuration(TophatProfile(), 1, provider=provider, resolution=32),
-"""
+# Not used in paper
+    #Configuration(TophatProfile(), 1, provider=provider, resolution=1),
+    #Configuration(TophatProfile(), 1, provider=provider, resolution=2),
+    #Configuration(TophatProfile(), 1, provider=provider, resolution=4),
+    #Configuration(TophatProfile(), 1, provider=provider, resolution=8),
+    #Configuration(TophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(TophatProfile(), 1, provider=provider, resolution=16),
+    #Configuration(TophatProfile(), 1, provider=provider, resolution=32),
+
     #Configuration(FireProfile(), 1, provider=provider, resolution=1),
     #Configuration(FireProfile(), 1, provider=provider, resolution=2),
     #Configuration(FireProfile(), 1, provider=provider, resolution=4),
