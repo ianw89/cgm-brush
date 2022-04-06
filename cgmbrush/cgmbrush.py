@@ -967,6 +967,41 @@ def T_anisotropy(DM, T_vir, z):
     return dT
 
 
+def convolve_DM_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
+    
+    totalcellArea4 = sum(sum(mask)) * ((cellsize)**2)
+        
+    if totalcellArea4 != 0:
+        # Normalize and weight the results appropriately. TODO document this better
+        convolution = (Mvir_avg/totalcellArea4) * my_convolve(halo_cell_pos, mask)
+        
+        # store addition masks
+        final_mask = (Mvir_avg/totalcellArea4) * (Mpc**-3 * 10**6) * nPS * cosmo.fb * mask
+
+        return convolution, final_mask
+    else:
+        # If the mass bin is empty, then skip convolution and return 0's
+        return np.zeros(halo_cell_pos.shape), mask
+
+def convolve_dT_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
+
+    # TODO this hasn't been checked in a while
+    Tvir_avg = T_vir(Mvir_avg, redshift)
+    totalcellArea4 = sum(sum(mask)) * ((cellsize)**2)
+    
+    if totalcellArea4 != 0:
+        # convolve the mask and the halo positions
+        convolution = T_anisotropy((Mvir_avg/totalcellArea4) * (Mpc**-3 *10**6) * nPS * cosmo.fb, Tvir_avg, redshift) * my_convolve(halo_cell_pos, mask)
+                    
+        # store addition masks
+        final_mask = T_anisotropy((Mvir_avg/totalcellArea4) * (Mpc**-3 *10**6)*nPS*cosmo.fb, Tvir_avg, redshift) * mask
+        
+        return convolution, final_mask
+    else:
+        # If the mass bin is empty, then skip convolution and return 0's
+        return np.zeros(halo_cell_pos.shape), mask
+
+
 def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
     """
     Creates a map of dispersion measure.
@@ -980,27 +1015,9 @@ def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, b
     redshift: redshift of halos
     """
 
-    chunks = len(bin_markers) - 1
-    no_cells = provider.halofieldresolution * resolution
-    cellsize = provider.Lbox / no_cells
-    
-    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, scaling_radius, redshift)
-    
-    # TODO convolution.sum(0) replace with a rolling sum and we are good!!! Then we don't need to keep the per mass bin array around
-    # loops through the list of dataframes each ordered by ascending mass
-    for j in range(0,chunks):
-        # Area of cells needed for normalization
-        totalcellArea4 = sum(sum(addition_masks[j])) * ((cellsize)**2)
-        
-        # If the mass bin is empty, then skip convolution step
-        if totalcellArea4 != 0:
-            # Normalize and weight the results appropriately. TODO document this better
-            convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * convolution[j,:,:]
+    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, scaling_radius, redshift, convolve_DM_for_bin)
             
-            # store addition masks
-            addition_masks[j,:,:] = (Mvir_avg[j]/(totalcellArea4))*(Mpc**-3 *10**6)*nPS*(cosmo.fb) * addition_masks[j,:,:]
-            
-    return convolution.sum(0)*(Mpc**-3 *10**6)*nPS*cosmo.fb, conv_rad, addition_masks, Mvir_avg
+    return convolution*(Mpc**-3 *10**6)*nPS*cosmo.fb, conv_rad, addition_masks, Mvir_avg
 
 def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
     """
@@ -1015,31 +1032,13 @@ def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, b
     redshift: redshift of halos
     """
 
-    chunks = len(bin_markers) - 1
-    no_cells = provider.halofieldresolution * resolution
-    cellsize = provider.Lbox / no_cells
-    
-    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(haloArray, resolution, bin_markers, profile, scaling_radius, redshift)
-    
-    Tvir_avg = T_vir(Mvir_avg, redshift)
-    
-    # loops through the list of dataframes each ordered by ascending mass
-    for j in range(0,chunks):
-        # Area of cells needed for normalization
-        totalcellArea4 = sum(sum(addition_masks[j])) * ((cellsize)**2)
-        
-        # If the mass bin is empty, then skip convolution step
-        if totalcellArea4 != 0:
-            # convolve the mask and the halo positions
-            convolution[j,:,:] = T_anisotropy((Mvir_avg[j]/(totalcellArea4)) * (Mpc**-3 *10**6)*nPS*cosmo.fb, Tvir_avg[j], redshift) * convolution[j,:,:]
-                        
-            # store addition masks
-            addition_masks[j,:,:] = T_anisotropy((Mvir_avg[j]/(totalcellArea4)) * (Mpc**-3 *10**6)*nPS*cosmo.fb, Tvir_avg[j], redshift) * addition_masks[j,:,:]
+    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, scaling_radius, redshift, convolve_dT_for_bin)
+    Tvir_avg = T_vir(Mvir_avg, redshift) # TODO duplicate calculation 
 
-    return convolution.sum(0), conv_rad, addition_masks, Tvir_avg
+    return convolution, conv_rad, addition_masks, Tvir_avg
 
 
-def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
+def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float, per_bin_func):
     """
     Performs a convolution between halo positions (via the haloArray parameter) and profile (via the profile parameter).
 
@@ -1059,23 +1058,19 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
     Mvir_avg = np.zeros(bins)
     conv_rad = np.zeros(bins)
 
-    # convolution mask array
-    # TODO do NOT keep a per mass bin array here, this is major memory issue at high resolutions
-    convolution = np.zeros([bins,no_cells,no_cells])
+    # convolution results
+    convolution_summed = np.zeros([no_cells,no_cells])
     
     # fine and coarse map settings
+    # TODO cleanup this
     fine_mask_len = 20*resolution # TODO CGMBrush is forcing this mask size scheme. Should implementers get to choose?
     scale_down = 2  # making the grid coarser    
-    nbig = fine_mask_len*2
-    nsmall = int(nbig/scale_down)
+    nbig = fine_mask_len*2 # fine masks are 40*resolution by 40*resolution
+    nsmall = nbig//scale_down # coarse masks are half wide and long
 
-    # store all profile masks
+    # store all (coarse) profile masks
     addition_masks =np.zeros([bins,nsmall,nsmall])
 
-    if profile.debug:
-        with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
-            print("Addition Mask Size: ", sys.getsizeof(addition_masks))
-    
     # loops through the list of dataframes each ordered by ascending mass
     for j in range(0,bins):
 
@@ -1084,7 +1079,6 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
             Mvir_avg[j] = 0
             conv_rad[j] = 0
             addition_masks[j,:,:] = 0
-            convolution[j,:,:] = 0
             continue
 
         Mvir_avg[j] = np.mean((haloArray['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h  #Matt: Would be much better to put in h at time we read in file
@@ -1110,6 +1104,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         halo_cell_pos = np.zeros([no_cells,no_cells])    
         
         # Translate the x,y values from comoving coordinates to fine grid coordinates
+        # The modulus just ensures that halos on the edge that are rounded up wrap around to the 0th index location
         ix = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]]['x'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         iy = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]]['y'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         xy=(ix,iy)
@@ -1118,12 +1113,14 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         halo_cell_pos[xy] += 1
 
         # convolve the mask and the halo positions
-        convolution[j,:,:] = my_convolve(halo_cell_pos,coarse_mask)
+        convolution, mask = per_bin_func(halo_cell_pos, coarse_mask, cellsize, Mvir_avg[j], redshift) 
         
+        convolution_summed += convolution
+
         # store addition masks
-        addition_masks[j,:,:] = coarse_mask
+        addition_masks[j,:,:] = mask
         
-    return convolution, conv_rad, addition_masks, Mvir_avg
+    return convolution_summed, conv_rad, addition_masks, Mvir_avg
 
 # Halos removed field
 
