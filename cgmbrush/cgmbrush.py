@@ -986,6 +986,7 @@ def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, b
     
     convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, scaling_radius, redshift)
     
+    # TODO convolution.sum(0) replace with a rolling sum and we are good!!! Then we don't need to keep the per mass bin array around
     # loops through the list of dataframes each ordered by ascending mass
     for j in range(0,chunks):
         # Area of cells needed for normalization
@@ -993,7 +994,7 @@ def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, b
         
         # If the mass bin is empty, then skip convolution step
         if totalcellArea4 != 0:
-            # convolve the mask and the halo positions
+            # Normalize and weight the results appropriately. TODO document this better
             convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * convolution[j,:,:]
             
             # store addition masks
@@ -1052,14 +1053,15 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
     
     no_cells = provider.halofieldresolution * resolution
     cellsize = provider.Lbox / no_cells
-    chunks = len(bin_markers) - 1
+    bins = len(bin_markers) - 1
 
     # array of halo masses and radii
-    Mvir_avg = np.zeros(chunks)
-    conv_rad = np.zeros(chunks)
+    Mvir_avg = np.zeros(bins)
+    conv_rad = np.zeros(bins)
 
     # convolution mask array
-    convolution = np.zeros([chunks,no_cells,no_cells])
+    # TODO do NOT keep a per mass bin array here, this is major memory issue at high resolutions
+    convolution = np.zeros([bins,no_cells,no_cells])
     
     # fine and coarse map settings
     fine_mask_len = 20*resolution # TODO CGMBrush is forcing this mask size scheme. Should implementers get to choose?
@@ -1068,10 +1070,14 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
     nsmall = int(nbig/scale_down)
 
     # store all profile masks
-    addition_masks =np.zeros([chunks,nsmall,nsmall])
+    addition_masks =np.zeros([bins,nsmall,nsmall])
+
+    if profile.debug:
+        with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
+            print("Addition Mask Size: ", sys.getsizeof(addition_masks))
     
     # loops through the list of dataframes each ordered by ascending mass
-    for j in range(0,chunks):
+    for j in range(0,bins):
 
         if bin_markers[j] == bin_markers[j+1]:
             # Special case - mass bin is empty. Just set results to 0 for this mass bin.
@@ -1099,9 +1105,6 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
             with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
                 print("COARSE MASK %s" % j)
                 print(coarse_mask)
-
-        # Area of cells needed for normalization
-        totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
         
         # populate array with halos
         halo_cell_pos = np.zeros([no_cells,no_cells])    
@@ -1298,7 +1301,7 @@ def make_halo_square(DM_field, ix, iy, crop_grid):
     res=DM_field.shape[0]    
     trimmed = -1 # sentinal value to caller to drop this halo square
      
-    # TODO This ignores halos near the edge
+    # TODO This ignores halos near the edge; we can wrap around and not drop these halos.
     if ix > int(crop_grid) and ix < res - int(crop_grid) and iy > int(crop_grid) and iy < res- int(crop_grid):
         trimmed = DM_field[ix-int(crop_grid/2):ix+int(crop_grid/2),iy-int(crop_grid/2):iy+int(crop_grid/2)]
 
@@ -1699,7 +1702,7 @@ class Configuration:
                 ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
                 ps.print_stats()
 
-                version = 1
+                version = 2
                 # TODO auto version incrementing
                 perf_file_path = os.path.join(VAR_DIR, 'perf_convo_' + filename + '_v%s.txt' % version)
                 with open(perf_file_path, 'w') as f:
