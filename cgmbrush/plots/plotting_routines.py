@@ -81,7 +81,7 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
         #error_100_13M_P = error_bar_DMvsRad(var_P_2,num_FRB,r_star_ar,vir_rad_ar[M_chosen[2]],0.2)
 
         # error when host halo DM is included
-        error_100_12M_fire_host = error_bar_DMvsRad(sd_incl_host,100,r_star_ar,vir_rad_ar[M_chosen[1]],2)
+        error_100_12M_fire_host = error_bar_DMvsRad(sd_incl_host,num_FRB,r_star_ar,vir_rad_ar[M_chosen[1]],1)
 
         plot_error_bars(r_star_ar, DM_Rad_axs[0], (error_100_11M_STH, 'red', 4), (error_100_11M_fire, 'green', 4))
         plot_error_bars(r_star_ar, DM_Rad_axs[1], (error_100_12M_STH, 'red', 4), (error_100_12M_fire, 'green', 4), (error_100_12M_fire_host, 'blue', 2))
