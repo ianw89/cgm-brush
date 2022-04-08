@@ -43,7 +43,8 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
     #x_axis = np.sqrt(2)*MpctoKpc*np.linspace(xmin, extent-xmin, series[0][0].shape[1])
     dx = (provider.Lbox/grid_size)  #cell size
     x_axis = MpctoKpc*(0.5+np.arange(0, series[0][0].shape[1]))*dx     
-    
+    # Adnan's old version x_axis = np.sqrt(2)*MpctoKpc*np.linspace(0, extent, series[0][0].shape[1])
+
     for i in range(plots_to_make):
         plot_DM_vs_Rad(x_axis, mean_DM, DM_Rad_axs[i], M_chosen[i], series, plot_masks)
 
@@ -53,11 +54,11 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
 
         ### For error bar plot
         # Variances should be extracted from the redshift plots at redshift = 0.5.
-        var_STH_2 = 159
-        var_STH2_2 = 108
-        var_NFW_2 = 377
-        var_fire_2 = 337
-        var_P_2 = 174
+        var_STH_2 = 139
+        var_STH2_2 = 99
+        var_NFW_2 = 277
+        var_fire_2 = 356
+        var_P_2 = 375
 
         sd_incl_host = np.sqrt(var_fire_2**2 + 300**2)
 

@@ -16,9 +16,9 @@ configurations = [
     #Configuration(NFWProfile(), 1, provider=provider, resolution=2),
     #Configuration(NFWProfile(), 1, provider=provider, resolution=4),
     #Configuration(NFWProfile(), 1, provider=provider, resolution=8),
+    Configuration(NFWProfile(), 1, provider=provider, resolution=32),
     Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
     Configuration(NFWProfile(), 1, provider=provider, resolution=16),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=32),
 
     #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1),
     #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2),
@@ -74,7 +74,7 @@ for config in configurations:
     config.generate_profile_of_masks(load_from_files=load_from_files)
     
     if len(config.RS_array) > 1:
-        config.generate_stacked_fields(load_from_files=False, results_in_memory=results_in_memory)
+        config.generate_stacked_fields(load_from_files=load_from_files, results_in_memory=results_in_memory)
             
     # need to free up memory for next config
     config.clear_results()
