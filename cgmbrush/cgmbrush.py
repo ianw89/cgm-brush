@@ -31,6 +31,8 @@ from cgmbrush.constants import *
 from cgmbrush.cosmology import cosmology as cosmo
 from cgmbrush.cosmology import halo as halo
 
+from memory_profiler import profile
+
 ########################################
 # Histogram functions
 ########################################
@@ -370,7 +372,7 @@ class BolshoiProvider(SimulationProvider):
 ########################################
 # Convolution Functions
 ########################################
-
+#@profile
 def my_convolve(a, b):
     """FFT convolve. Assumes a is the bigger 2D array and b is the smaller 2D mask."""
     halfwidth = int(b.shape[0] / 2)
@@ -966,7 +968,7 @@ def T_anisotropy(DM, T_vir, z):
     
     return dT
 
-
+@profile
 def convolve_DM_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
     
     totalcellArea4 = sum(sum(mask)) * ((cellsize)**2)
@@ -1037,7 +1039,7 @@ def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, b
 
     return convolution, conv_rad, addition_masks, Tvir_avg
 
-
+@profile
 def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float, per_bin_func):
     """
     Performs a convolution between halo positions (via the haloArray parameter) and profile (via the profile parameter).
@@ -1149,6 +1151,7 @@ def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass
 
 
 # Function subtracts and adds halos
+@profile
 def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed_coarse,
                        addition_halo_profile: CGMProfile,scaling_radius,resolution,sigma_gauss,width_sinc):
     

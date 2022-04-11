@@ -16,27 +16,27 @@ configurations = [
     #Configuration(NFWProfile(), 1, provider=provider, resolution=2),
     #Configuration(NFWProfile(), 1, provider=provider, resolution=4),
     #Configuration(NFWProfile(), 1, provider=provider, resolution=8),
+    #Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(NFWProfile(), 1, provider=provider, resolution=16),
     Configuration(NFWProfile(), 1, provider=provider, resolution=32),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=16),
 
     #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1),
     #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2),
     #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=4),
     #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32),
+    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16),
+    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32),
 
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32, den_grid_size=512),
+    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32, den_grid_size=512),
 
     #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=1),
     #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=2),
     #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=4),
     #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=16),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=32),
+    #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=16),
+    #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=32),
 
 # Not used in paper
     #Configuration(TophatProfile(), 1, provider=provider, resolution=1),
@@ -51,22 +51,22 @@ configurations = [
     #Configuration(FireProfile(), 1, provider=provider, resolution=2),
     #Configuration(FireProfile(), 1, provider=provider, resolution=4),
     #Configuration(FireProfile(), 1, provider=provider, resolution=8),
-    Configuration(FireProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(FireProfile(), 1, provider=provider, resolution=16),
-    Configuration(FireProfile(), 1, provider=provider, resolution=32),
+    #Configuration(FireProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(FireProfile(), 1, provider=provider, resolution=16),
+    #Configuration(FireProfile(), 1, provider=provider, resolution=32),
 
     #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=1),
     #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=2),
     #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=4),
     #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=16),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=32),
+    #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=16),
+    #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=32),
 
 ]
 
 for config in configurations:
-    config.datestamp = '2022-04-04'
+    config.datestamp = '2022-04-06'
     config.seed = seed
 
     config.run(trace=trace, load_from_files=load_from_files)
