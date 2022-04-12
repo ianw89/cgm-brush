@@ -1753,7 +1753,6 @@ class Configuration:
 
         return self.stacked_final_field
 
-
     def generate_stacked_fields(self, results_in_memory=True, load_from_files=False):
 
         #translated_file = self.get_filename() + "_translated"

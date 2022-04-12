@@ -10,6 +10,19 @@ import matplotlib.pyplot as plt
 import math
 from matplotlib.patches import Rectangle
 
+SMALL_SIZE = 8
+MEDIUM_SIZE = 10
+BIGGER_SIZE = 16
+XBIG_SIZE = 20
+
+# Plotting Defaults
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=BIGGER_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=BIGGER_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=XBIG_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 def density_plot(axis, field, vmin: int, vmax: int, name: str):
     a = axis.imshow(field, vmin = vmin, vmax = vmax)
