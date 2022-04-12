@@ -4,6 +4,10 @@ from matplotlib.patches import Rectangle
 from cgmbrush.cgmbrush import *  #need this because of saveFig call
 
 
+def radial_distances_kpc(cellsize, num_values):
+    MpctoKpc =1000
+    return MpctoKpc * (0.5 + np.arange(0, num_values)) * cellsize    
+
 ''' This plots the radial profile.  
 error = True makes same assumptions as Khan++2022 to compute the error  (data from a precomputation of the error of PDF is included)
 xstart and xend
@@ -42,7 +46,7 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
     xmin = 0 #0.5*extent/series[0][0].shape[1] #half a cell
     #x_axis = np.sqrt(2)*MpctoKpc*np.linspace(xmin, extent-xmin, series[0][0].shape[1])
     dx = (provider.Lbox/grid_size)  #cell size
-    x_axis = MpctoKpc*(0.5+np.arange(0, series[0][0].shape[1]))*dx     
+    x_axis = radial_distances_kpc(dx, series[0][0].shape[1])
     # Adnan's old version x_axis = np.sqrt(2)*MpctoKpc*np.linspace(0, extent, series[0][0].shape[1])
 
     for i in range(plots_to_make):
