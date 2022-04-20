@@ -13,12 +13,9 @@ error = True makes same assumptions as Khan++2022 to compute the error  (data fr
 xstart and xend
 M_chosen are mass bins
 '''
-def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider, avg_mass_ar, ylims):
+def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider, avg_mass_ar, ylims, name):
 
-    orig_den_256 = provider.get_density_field(0, 256)
-
-    # Mean DM of single box
-    mean_DM=np.mean(orig_den_256)
+    mean_DM = np.mean(provider.get_density_field(0, 256))
 
     plots_to_make = len(M_chosen)
 
@@ -120,7 +117,7 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
     if (vir_rad_ar is not None):
         for i in range(plots_to_make):
             DM_Rad_axs[i].axvline(MpctoKpc*(vir_rad_ar[M_chosen[i]]), color='k', linestyle='--', linewidth=1)
-
+            
 
     # Rectangular patch for region too far inside resolution limit
     #DM_Rad_axs[0].add_patch(Rectangle((0,0), 45, 130,facecolor='yellow'))
@@ -137,7 +134,7 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
     errstr = ''
     if error:
         errstr = '_error'
-    name = 'DMvsRad_profiles_{}_{}{}.pdf'.format(resolution, x_end, errstr)
+    name = 'DMvsRad_{}_{}_{}{}.pdf'.format(name, resolution, x_end, errstr)
 
     saveFig(name, DM_Rad_fig, bbox_inches='tight')
 
@@ -146,12 +143,17 @@ def plot_DM_vs_Rad(x_axis, mean_DM, axis, massbin, series, plot_masks):
     
     # axis.set_title('Mass = %.1E' % Decimal(df[2][massbin]),fontsize=14)
     
-    for data in series:
+    for i in range(len(series)):
+        data = series[i]
         #print("terms = ", mean_DM, data[0][massbin,:]-mean_DM, x_axis,data[1][massbin,:])
         axis.semilogx(x_axis,data[0][massbin,:]-mean_DM,'-', label=data[2],lw=5,color=data[3])
 
         if plot_masks:
-            axis.semilogx(x_axis,data[1][massbin,:],'--', lw=2,color=data[3])
+            if (range(len(series)) == 2 and i == 0):
+                axis.semilogx(x_axis,data[1][massbin,:],'.', lw=2,color=data[3])
+            else:
+                axis.semilogx(x_axis,data[1][massbin,:],'--', lw=2,color=data[3])
+
 
 def plot_error_bars(r_star_ar, axis, *lines):
     for line in lines:
