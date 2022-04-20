@@ -146,13 +146,10 @@ def plot_DM_vs_Rad(x_axis, mean_DM, axis, massbin, series, plot_masks):
     for i in range(len(series)):
         data = series[i]
         #print("terms = ", mean_DM, data[0][massbin,:]-mean_DM, x_axis,data[1][massbin,:])
-        axis.semilogx(x_axis,data[0][massbin,:]-mean_DM,'-', label=data[2],lw=5,color=data[3])
+        axis.semilogx(x_axis,data[0][massbin,:]-mean_DM, data[4], label=data[2],lw=5, color=data[3])
 
         if plot_masks:
-            if (range(len(series)) == 2 and i == 0):
-                axis.semilogx(x_axis,data[1][massbin,:],'.', lw=2,color=data[3])
-            else:
-                axis.semilogx(x_axis,data[1][massbin,:],'--', lw=2,color=data[3])
+            axis.semilogx(x_axis,data[1][massbin,:], '--', lw=2,color=data[3])
 
 
 def plot_error_bars(r_star_ar, axis, *lines):
