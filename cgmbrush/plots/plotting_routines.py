@@ -55,8 +55,9 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
 
         assert plots_to_make == 3, "Error plots only coded to work with 3 mass bins right now"
 
-        ### For error bar plot
-        # Variances should be extracted from the redshift plots at redshift = 0.5.
+        ### For error bar plot 
+        # Variances should be extracted from the redshift plots at redshift = 0.5. 
+        # TODO would like to make this less error-prone and more user friendly
         var_STH_2 = 139
         var_STH2_2 = 99
         var_NFW_2 = 277
