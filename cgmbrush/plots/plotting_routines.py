@@ -13,7 +13,7 @@ error = True makes same assumptions as Khan++2022 to compute the error  (data fr
 xstart and xend
 M_chosen are mass bins
 '''
-def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider, avg_mass_ar, ylims, name):
+def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start, x_end, resolution, grid_size, M_chosen,  vir_rad_ar, provider, avg_mass_ar, ylims, name, y_label='DM - <DM> [pc cm$^{-3}$]'):
 
     mean_DM = np.mean(provider.get_density_field(0, 256))
 
@@ -38,6 +38,8 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
     DM_Rad_fig, DM_Rad_axs = plt.subplots(plots_to_make, 1,
                             gridspec_kw={'hspace': hspace, 'wspace': .2},figsize=(20,plots_to_make*10))
 
+    if plots_to_make == 1:
+        DM_Rad_axs = [DM_Rad_axs]
 
     # X-axis: mask grid has a diagonal of length sqrt(2) that needs to be factored in after the profile is calculated
     xmin = 0 #0.5*extent/series[0][0].shape[1] #half a cell
@@ -109,7 +111,7 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
     # legend
     DM_Rad_axs[0].legend(loc='right',prop={'size':28}, frameon=False)
     # DM_Rad_axs[0].set_ylabel('DM - <DM> [pc $cm^{-3}$]',fontsize=30)
-    DM_Rad_axs[math.floor((plots_to_make-1)/2)].set_ylabel('DM - <DM> [pc cm$^{-3}$]',fontsize=50)
+    DM_Rad_axs[math.floor((plots_to_make-1)/2)].set_ylabel(y_label,fontsize=50)
     # DM_Rad_axs[2].set_ylabel('DM - <DM> [pc cm$^{-3}$]',fontsize=30)
     DM_Rad_axs[plots_to_make-1].set_xlabel('Impact Parameter [kpc]',fontsize=50)
 
