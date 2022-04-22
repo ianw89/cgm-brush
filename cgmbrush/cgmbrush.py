@@ -147,7 +147,45 @@ def normDM(DM, z, resolution, Lbox):
   return DM *PcinMpc* Lbox/resolution * cosmo.elecD(z) /(1+z)**2  # Psc cm-2  
 
 
+def DM_statistics(field):
+    """
+    Prints off statistics on the DM distribution of the provided DM field for analysis purposes.
+    """
+    per = [50,80,95,99,99.9,99.99,99.999,99.9999]
 
+    with np.printoptions(precision=2):
+
+        print("DM FIELD STATISTICS")
+        print("Number of pixels: ", np.size(field))
+        print("Min: ", np.min(field))
+        print("Max: ", np.max(field))
+
+        print("200 bin histogram")
+        hist, bins = np.histogram(field, bins=200)
+        print(hist)
+        #print("Bins: ", bins)
+
+        print("Percentiles: ", per)
+        print(np.percentile(field, per))
+
+        print("Standard Deviations")
+        data = field
+        std = np.round(data.std(),2)
+        print('Raw:        ', std)
+        data = data[0:len(data)-1]
+        print('Drop 1:     ', np.round(data.std(),2))
+        data = data[0:len(data)-9]
+        print('Drop 10:    ', np.round(data.std(),2))
+        data = data[0:len(data)-90]
+        print('Drop 100:   ', np.round(data.std(),2))
+        #data = data[0:len(data)-900]
+        #print('Drop 1000:  ', np.round(data.std(),2))
+        #data = data[0:len(data)-9000]
+        #print('Drop 10000: ', np.round(data.std(),2))
+
+        print("\n\n- - - - - - - - - - - - - - - - - - - -\n")
+
+        return std
 
 
 ########################################
@@ -501,6 +539,7 @@ class TophatProfile(CGMProfile):
 
     def __init__(self):
         self.name = "tophat"
+        self.pretty_name = "Tophat"
         super().__init__()
 
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
@@ -519,6 +558,7 @@ class SphericalTophatProfile(CGMProfile):
 
     def __init__(self, rvir_factor=1):
         self.name = "STH"
+        self.pretty_name = "3D Tophat"
         self.rvir_factor = rvir_factor # how many rvir's should the tophat extend to
         super().__init__()
 
@@ -542,6 +582,7 @@ class NFWProfile(CGMProfile):
     def __init__(self):
         #print("Initialized NFW Profile")
         self.name = "NFW"
+        self.pretty_name = "NFW"
         super().__init__()
         self.vec_NFW2D = np.vectorize(self.NFW2D)
 
@@ -616,6 +657,7 @@ class FireProfile(CGMProfile):
     def __init__(self):
         #print("Initialized Fire Profile")
         self.name = "fire"
+        self.pretty_name = "FIRE"
         super().__init__()
 
     #This is the mask used to convolve the profile with halo postion
@@ -708,6 +750,7 @@ class PrecipitationProfile(CGMProfile):
     
     def __init__(self):
         self.name = "precipitation"
+        self.pretty_name = "Precipitation"
         super().__init__()
 
 
@@ -794,6 +837,7 @@ class PrecipitationProfile(CGMProfile):
         xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
 
         #Calculates the constant density need to conserve mass assuming this extends to XRvir times the virial radius
+        # TODO Print off % of mass that went to tophat vs the profile itself. Want to see it evolve for different mass bins
         neconst = 0
         if calc_neconst_flag == True:
             r_physkpc = np.logspace(0, np.log10(XRvir*rvir_physkpc), 500)#radial bin array 
