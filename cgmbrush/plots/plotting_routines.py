@@ -119,7 +119,9 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
     # Adding virial radii vertical line
     if (vir_rad_ar is not None):
         for i in range(plots_to_make):
-            DM_Rad_axs[i].axvline(MpctoKpc*(vir_rad_ar[M_chosen[i]]), color='k', linestyle='--', linewidth=1)
+            DM_Rad_axs[i].axvline(1*MpctoKpc*(vir_rad_ar[M_chosen[i]]), color='k', linestyle='--', linewidth=1)
+            #DM_Rad_axs[i].axvline(2*MpctoKpc*(vir_rad_ar[M_chosen[i]]), color='k', linestyle='--', linewidth=1)
+            #DM_Rad_axs[i].axvline(3*MpctoKpc*(vir_rad_ar[M_chosen[i]]), color='k', linestyle='--', linewidth=1)
             
 
     # Rectangular patch for region too far inside resolution limit

@@ -131,7 +131,7 @@ class halo():
     @classmethod
     def comoving_rvir(self, cosmo, Mhalo, z):
         """Get the co-moving radius for a halo of a given mass at a given redshift usign the Bryan+Norman '98 definition."""
-        return (1+z)*((Mhalo)**(1./3.) / self.Rvir_den(cosmo, z))
+        return (1+z) * (np.power(Mhalo, 1/3) / self.Rvir_den(cosmo, z))
 
     #comoving radius that is 200 times the matter density in Mpc  (very similar to comoving_rvir; not used by code)
     @classmethod

@@ -572,8 +572,7 @@ class SphericalTophatProfile(CGMProfile):
         fine_mask = r <= (self.rvir_factor * scaling_radius * scale_down * comoving_rvir / cellsize)
         fine_mask=fine_mask.astype(float)
         
-        # TODO r should always be less than Rv...
-        Rv = (scaling_radius * scale_down * comoving_rvir / cellsize)
+        Rv = (self.rvir_factor * scaling_radius * scale_down * comoving_rvir / cellsize)
         fine_mask = fine_mask * ((1-((r/Rv)**2))**(2))**(1./4.)
         return fine_mask
 
@@ -675,7 +674,8 @@ class FireProfile(CGMProfile):
         
         # x, y, z are cells, the computed r is therefor also in cells. 
         # rmax and Rinterp are in Mpc as per above, so divide to convert to cells. Epsilon is half a cellsize.
-        fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/cellsize, Rinterp/cellsize, rho0, 0.5)
+        epsilon_cells = 0.5
+        fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/cellsize, Rinterp/cellsize, rho0, epsilon_cells)
 
         project = np.vectorize(project_spherical_3Dto2D)   
 
@@ -736,6 +736,11 @@ class FireProfile(CGMProfile):
 
     # epsilon is to avoid divergence from center cell
     def fire_func(self, r, rmax, Rinterp, rho0, epsilon):
+        """r is the radius we are computing at (in cells)
+        rmax is a parameter (in cells)
+        Rinterp is another parameter (in cells)
+        rho0 is a density baseline; this won't matter later because we normalize in add_halos()
+        epsilon is an offset (in cells)"""
         result =  rho0 * np.exp(-r / rmax) * ((r + epsilon) / Rinterp)**-2  #Matt: the point 5 is to eliminate divergence in center, but before this was evalulated in cell sizes
         #print("Fire Projection: r={} cells rmax={} cells, Rinterp={} cells, rho0={}, result={}".format(r,rmax,Rinterp,rho0,result))
         return result
@@ -752,6 +757,44 @@ class PrecipitationProfile(CGMProfile):
         self.name = "precipitation"
         self.pretty_name = "Precipitation"
         super().__init__()
+
+        #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
+        self.fitarray = np.array([
+            [350, 8e12, 10, 0.5, 2.7,  0.73, 1.2e-1, 1.2, 3.8e-4,  2.1], \
+            [350, 8e12, 10, 0.3, 2.4,  0.74, 1.5e-1, 1.2, 4.2e-4, 2.1], \
+            [300, 5.1e12,  10,  0.5, 2.6,  0.72, 8.0e-2, 1.2, 2.3e-4,  2.1], \
+            [300, 5.1e12,  10,  0.3, 2.3, 0.73,  9.6e-2, 1.2, 2.6e-4,  2.1], \
+            [300, 5.1e12, 20, 0.5,  4.1,  0.71, 4.3e-2, 1.1, 1.4e-4, 2.1], \
+            [300, 5.1e12, 20, 0.3, 3.6,  0.71, 5.1e-2, 1.2, 1.6e-4, 2.1], \
+            [250, 2.9e12, 10,  0.5, 2.8, 0.72, 4.2e-2, 1.2, 1.1e-4, 2.2], \
+            [250, 2.9e12, 10,  0.3, 2.4,  0.72, 5.1e-3, 1.2, 1.3e-4, 2.2], \
+            [220, 2.0e12,  10,  0.5, 3.0,  0.71, 2.5e-2, 1.2, 6.1e-5, 2.2], \
+            [220, 2.0e12,  10, 0.3, 2.6,  0.71, 3.1e-2, 1.2, 7.2e-5, 2.2], \
+            [220, 2.0e12,  20,  0.5, 4.8, 0.70, 1.3e-2, 1.1, 3.4e-5, 2.2], \
+            [220, 2.0e12,  20,  0.3, 4.1,  0.70, 1.6e-2, 1.1, 4.2e-5, 2.2], \
+            [180, 1.1e12, 10,  0.5, 4.0,  0.71, 8.7e-3, 1.2, 1.6e-5, 2.2], \
+            [180, 1.1e12, 10,  0.3, 3.4,  0.71, 1.1e-2, 1.2, 2.1e-5, 2.2], \
+            [150, 6.3e11, 10,  0.5, 6.1,  0.68, 2.8e-3, 1.2, 7.4e-6, 2.3], \
+            [150, 6.3e11, 10, 0.3, 4.9,  0.68, 3.4e-3, 1.1, 9.8e-6, 2.2], \
+            [150, 6.3e11, 10, 0.1, 3.0, 0.69, 8.1e-3, 1.2, 1.9e-5, 2.2], \
+            [120, 3.2e11, 10, 0.5, 6.1,  0.69, 1.4e-3, 1.2, 2.3e-6, 2.2], \
+            [120, 3.2e11, 10, 0.3, 5.0,  0.70, 1.9e-3, 1.2, 2.9e-6, 2.2], \
+            [120, 3.2e11, 10, 0.1, 3.1,  0.71, 3.7e-3, 1.2, 5.1e-6, 2.2], \
+            [120, 3.2e11, 20, 0.5, 9.6,  0.69, 7.0e-4, 1.2, 1.2e-6, 2.2],\
+            [120, 3.2e11, 20, 0.3, 7.9,  0.70, 9.5e-4, 1.2, 1.5e-6, 2.2],\
+            [120, 3.2e11, 20, 0.1, 4.9,  0.71, 1.9e-3, 1.2, 2.7e-6, 2.2]
+            ])
+
+        #Parameterization of percipitation model used in CGMBrush.  
+        self.XRvir = 3 # XRvir is how many virial radii to go out for extended profile (this makes it so integrates to total mass within this radius)
+
+        #Zmetal is the metalicity; tratcrit is the coolin crieteria -- both of these don't need to change
+        self.Z_METAL = 0.3  #Table also has 0.1 and 0.5 options (although 0.1 is only for lower mass halos)
+        self.TRATCRIT = 10  #cooling time to dynamical time ratio that specifies model.  This is only option for below table.  See Voit et al 2018 for more options
+
+        #chooses metalicity and cooling criterion parameters we will interpolate on
+        self.reducedarr = self.fitarray[(self.fitarray[:, 3] == self.Z_METAL) & (self.fitarray[:, 2] ==  self.TRATCRIT)]
+        self.reducedarr = self.reducedarr[::-1] #reverses array       
 
 
     #density profile in comoving units
@@ -776,108 +819,71 @@ class PrecipitationProfile(CGMProfile):
 
     #profile in physical units at z=0 (from appendix of https://arxiv.org/pdf/1811.04976.pdf) in physical distance units (In contrast to all other parts of code)
     #the constant density out to XRvir times the virial radius is so that the total mass in baryons is included
-    def precipitation_func(self, rphyskpc, n1,n2,xi1,xi2,neconstant, rvir_physkpc,XRvir, rmax, epsilon):
-        x = (np.array(rphyskpc) <= XRvir*rvir_physkpc)
-        y = (np.array(rphyskpc) <= rmax)
-        # TODO I got this line broken from Adnan and had to guess where the ) goes to make it valid
-        final_ar =   y.astype(int)/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2) + x.astype(int)*neconstant
-        return final_ar
+    def precipitation_func(self, rphyskpc, n1, n2, xi1, xi2, neconstant, rvir_physkpc, XRvir, rmax, epsilon):
+
+        # Make sure the power law contributes only up to rmax, and tophat only up to XRvir * Rvir
+        points_in_tophat_limit = (np.array(rphyskpc) <= XRvir*rvir_physkpc).astype(int) # makes an array for each point in the rphyskpc array, 1 if inside limit, 0 for outside
+        points_in_powerlaw_limit = (np.array(rphyskpc) <= rmax).astype(int) # similar to above but for the rmax cutoff for power law part of profile
+        
+        return points_in_powerlaw_limit/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2) + points_in_tophat_limit*neconstant
 
     #outputs percipitation model parmameters plus the constnat d
     def get_precipitation_params(self, log10Mhalo: float, comoving_rvir_kpc: float, redshift: float, calc_neconst_flag = True):
         Mvir = 10**log10Mhalo
+        M_bary = Mvir * cosmo.fb
         log10Mhalo_z0 = log10Mhalo + 3/2*np.log10(1+redshift)  #This is how the Voit profile maps in redshift (the gas profile is fixed at vcir)
         
-
-        #Parameterization of percipitation model used in CGMBrush.  
-        XRvir = 3 # XRvir is how many virial radii to go out for extended profile (default for CGMBrush is 2; this makes it so integrates to total mass within this radius)
-        #Zmetal is the metalicity; tratcrit is the coolin crieteria -- both of these don't need to change
-        Z_METAL = 0.3  #Table also has 0.1 and 0.5 options (although 0.1 is only for lower mass halos)
-        TRATCRIT = 10  #cooling time to dynamical time ratio that specifies model.  This is only option for below table.  See Voit et al 2018 for more options
-
         rvir_physkpc = comoving_rvir_kpc/(1+redshift)
 
-        #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
-        fitarray = np.array([[350, 8e12, 10, 0.5, 2.7,  0.73, 1.2e-1, 1.2, 3.8e-4,  2.1], \
-            [350, 8e12, 10, 0.3, 2.4,  0.74, 1.5e-1, 1.2, 4.2e-4, 2.1], \
-            [300, 5.1e12,  10,  0.5, 2.6,  0.72, 8.0e-2, 1.2, 2.3e-4,  2.1], \
-            [300, 5.1e12,  10,  0.3, 2.3, 0.73,  9.6e-2, 1.2, 2.6e-4,  2.1], \
-            [300, 5.1e12, 20, 0.5,  4.1,  0.71, 4.3e-2, 1.1, 1.4e-4, 2.1], \
-            [300, 5.1e12, 20, 0.3, 3.6,  0.71, 5.1e-2, 1.2, 1.6e-4, 2.1], \
-            [250, 2.9e12, 10,  0.5, 2.8, 0.72, 4.2e-2, 1.2, 1.1e-4, 2.2], \
-            [250, 2.9e12, 10,  0.3, 2.4,  0.72, 5.1e-3, 1.2, 1.3e-4, 2.2], \
-            [220, 2.0e12,  10,  0.5, 3.0,  0.71, 2.5e-2, 1.2, 6.1e-5, 2.2], \
-            [220, 2.0e12,  10, 0.3, 2.6,  0.71, 3.1e-2, 1.2, 7.2e-5, 2.2], \
-            [220, 2.0e12,  20,  0.5, 4.8, 0.70, 1.3e-2, 1.1, 3.4e-5, 2.2], \
-            [220, 2.0e12,  20,  0.3, 4.1,  0.70, 1.6e-2, 1.1, 4.2e-5, 2.2], \
-            [180, 1.1e12, 10,  0.5, 4.0,  0.71, 8.7e-3, 1.2, 1.6e-5, 2.2], \
-            [180, 1.1e12, 10,  0.3, 3.4,  0.71, 1.1e-2, 1.2, 2.1e-5, 2.2], \
-            [150, 6.3e11, 10,  0.5, 6.1,  0.68, 2.8e-3, 1.2, 7.4e-6, 2.3], \
-            [150, 6.3e11, 10, 0.3, 4.9,  0.68, 3.4e-3, 1.1, 9.8e-6, 2.2], \
-            [150, 6.3e11, 10, 0.1, 3.0, 0.69, 8.1e-3, 1.2, 1.9e-5, 2.2], \
-            [120, 3.2e11, 10, 0.5, 6.1,  0.69, 1.4e-3, 1.2, 2.3e-6, 2.2], \
-            [120, 3.2e11, 10, 0.3, 5.0,  0.70, 1.9e-3, 1.2, 2.9e-6, 2.2], \
-            [120, 3.2e11, 10, 0.1, 3.1,  0.71, 3.7e-3, 1.2, 5.1e-6, 2.2], \
-            [120, 3.2e11, 20, 0.5, 9.6,  0.69, 7.0e-4, 1.2, 1.2e-6, 2.2],\
-            [120, 3.2e11, 20, 0.3, 7.9,  0.70, 9.5e-4, 1.2, 1.5e-6, 2.2],\
-            [120, 3.2e11, 20, 0.1, 4.9,  0.71, 1.9e-3, 1.2, 2.7e-6, 2.2]])
-
-        #chooses metalicity and cooling criterion parameters we will interpolate on
-        reducedarr = fitarray[(fitarray[:, 3] == Z_METAL) & (fitarray[:, 2] ==  TRATCRIT)]
-        reducedarr = reducedarr[::-1] #reverses array           
-
-
-
         #better interpolation
-        logn1 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(log10Mhalo_z0)   
+        logn1 = interp1d(np.log10(self.reducedarr[:, 1]), np.log10(self.reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(log10Mhalo_z0)   
         n1 = 10**logn1
-        xi1 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 7], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
-        logn2 = interp1d(np.log10(reducedarr[:, 1]), np.log10(reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(log10Mhalo_z0)   
+        xi1 = interp1d(np.log10(self.reducedarr[:, 1]), self.reducedarr[:, 7], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
+        logn2 = interp1d(np.log10(self.reducedarr[:, 1]), np.log10(self.reducedarr[:, 8]), kind='linear', fill_value='extrapolate')(log10Mhalo_z0)   
         n2 = 10**logn2
-        xi2 = interp1d(np.log10(reducedarr[:, 1]), reducedarr[:, 9], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
+        xi2 = interp1d(np.log10(self.reducedarr[:, 1]), self.reducedarr[:, 9], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
 
         #Calculates the constant density need to conserve mass assuming this extends to XRvir times the virial radius
-        # TODO Print off % of mass that went to tophat vs the profile itself. Want to see it evolve for different mass bins
         neconst = 0
         if calc_neconst_flag == True:
-            r_physkpc = np.logspace(0, np.log10(XRvir*rvir_physkpc), 500)#radial bin array 
+            r_physkpc = np.logspace(0, np.log10(self.XRvir*rvir_physkpc), 500)#radial bin array 
             #print("max r considered = ",  r_physkpc[-1], rvir_physkpc)
             #Voit 2018 fitting formulae 
             rhoarr = np.array(1/np.sqrt((n1*(r_physkpc)**-xi1)**-2 + (n2*(r_physkpc/100)**-xi2)**-2))
 
-      
-
             #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
             #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
-            rhointerp = interp1d(np.log(r_physkpc), 4.*np.pi*r_physkpc**3*rhoarr, kind='cubic')
+            rhointerp = interp1d(np.log(r_physkpc), 4/3*np.pi*r_physkpc**3*rhoarr, kind='cubic') 
 
             #print("n1 n2, xi1, xi2", n1, n2, xi1, xi2)
             #print("rhoarr at 10 kpc = ", rhointerp(np.log(10))/( 4.*np.pi*10**3))
             #print("rhoarr at 100 kpc = ", rhointerp(np.log(100))/( 4.*np.pi*10**6))
-
             
             conv = (msun/(mu*mprot))/kpc**3
             mtotal = 0
-            rmax = XRvir*rvir_physkpc*1.1 #set to just a little larger
+            rmax = self.XRvir*rvir_physkpc*1.1 #set to just a little larger
             
             for i in range(1, len(r_physkpc)):
                 mtotal += integrate.quad(rhointerp, np.log(r_physkpc[i-1]), np.log(r_physkpc[i]))[0]/conv
-                if mtotal > Mvir*cosmo.fb:
+                if mtotal > M_bary:
+                    #print(" Total mass fulfilled early")
                     rmax = r_physkpc[i]
                     break
             #print("mtot percip in 1e12 = ", mtotal/cosmo.fb/1e12, 10**(log10Mhalo-12))
         
-            #add in rest of mass (this should compensate for actual halo mass and not rescaled)
-            if rmax > XRvir*rvir_physkpc:
-                neconst =(Mvir*cosmo.fb-mtotal)/(4.*np.pi/3.*(XRvir*rvir_physkpc)**3)*conv      #Matt: Why is this not 4pi/3?????????....but make sure this is okay, but I added a 3 on 3/17... seems like mass average should be off
+            # Add in rest of mass (this should compensate for actual halo mass and not rescaled)
+            if rmax > self.XRvir*rvir_physkpc:
+                neconst = (M_bary-mtotal) / (4.*np.pi/3.*(self.XRvir*rvir_physkpc)**3) * conv    
         
+            #print(" Mass fraction in non-tophat: {:.3f}".format(mtotal/M_bary))
 
-        return n1, n2, xi1, xi2, neconst,  XRvir, rmax
+        return n1, n2, xi1, xi2, neconst, self.XRvir, rmax
         #return rkpc, rhoarr
 
     #outputs mask; All length scales have to be converted into units of cellsize
     def get_mask(self, mass: float, comoving_rvir_Mpc: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
 
+        scale_down = 2 # TODO really gotta deal with this code smell
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
         comoving_rvir_kpc = KPCINMPC * comoving_rvir_Mpc
@@ -889,17 +895,13 @@ class PrecipitationProfile(CGMProfile):
         #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
 
         #integrate to project to 2D
-        f1= lambda x, y, z: self.precipitation_func(((x**2+y**2+z**2)**.5)*cellsize_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, comoving_rvir_kpc/(1+redshift),XRvir, rmax, 0.5*cellsize_kpc)
+        func = lambda x, y, z: self.precipitation_func(((x**2+y**2+z**2)**.5)*cellsize_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, scale_down*comoving_rvir_kpc/(1+redshift),XRvir, rmax, 0.5*cellsize_kpc)
                     
         vec_integral=np.vectorize(project_spherical_3Dto2D)
         
-        mask1 = vec_integral(f1,x,y,np.sqrt((XRvir*comoving_rvir_kpc*(1+redshift)/cellsize_kpc)**2 - (x**2+y**2))) #found big mistake here
-        r=np.sqrt(x**2+y**2) # * scale_down
-        mask1=mask1.astype(float)
-        mask1[r > (XRvir*comoving_rvir_kpc*(1+redshift)/cellsize_kpc)]=0         
-            
-        return mask1
-
+        interation_max = (scale_down*XRvir*comoving_rvir_kpc*(1+redshift)) / cellsize_kpc
+        mask = vec_integral(func,x,y,interation_max)
+        return mask.astype(float)
 
 
 
@@ -1025,7 +1027,7 @@ def convolve_DM_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
         return convolution, final_mask
     else:
         # If the mass bin is empty, then skip convolution and return 0's
-        return np.zeros(halo_cell_pos.shape), mask
+        return np.zeros(halo_cell_pos.shape), mask # BUG in this case the mask is not properly normalized
 
 def convolve_dT_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
 
