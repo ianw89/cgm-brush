@@ -1221,10 +1221,13 @@ def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,de
     return halos_added, halosremoved_fine,addition_profile,addition_profile_masks,halos_removed_coarse,virial_rad,halo_masses
     
 
-
-# Multiple Redshift Convolution
 def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile: CGMProfile,
                              addition_profile: CGMProfile,scaling_radius,resolution, halo):
+    """
+    This function runs the convolution code (subtraction and addition) and returns all the results. It will run for every redshift given serially.
+
+    Outputs: a tuple with halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, virial radii, halo masses, subtraction field, subtraction field smoothed
+    """
 
     # Details of halo profiles
 
@@ -1265,26 +1268,6 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         
     # returns halo array and masks used to add halos back
     return halos_reAdded,halo_masks,halos_subtraction_coarse,halo_field,halos_removed_fields, conv_all_steps[5],conv_all_steps[6],halos_removed[2],halos_removed[3]
-
-
-
-# TODO clean this up, we've basically made it do nothing over halo_subtraction_addition
-def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, min_mass, max_mass,
-                                       log_bins, subtraction_halo_profile, addition_profile: CGMProfile, scaling_radius, resolution):
-    """
-    This function runs the convolution code (subtraction and addition).
-
-    Outputs: halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, virial radii, halo masses
-    """
-    
-    # halo array
-    t = halo_subtraction_addition(sim_provider,den_grid_size,RS_values,min_mass,max_mass,
-                                       log_bins,subtraction_halo_profile,addition_profile,scaling_radius,resolution, halo)
-    
-    # Outputs: 
-    # halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, virial radii, halo masses
-    return t
-
 
 
 
@@ -1578,10 +1561,10 @@ class Configuration:
     def convert_and_save(self):
         """Makes results available as a dictionary, which is how the .npz archive is formatted. 
 
-        hist_profile returns a tuple. Reading .npy files gets a tuple or array. We want everything converted to dictionary and npz.
+        halo_subtraction_addition returns a tuple. Reading .npy files gets a tuple or array. We want everything converted to dictionary and npz.
         
         Note that .npz archives are loaded lazilly, which is important for managing memory usage."""
-        # hist_profile returns a tuple. Reading .npy files gets a tuple or array. 
+        # halo_subtraction_addition returns a tuple. Reading .npy files gets a tuple or array. 
         if isinstance(self.results, np.ndarray):
             self.results = tuple(self.results)
         if type(self.results) is tuple:
@@ -1701,9 +1684,9 @@ class Configuration:
                 pr = cProfile.Profile()
                 pr.enable()
 
-            self.results = hist_profile(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
+            self.results = halo_subtraction_addition(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
-                                                self.addition_profile, self.scaling_radius, self.resolution)
+                                                self.addition_profile, self.scaling_radius, self.resolution, halo)
             
             self.convert_and_save()
             self.npz = np.load(file_path, allow_pickle=True)
