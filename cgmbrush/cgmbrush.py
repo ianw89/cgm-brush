@@ -505,6 +505,9 @@ class CGMProfile(metaclass=abc.ABCMeta):
 
     def __init__(self):
         self.debug = False
+        self.name = ''
+        self.pretty_name = ''
+        self.parameter_name_str = ''
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -513,7 +516,7 @@ class CGMProfile(metaclass=abc.ABCMeta):
         NotImplemented)
 
     @abc.abstractmethod
-    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
         """Constructs and returns a 2D mask to convolve with the halo locations
            for the specified halo parameters and redshift."""
         raise NotImplementedError
@@ -522,27 +525,30 @@ class MassDependentProfile(CGMProfile):
     """Profile to use when you want to use different profiles for different mass ranges."""
 
     def __init__(self, lower_profile: CGMProfile, higher_profile: CGMProfile, cutoff_mass: float):
+        super().__init__()
         self.name = lower_profile.name + "_and_" + higher_profile.name + "_{:.1f}".format(math.log10(cutoff_mass))
         self.lower_profile = lower_profile
         self.higher_profile = higher_profile
         self.cutoff_mass = cutoff_mass
-        super().__init__()
 
-    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
         if mass <= self.cutoff_mass:
-            return self.lower_profile.get_mask(mass, comoving_rvir, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
+            return self.lower_profile.get_mask(mass, comoving_rvir, redshift, resolution, cellsize, fine_mask_len)
         else:
-            return self.higher_profile.get_mask(mass, comoving_rvir, redshift, resolution, scaling_radius, cellsize, fine_mask_len)
+            return self.higher_profile.get_mask(mass, comoving_rvir, redshift, resolution, cellsize, fine_mask_len)
 
 
 class TophatProfile(CGMProfile):
 
-    def __init__(self):
+    def __init__(self, rvir_factor=1):
+        super().__init__()
         self.name = "tophat"
         self.pretty_name = "Tophat"
-        super().__init__()
+        self.rvir_factor = rvir_factor # how many rvir's should the tophat extend to
+        if (rvir_factor > 1):
+            self.parameter_name_str = str(rvir_factor)
 
-    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
         # fine mask
         # fine mask size has to correspond to the size of the mask that I eventually trim
@@ -551,38 +557,40 @@ class TophatProfile(CGMProfile):
         
         # TODO Why are we multiplying by scale_down
         r = (x**2+y**2)**.5
-        fine_mask = r <= (scaling_radius * scale_down * comoving_rvir / cellsize) 
+        fine_mask = r <= (self.rvir_factor * scale_down * comoving_rvir / cellsize) 
         return fine_mask.astype(float)
 
 class SphericalTophatProfile(CGMProfile):
 
     def __init__(self, rvir_factor=1):
+        super().__init__()
         self.name = "STH"
         self.pretty_name = "3D Tophat"
         self.rvir_factor = rvir_factor # how many rvir's should the tophat extend to
-        super().__init__()
+        if (rvir_factor > 1):
+            self.parameter_name_str = str(rvir_factor)
 
-    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
         scale_down = 2  # making the grid coarser    
 
         r = (x**2+y**2)**.5
 
-        fine_mask = r <= (self.rvir_factor * scaling_radius * scale_down * comoving_rvir / cellsize)
+        fine_mask = r <= (self.rvir_factor * scale_down * comoving_rvir / cellsize)
         fine_mask=fine_mask.astype(float)
         
-        Rv = (self.rvir_factor * scaling_radius * scale_down * comoving_rvir / cellsize)
+        Rv = (self.rvir_factor * scale_down * comoving_rvir / cellsize)
         fine_mask = fine_mask * ((1-((r/Rv)**2))**(2))**(1./4.)
         return fine_mask
 
 class NFWProfile(CGMProfile):
     
     def __init__(self):
+        super().__init__()
         #print("Initialized NFW Profile")
         self.name = "NFW"
         self.pretty_name = "NFW"
-        super().__init__()
         self.vec_NFW2D = np.vectorize(self.NFW2D)
 
     def get_analytic_profile(self, mass: float, redshift: float):
@@ -610,7 +618,7 @@ class NFWProfile(CGMProfile):
 
 
 
-    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
         #print("Making NFW mask for M = ", mass)
         # TODO ? add redshift to the function above ?
         R_s= comoving_rvir/(halo.halo_conc(cosmo, redshift,mass)*cellsize)  
@@ -654,13 +662,13 @@ class FireProfile(CGMProfile):
     """
     
     def __init__(self):
+        super().__init__()
         #print("Initialized Fire Profile")
         self.name = "fire"
         self.pretty_name = "FIRE"
-        super().__init__()
 
     #This is the mask used to convolve the profile with halo postion
-    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
          
@@ -754,9 +762,9 @@ class PrecipitationProfile(CGMProfile):
     """
     
     def __init__(self):
+        super().__init__()
         self.name = "precipitation"
         self.pretty_name = "Precipitation"
-        super().__init__()
 
         #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
         self.fitarray = np.array([
@@ -881,7 +889,7 @@ class PrecipitationProfile(CGMProfile):
         #return rkpc, rhoarr
 
     #outputs mask; All length scales have to be converted into units of cellsize
-    def get_mask(self, mass: float, comoving_rvir_Mpc: float, redshift: float, resolution: int, scaling_radius: int, cellsize: float, fine_mask_len: int):
+    def get_mask(self, mass: float, comoving_rvir_Mpc: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
         scale_down = 2 # TODO really gotta deal with this code smell
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
@@ -911,8 +919,7 @@ class PrecipitationProfile(CGMProfile):
 # haloArray: dataframe of halos, sorted by mass.
 # bin_markers: array giving the indexes of halos at the edges of mass bins
 # profile: tophat, NFW etc
-# scaling_radius: scale radius for tophat halos
-def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile: CGMProfile, scaling_radius: float, redshift: float, halo):
+def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile: CGMProfile, redshift: float, halo):
     
     # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
     df = haloArray
@@ -946,7 +953,7 @@ def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/cosmo.h
         conv_rad[j] = halo.comoving_rvir(cosmo, Mvir_avg[j], redshift) # comoving radius
 
-        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, 1, scaling_radius, cellsize, fine_mask_len)
+        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, 1, cellsize, fine_mask_len)
 
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
@@ -1048,7 +1055,7 @@ def convolve_dT_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
         return np.zeros(halo_cell_pos.shape), mask
 
 
-def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
+def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float):
     """
     Creates a map of dispersion measure.
 
@@ -1057,15 +1064,14 @@ def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, b
     resolution: resolution of the halo field
     bin_markers: array giving the indexes of halos at the edges of mass bins
     profile: tophat, NFW etc
-    scaling_radius: scale radius for tophat halos
     redshift: redshift of halos
     """
 
-    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, scaling_radius, redshift, convolve_DM_for_bin)
+    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_DM_for_bin)
             
     return convolution*(Mpc**-3 *10**6)*nPS*cosmo.fb, conv_rad, addition_masks, Mvir_avg
 
-def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float):
+def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float):
     """
     Creates a map of CBM temperature anisotropy from the provided halos.
     
@@ -1074,17 +1080,16 @@ def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, b
     resolution: resolution of the halo field
     bin_markers: array giving the indexes of halos at the edges of mass bins
     profile: tophat, NFW etc
-    scaling_radius: scale radius for tophat halos
     redshift: redshift of halos
     """
 
-    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, scaling_radius, redshift, convolve_dT_for_bin)
+    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_dT_for_bin)
     Tvir_avg = T_vir(Mvir_avg, redshift) # TODO duplicate calculation 
 
     return convolution, conv_rad, addition_masks, Tvir_avg
 
 
-def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, scaling_radius: int, redshift: float, per_bin_func):
+def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float, per_bin_func):
     """
     Performs a convolution between halo positions (via the haloArray parameter) and profile (via the profile parameter).
 
@@ -1093,7 +1098,6 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
     resolution: int of resolution, will be multiplied by 1024
     bin_markers: array giving the indexes of halos at the edges of mass bins
     profile: tophat, NFW etc
-    scaling_radius: scale radius for tophat halos
     """
     
     no_cells = provider.halofieldresolution * resolution
@@ -1130,7 +1134,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         Mvir_avg[j] = np.mean((haloArray['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h  #Matt: Would be much better to put in h at time we read in file
         conv_rad[j] = halo.comoving_rvir(cosmo, Mvir_avg[j], redshift) # comoving radius
 
-        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, scaling_radius, cellsize, fine_mask_len)
+        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, cellsize, fine_mask_len)
 
         if profile.debug:
             with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
@@ -1171,14 +1175,14 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
 # Halos removed field
 
 #This function combines many steps of subtraction and smoothing to yield a density field from which halos have been removed
-def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc, halo):
+def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,resolution,sigma_gauss,width_sinc, halo):
     
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
     df= halo_array_for_convolution[0]
     bin_markers= halo_array_for_convolution[1]
     
     # convolve halos
-    subtraction_profile = subtract_halos(provider, df,bin_markers,subtraction_halo_profile,scaling_radius,redshift, halo)
+    subtraction_profile = subtract_halos(provider, df,bin_markers,subtraction_halo_profile,redshift, halo)
     assert not np.any(np.isnan(subtraction_profile))
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1, provider.halofieldresolution)
     assert not np.any(np.isnan(subtraction_profile_smooth))
@@ -1196,7 +1200,7 @@ def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass
 
 # Function subtracts and adds halos
 def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed_coarse,
-                       addition_halo_profile: CGMProfile,scaling_radius,resolution,sigma_gauss,width_sinc):
+                       addition_halo_profile: CGMProfile,resolution,sigma_gauss,width_sinc):
     
     # setup inputs for convolution
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
@@ -1204,7 +1208,7 @@ def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,de
     bin_markers= halo_array_for_convolution[1]
     
     # convolve halos for adding back
-    addition_profile_initial=make_halo_DM_map(provider, df,resolution,bin_markers,addition_halo_profile,scaling_radius,redshift)
+    addition_profile_initial=make_halo_DM_map(provider, df,resolution,bin_markers,addition_halo_profile,redshift)
     addition_profile = addition_profile_initial[0]
     addition_profile_masks=addition_profile_initial[2]
     
@@ -1222,7 +1226,7 @@ def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,de
     
 
 def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile: CGMProfile,
-                             addition_profile: CGMProfile,scaling_radius,resolution, halo):
+                             addition_profile: CGMProfile,resolution, halo):
     """
     This function runs the convolution code (subtraction and addition) and returns all the results. It will run for every redshift given serially.
 
@@ -1252,10 +1256,10 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         density_field = sim_provider.get_density_field(redshift, den_grid_size)
         halos = sim_provider.get_halos(redshift)
 
-        halos_removed = halos_removed_field(sim_provider, halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,scaling_radius,resolution,sigma_gauss,width_sinc, halo)
+        halos_removed = halos_removed_field(sim_provider, halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,resolution,sigma_gauss,width_sinc, halo)
               
         conv_all_steps = convolution_all_steps_final(sim_provider, halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed[0],
-                           addition_profile,scaling_radius,resolution,sigma_gauss*resolution,width_sinc)
+                           addition_profile,resolution,sigma_gauss*resolution,width_sinc)
         
         
         halos_reAdded[i,:,:] = conv_all_steps[0]
@@ -1487,11 +1491,10 @@ class Configuration:
     """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, scaling_radius, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_array=[0]):
+    def __init__(self, addition_profile: CGMProfile, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_array=[0]):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
-        self.scaling_radius = scaling_radius
         self.provider = provider
         self.resolution = resolution # actual fine grids are generally this x provider.halofieldresolution
         self.folder = folder
@@ -1547,9 +1550,14 @@ class Configuration:
             self.stacked_npz.close()
 
     def get_filename(self):
+        """
+        Constructs a filename for this configuration. It is important that this precription stays stable. 
+        
+        Unfortunately the present implementation does not account for every parameter and so this is imperfect, but works for most purposes.
+        """
         scaling = ''
-        if self.scaling_radius > 1:
-            scaling = '_' + str(self.scaling_radius)
+        if self.addition_profile.parameter_name_str: 
+            scaling = str(self.addition_profile.parameter_name_str)
         z_str = ''
         if self.RS_array != [0]:
             z_str = '_z'
@@ -1686,7 +1694,7 @@ class Configuration:
 
             self.results = halo_subtraction_addition(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
-                                                self.addition_profile, self.scaling_radius, self.resolution, halo)
+                                                self.addition_profile, self.resolution, halo)
             
             self.convert_and_save()
             self.npz = np.load(file_path, allow_pickle=True)
