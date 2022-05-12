@@ -827,7 +827,7 @@ class PrecipitationProfile(CGMProfile):
         
         return points_in_powerlaw_limit/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2) + points_in_tophat_limit*neconstant
 
-    #outputs percipitation model parmameters plus the constnat d
+    # Outputs percipitation model parmameters plus the constant density for the tophat
     def get_precipitation_params(self, log10Mhalo: float, comoving_rvir_kpc: float, redshift: float, calc_neconst_flag = True):
         Mvir = 10**log10Mhalo
         M_bary = Mvir * cosmo.fb
@@ -835,7 +835,7 @@ class PrecipitationProfile(CGMProfile):
         
         rvir_physkpc = comoving_rvir_kpc/(1+redshift)
 
-        #better interpolation
+        # Interpolation of the Table in Voit paper
         logn1 = interp1d(np.log10(self.reducedarr[:, 1]), np.log10(self.reducedarr[:, 6]), kind='linear', fill_value='extrapolate')(log10Mhalo_z0)   
         n1 = 10**logn1
         xi1 = interp1d(np.log10(self.reducedarr[:, 1]), self.reducedarr[:, 7], kind='linear', fill_value='extrapolate')(log10Mhalo_z0) 
@@ -1268,7 +1268,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
 
 
 
-# TODO clean this up, we've basically made it do nothign over halo_subtraction_addition
+# TODO clean this up, we've basically made it do nothing over halo_subtraction_addition
 def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, min_mass, max_mass,
                                        log_bins, subtraction_halo_profile, addition_profile: CGMProfile, scaling_radius, resolution):
     """
@@ -1280,40 +1280,10 @@ def hist_profile(sim_provider: SimulationProvider, den_grid_size, RS_values, min
     # halo array
     t = halo_subtraction_addition(sim_provider,den_grid_size,RS_values,min_mass,max_mass,
                                        log_bins,subtraction_halo_profile,addition_profile,scaling_radius,resolution, halo)
-    # Halos-readded field
-    t1 = t[0]
     
-    # Halo addition masks
-    t2 = t[1]
-    
-    # Halos subtraction coarse
-    t3 = t[2]
-    
-    # Halo addition field
-    t4 = t[3]
-    
-    # Halos removed field
-    t5 = t[4]
-    
-    #if len(RS_array)==1:
-    #    t6 = t1
-    
-    #else:
-    #    t6 = stack_all_arrays(t1,RS_array)
-        
-    #t7 = create_histograms(t6, resolution*1024)
-    #t7 = (0,0,0) 
-    
-    t8 = t[5]
-    t9 = t[6]
-    #t10 = np.zeros([len(RS_array),resolution*1024,resolution*1024])
-
-    #for i in range(0,len(RS_array)):
-    #    t10[i,:,:] = redshifted_DM(t6[i,:,:], RS_array[i])
-
     # Outputs: 
     # halos-readded field, halo addition masks, halos subtraction coarse, halo addition field, halos removed field, virial radii, halo masses
-    return t1,t2,t3,t4,t5,t8,t9,t[7],t[8]
+    return t
 
 
 
