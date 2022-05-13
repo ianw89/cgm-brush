@@ -608,7 +608,7 @@ class NFWProfile(CGMProfile):
     def NFW2D(self, x, y, rho_nought, R_s, Rvir):
         """Project NFW profile from 3D to 2D.
         Rvir is in units of virial radii per cell.""" 
-        offset=float(.5) # TODO .5 and move offset
+        offset=float(.5) 
         boundary = math.sqrt(max(0.0, Rvir**2-(x**2+y**2)))
         if boundary == 0.0: #x, y lie outside of virial radius
             return 0.0
