@@ -10,63 +10,68 @@ RS_values = RS_array_gen(1,provider.Lbox)
 # TODO having all the data for all the redshifts together is too big at large resolutions
 # TODO design an alternative
 
+precip = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**13.3)
+
 configurations = [ 
     
-    #Configuration(NFWProfile(), 1, provider=provider, resolution=1),
-    #Configuration(NFWProfile(), 1, provider=provider, resolution=2),
-    #Configuration(NFWProfile(), 1, provider=provider, resolution=4),
-    #Configuration(NFWProfile(), 1, provider=provider, resolution=8),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=32),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(NFWProfile(), 1, provider=provider, resolution=16),
+    #Configuration(NFWProfile(), provider=provider, resolution=1),
+    #Configuration(NFWProfile(), provider=provider, resolution=2),
+    #Configuration(NFWProfile(), provider=provider, resolution=4),
+    #Configuration(NFWProfile(), provider=provider, resolution=8),
+    #Configuration(NFWProfile(), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(NFWProfile(), provider=provider, resolution=16),
+    #Configuration(NFWProfile(), provider=provider, resolution=32),
 
-    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=1),
-    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=2),
-    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=4),
-    #Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=16),
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32),
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=1),
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=2),
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=4),
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=8),
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=16),
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=32),
 
-    Configuration(SphericalTophatProfile(), 1, provider=provider, resolution=32, den_grid_size=512),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=1),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=2),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=4),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=8),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=16),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=32),
 
-    #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=1),
-    #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=2),
-    #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=4),
-    #Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=16),
-    Configuration(SphericalTophatProfile(), 2, provider=provider, resolution=32),
+    # Not used in paper
+    #Configuration(TophatProfile(), provider=provider, resolution=1),
+    #Configuration(TophatProfile(), provider=provider, resolution=2),
+    #Configuration(TophatProfile(), provider=provider, resolution=4),
+    #Configuration(TophatProfile(), provider=provider, resolution=8),
+    #Configuration(TophatProfile(), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(TophatProfile(), provider=provider, resolution=16),
+    #Configuration(TophatProfile(), provider=provider, resolution=32),
 
-# Not used in paper
-    #Configuration(TophatProfile(), 1, provider=provider, resolution=1),
-    #Configuration(TophatProfile(), 1, provider=provider, resolution=2),
-    #Configuration(TophatProfile(), 1, provider=provider, resolution=4),
-    #Configuration(TophatProfile(), 1, provider=provider, resolution=8),
-    #Configuration(TophatProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    #Configuration(TophatProfile(), 1, provider=provider, resolution=16),
-    #Configuration(TophatProfile(), 1, provider=provider, resolution=32),
+    #Configuration(FireProfile(), provider=provider, resolution=1),
+    #Configuration(FireProfile(), provider=provider, resolution=2),
+    #Configuration(FireProfile(), provider=provider, resolution=4),
+    #Configuration(FireProfile(), provider=provider, resolution=8),
+    #Configuration(FireProfile(), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(FireProfile(), provider=provider, resolution=16),
+    #Configuration(FireProfile(), provider=provider, resolution=32),
 
-    #Configuration(FireProfile(), 1, provider=provider, resolution=1),
-    #Configuration(FireProfile(), 1, provider=provider, resolution=2),
-    #Configuration(FireProfile(), 1, provider=provider, resolution=4),
-    #Configuration(FireProfile(), 1, provider=provider, resolution=8),
-    Configuration(FireProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(FireProfile(), 1, provider=provider, resolution=16),
-    Configuration(FireProfile(), 1, provider=provider, resolution=32),
+    Configuration(precip, provider=provider, resolution=1),
+    Configuration(precip, provider=provider, resolution=2),
+    Configuration(precip, provider=provider, resolution=4),
+    Configuration(precip, provider=provider, resolution=8),
+    Configuration(precip, provider=provider, resolution=8, RS_array=RS_values),
+    Configuration(precip, provider=provider, resolution=16),
+    Configuration(precip, provider=provider, resolution=32),
 
-    #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=1),
-    #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=2),
-    #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=4),
-    #Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=16),
-    Configuration(PrecipitationProfile(), 1, provider=provider, resolution=32),
-
+    #Configuration(SphericalTophatProfile(), provider=provider, resolution=32, den_grid_size=512),
+    #Configuration(NFWProfile(), provider=provider, resolution=32, den_grid_size=512),
+    #Configuration(FireProfile(), provider=provider, resolution=32, den_grid_size=512),
+    Configuration(precip, provider=provider, resolution=32, den_grid_size=512),
+    #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=32, den_grid_size=512),
 ]
 
 for config in configurations:
-    config.datestamp = '2022-04-04'
+    config.datestamp = '2022-05-12'
     config.seed = seed
 
     config.run(trace=trace, load_from_files=load_from_files)

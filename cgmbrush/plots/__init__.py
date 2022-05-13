@@ -1,1 +1,1 @@
-__all__ = ['plots', 'plotting_routines']
+__all__ = ['plots']
