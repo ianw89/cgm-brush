@@ -26,8 +26,6 @@ from scipy.interpolate import interp1d
 
 from cgmbrush.settings import *
 from cgmbrush.constants import *
-#from settings import *  #for debugging
-#from constants import *
 from cgmbrush.cosmology import cosmology as cosmo
 from cgmbrush.cosmology import halo as halo
 
@@ -439,12 +437,12 @@ def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     
     return df, bins
 
-def project_spherical_3Dto2D(f, x, y, Rmax):
+def project_spherical_3Dto2D(f, x, y, cutoff):
     """Project a spherically symmetric profile from 3D to 2D.
     
-    Rmax is in units of virial radii per cell, and is used to compute as a hard boundary of the sphere.""" 
+    cutoff should be in whatever units x and y are in, and is the limit of integration (a hard boundary of the sphere)""" 
     #print("Rvir, x, y: {}, {}, {}".format(Rvir, x, y))
-    boundary = math.sqrt(max(0.0, Rmax**2-(x**2+y**2)))
+    boundary = math.sqrt(max(0.0, cutoff**2-(x**2+y**2)))
     if boundary == 0.0:
         return 0.0
     else:
@@ -631,13 +629,9 @@ class NFWProfile(CGMProfile):
             with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
                 print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_rvir / cellsize))
 
-        fine_mask = self.vec_NFW2D(x, y, rho_nought, R_s, scale_down * comoving_rvir / cellsize)
-
-        if self.debug:
-            with np.printoptions(precision=1, linewidth=1000, threshold=sys.maxsize):
-                print("from vec integral:")
-                print(fine_mask)                
-                print("done")
+        # Integration bound is at the Rvir exactly because this is how the mass is defined
+        integration_bound = scale_down * comoving_rvir / cellsize
+        fine_mask = self.vec_NFW2D(x, y, rho_nought, R_s, integration_bound)
 
         r=np.sqrt(x*x+y*y) 
         
@@ -670,24 +664,28 @@ class FireProfile(CGMProfile):
     #This is the mask used to convolve the profile with halo postion
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
+        scale_down = 2
+        effective_cellsize =  cellsize / scale_down
+
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
          
         rmax,Rinterp,rho0 =   self.get_Fire_params(mass, comoving_rvir, redshift) 
         #with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
+        #    print("Mass {:.1e}".format(mass))
         #    print("Fire parameters: rmax={} Mpc or {} cells, Rinterp={} Mpc, rho0={}".format(rmax,rmax/cellsize,Rinterp,rho0))
 
         ## creating a mask
-        # TODO perf bottleneck is here
-        # TODO use symmetry to save computation
+        # TODO perf bottleneck is here, shouldn't spherical symmetry make it possible to do this quicker?
         
         # x, y, z are cells, the computed r is therefor also in cells. 
         # rmax and Rinterp are in Mpc as per above, so divide to convert to cells. Epsilon is half a cellsize.
         epsilon_cells = 0.5
-        fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/cellsize, Rinterp/cellsize, rho0, epsilon_cells)
+        fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/effective_cellsize, Rinterp/effective_cellsize, rho0, epsilon_cells)
 
         project = np.vectorize(project_spherical_3Dto2D)   
 
-        fine_mask = project(fire_integral, x, y, rmax / cellsize) 
+        integration_bound = 4*rmax/effective_cellsize # The exponential cutoff introduces a factor of ~0.01 by this point anyway
+        fine_mask = project(fire_integral, x, y, integration_bound) 
         fine_mask = fine_mask.astype(float)
 
         return fine_mask
@@ -707,6 +705,7 @@ class FireProfile(CGMProfile):
 
     def get_Fire_params(self, mass: float, comoving_rvir: float, redshift: float):
     
+
         # These are specifications taken from the fire simulations
         RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
 
@@ -714,12 +713,10 @@ class FireProfile(CGMProfile):
         MfbMh = np.array([0.1,0.2,0.3,0.5,0.8,1])
         Mh = msun*np.array([10**10,10**11,10**12,10**13,10**14,10**15]) # halo masses in grams
         rv = Mpc*np.array([halo.comoving_rvir(cosmo, 10**10,0), halo.comoving_rvir(cosmo, 10**11,0), halo.comoving_rvir(cosmo, 10**12,0), halo.comoving_rvir(cosmo, 10**13,0), halo.comoving_rvir(cosmo, 10**14,0), halo.comoving_rvir(cosmo, 10**15,0)]) # radii for the given mass bins
-
         
         # rv = Mpc*np.array([halo.comoving_rvir(10**10,0),halo.comoving_rvir(10**11,0),halo.comoving_rvir(10**12,0)]) # radii for the given mass bins
         r0= .3*rv
         nHarr = MfbMh*Mh*cosmo.fb /((np.pi*4*r0**2*rv*mean_molecular_weight_electrons*mprot))
-
 
         # use when higher masses included
         nHinterp = interp1d(np.array([10., 11., 12., 13., 14., 15.]), nHarr, fill_value="extrapolate")
@@ -1136,20 +1133,10 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
 
         fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, cellsize, fine_mask_len)
 
-        if profile.debug:
-            with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
-                print("FINE MASK %s" % j)
-                print(fine_mask)
-
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
 
-        if profile.debug:
-            with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
-                print("COARSE MASK %s" % j)
-                print(coarse_mask)
-        
         # populate array with halos
         halo_cell_pos = np.zeros([no_cells,no_cells])    
         
@@ -1706,7 +1693,7 @@ class Configuration:
                 ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
                 ps.print_stats()
 
-                version = 2
+                version = 3
                 # TODO auto version incrementing
                 perf_file_path = os.path.join(VAR_DIR, 'perf_convo_' + filename + '_v%s.txt' % version)
                 with open(perf_file_path, 'w') as f:
