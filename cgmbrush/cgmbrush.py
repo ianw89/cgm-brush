@@ -437,17 +437,33 @@ def  create_halo_array_for_convolution(pdHalos, M_min, M_max, logchunks):
     
     return df, bins
 
-def project_spherical_3Dto2D(f, x, y, cutoff):
-    """Project a spherically symmetric profile from 3D to 2D.
-    
-    cutoff should be in whatever units x and y are in, and is the limit of integration (a hard boundary of the sphere)""" 
+def project_spherical_3Dto2D(f, x, y, cutoff, cache):
     #print("Rvir, x, y: {}, {}, {}".format(Rvir, x, y))
     boundary = math.sqrt(max(0.0, cutoff**2-(x**2+y**2)))
     if boundary == 0.0:
         return 0.0
     else:
-        #print("Boundary: {}".format(boundary))
-        return 2 * integrate.quad(f, 0, boundary, args=(x,y))[0] 
+        polar_radius = round(x**2 + y**2, 6)
+        if (polar_radius in cache):
+            return cache[polar_radius]
+        else:
+            #print("Boundary: {}".format(boundary))
+            result = 2 * integrate.quad(f, 0, boundary, args=(x,y))[0] 
+            cache[polar_radius] = result
+            return result
+
+def project_spherical_3Dto2D_optimized(f, x, y, cutoff):
+    """Project a spherically symmetric profile from 3D to 2D.
+    
+    cutoff should be in whatever units x and y are in, and is the limit of integration (a hard boundary of the sphere)""" 
+    vectorized_func = np.vectorize(project_spherical_3Dto2D)
+    cache = {}
+    #print("Projecting...")
+    result = vectorized_func(f, x, y, cutoff, cache)
+    #print(len(cache))
+    #print(cache.keys())
+    return result
+
 
 # Function creates a smaller grid from a larger grid by smoothing
 def smoothfield(big, nbig, nsmall):
@@ -682,10 +698,8 @@ class FireProfile(CGMProfile):
         epsilon_cells = 0.5
         fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/effective_cellsize, Rinterp/effective_cellsize, rho0, epsilon_cells)
 
-        project = np.vectorize(project_spherical_3Dto2D)   
-
         integration_bound = 4*rmax/effective_cellsize # The exponential cutoff introduces a factor of ~0.01 by this point anyway
-        fine_mask = project(fire_integral, x, y, integration_bound) 
+        fine_mask = project_spherical_3Dto2D_optimized(fire_integral, x, y, integration_bound) 
         fine_mask = fine_mask.astype(float)
 
         return fine_mask
@@ -817,20 +831,29 @@ class PrecipitationProfile(CGMProfile):
         #neconstant = 0
         #print("neconst = ", neconstant, n1,n2,xi1,xi2, XRvir, " rmax = ", rmax, rvirkpc)
 
-        final_ar = self.precipitation_func(rcomoving_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, rvirkpc/(1+redshift),XRvir, rmax, epsilon)
+        final_ar = self.precipitation_func_array(rcomoving_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, XRvir*rvirkpc/(1+redshift), rmax, epsilon)
         
 
         return rcomoving_kpc/KPCINMPC, final_ar/(1+redshift)**3  #care to go back to comoving quantities
 
     #profile in physical units at z=0 (from appendix of https://arxiv.org/pdf/1811.04976.pdf) in physical distance units (In contrast to all other parts of code)
     #the constant density out to XRvir times the virial radius is so that the total mass in baryons is included
-    def precipitation_func(self, rphyskpc, n1, n2, xi1, xi2, neconstant, rvir_physkpc, XRvir, rmax, epsilon):
+    def precipitation_func_array(self, rphyskpc, n1, n2, xi1, xi2, neconstant, tophat_limit, rmax, epsilon):
 
         # Make sure the power law contributes only up to rmax, and tophat only up to XRvir * Rvir
-        points_in_tophat_limit = (np.array(rphyskpc) <= XRvir*rvir_physkpc).astype(int) # makes an array for each point in the rphyskpc array, 1 if inside limit, 0 for outside
+        points_in_tophat_limit = (np.array(rphyskpc) <= tophat_limit).astype(int) # makes an array for each point in the rphyskpc array, 1 if inside limit, 0 for outside
         points_in_powerlaw_limit = (np.array(rphyskpc) <= rmax).astype(int) # similar to above but for the rmax cutoff for power law part of profile
         
         return points_in_powerlaw_limit/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2) + points_in_tophat_limit*neconstant
+
+    #profile in physical units at z=0 (from appendix of https://arxiv.org/pdf/1811.04976.pdf) in physical distance units (In contrast to all other parts of code)
+    #the constant density out to XRvir times the virial radius is so that the total mass in baryons is included
+    def precipitation_func(self, rphyskpc, n1, n2, xi1, xi2, neconstant, rmax, epsilon):
+
+        result = neconstant
+        if rphyskpc <= rmax:
+            result += 1/np.sqrt((n1*(rphyskpc+epsilon)**-xi1)**-2 + (n2*((rphyskpc+epsilon)/100)**-xi2)**-2)
+        return result
 
     # Outputs percipitation model parmameters plus the constant density for the tophat
     def get_precipitation_params(self, log10Mhalo: float, comoving_rvir_kpc: float, redshift: float, calc_neconst_flag = True):
@@ -900,12 +923,14 @@ class PrecipitationProfile(CGMProfile):
         #     f1= lambda x, y, z: my_func(((x**2+y**2+z**2)**.5), n1,n2,xi1,xi2,neconstant,cellsize_kpc)
 
         #integrate to project to 2D
-        func = lambda x, y, z: self.precipitation_func(((x**2+y**2+z**2)**.5)*cellsize_kpc/(1+redshift), n1,n2,xi1,xi2,neconstant, scale_down*comoving_rvir_kpc/(1+redshift),XRvir, rmax, 0.5*cellsize_kpc)
-                    
-        vec_integral=np.vectorize(project_spherical_3Dto2D)
-        
-        interation_max = (scale_down*XRvir*comoving_rvir_kpc*(1+redshift)) / cellsize_kpc
-        mask = vec_integral(func,x,y,interation_max)
+
+        epsilon = 0.5*cellsize_kpc
+        virial_radius = scale_down*comoving_rvir_kpc/(1+redshift)
+        tophat_limit = XRvir*virial_radius
+        func = lambda x, y, z: self.precipitation_func(np.sqrt(x**2+y**2+z**2)*cellsize_kpc/(1+redshift), n1, n2, xi1, xi2, neconstant, rmax, epsilon)
+                            
+        interation_max = tophat_limit / cellsize_kpc
+        mask = project_spherical_3Dto2D_optimized(func,x,y,interation_max)
         return mask.astype(float)
 
 
@@ -1693,7 +1718,7 @@ class Configuration:
                 ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
                 ps.print_stats()
 
-                version = 3
+                version = 4
                 # TODO auto version incrementing
                 perf_file_path = os.path.join(VAR_DIR, 'perf_convo_' + filename + '_v%s.txt' % version)
                 with open(perf_file_path, 'w') as f:
