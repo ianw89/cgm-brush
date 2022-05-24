@@ -1569,7 +1569,7 @@ class Configuration:
         """
         scaling = ''
         if self.addition_profile.parameter_name_str: 
-            scaling = str(self.addition_profile.parameter_name_str)
+            scaling = '_' + str(self.addition_profile.parameter_name_str)
         z_str = ''
         if self.RS_array != [0]:
             z_str = '_z'

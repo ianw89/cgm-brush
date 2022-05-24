@@ -18,9 +18,7 @@ for p in profiles:
 summary = ''
 
 for c in configs:
-    c.datestamp = '2022-04-04' 
-configs[4].datestamp='2022-05-12'
-for c in configs:
+    c.datestamp = '2022-05-12' 
     c.run(load_from_files=True)
     std = DM_statistics(c.get_final_field()[0])
     summary = summary + "{} ({}):\t{}\n".format(c.addition_profile.pretty_name, c.resolution, std)
