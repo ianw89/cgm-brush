@@ -4,18 +4,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 provider = BolshoiProvider()
-
+date = '2022-04-04'
+date2 = '2022-05-12' 
 resolutions = [4,8,16,32]
 precipProfile = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**13.3)
-profiles = [SphericalTophatProfile(), SphericalTophatProfile(rvir_factor=2), NFWProfile(), FireProfile(), precipProfile]
+profiles = [(SphericalTophatProfile(), date), (SphericalTophatProfile(rvir_factor=2), date), (NFWProfile(), date), (FireProfile(), date2), (precipProfile, date2)]
 
 configs = []
 
 for p in profiles:
     for r in resolutions:
-        configs.append(Configuration(p, provider=provider, resolution=r))
+        configs.append(Configuration(p[0], provider=provider, resolution=r, datestamp=p[1]))
 
 summary = ''
+
+configs[0]
 
 for c in configs:
     c.datestamp = '2022-05-12' 

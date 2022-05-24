@@ -158,9 +158,9 @@ def DM_statistics(field):
         print("Min: ", np.min(field))
         print("Max: ", np.max(field))
 
-        print("200 bin histogram")
-        hist, bins = np.histogram(field, bins=200)
-        print(hist)
+        #print("200 bin histogram")
+        #hist, bins = np.histogram(field, bins=200)
+        #print(hist)
         #print("Bins: ", bins)
 
         print("Percentiles: ", per)
@@ -1503,7 +1503,7 @@ class Configuration:
     """
 
     # Default options
-    def __init__(self, addition_profile: CGMProfile, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_array=[0]):
+    def __init__(self, addition_profile: CGMProfile, provider: SimulationProvider = None, folder=VAR_DIR, resolution=1, den_grid_size=256, RS_array=[0], datestamp=str(datetime.date.today())):
         
         # Profile to use for adding in CGM
         self.addition_profile = addition_profile
@@ -1529,7 +1529,7 @@ class Configuration:
         self.min_mass = DEFAULT_MIN_MASS # halos smaller than this shouldn't have much of a CGM
         self.max_mass = DEFAULT_MAX_MASS # this is a little bigger than the biggest halo in Bolshoi
         self.log_bins = DEFAULT_MASS_BIN_COUNT + 1 # this means 60 bins; TODO make this more intuitive... 
-        self.datestamp = str(datetime.date.today())
+        self.datestamp = datestamp
         self.seed = None
 
         self.npz = None
