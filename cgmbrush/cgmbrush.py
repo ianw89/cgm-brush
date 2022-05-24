@@ -7,6 +7,7 @@
 
 from __future__ import print_function 
 from __future__ import division
+from distutils import core
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
@@ -1154,7 +1155,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
     fine_cellsize = coarse_cellsize / scale_down
 
     # store all (coarse) profile masks
-    addition_masks =np.zeros([bins,nsmall,nsmall])
+    addition_masks =[]
 
     # loops through the list of dataframes each ordered by ascending mass
     for j in range(0,bins):
@@ -1163,7 +1164,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
             # Special case - mass bin is empty. Just set results to 0 for this mass bin.
             Mvir_avg[j] = 0
             conv_rad[j] = 0
-            addition_masks[j,:,:] = 0
+            addition_masks.append(np.zeros((nsmall,nsmall))) # TODO make smaller, just doing this for safety for now
             continue
 
         Mvir_avg[j] = np.mean((haloArray['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h  #Matt: Would be much better to put in h at time we read in file
@@ -1174,6 +1175,25 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
+
+        # trim away 0s around mask to make it as small as possible (speeds up convolution)
+        with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
+            #print(coarse_mask.shape)
+            i = 0
+            length = coarse_mask.shape[0]
+            assert (coarse_mask.shape[0] == coarse_mask.shape[1])
+
+            # test if edges of mask are all zeros
+            while not (np.any(coarse_mask[i]) or np.any(coarse_mask[length-1-i]) or np.any(coarse_mask[:,0]) or np.any(coarse_mask[:,i])):
+                i+=1
+                
+            if i > 0:
+                to_del = np.concatenate((np.arange(0,i), np.arange(length-i,length)))
+                #print(to_del)
+                coarse_mask = np.delete(np.delete(coarse_mask, to_del, axis=1), to_del, axis=0) 
+
+            #print(coarse_mask)
+                    
 
         # populate array with halos
         halo_cell_pos = np.zeros([no_cells,no_cells])    
@@ -1193,7 +1213,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         convolution_summed += convolution
 
         # store addition masks
-        addition_masks[j,:,:] = final_mask
+        addition_masks.append(final_mask)
         
     return convolution_summed, conv_rad, addition_masks, Mvir_avg
 
@@ -1272,7 +1292,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     
     halos_subtraction_coarse = np.zeros([len(RS_array),den_grid_size,den_grid_size])
     halo_field = np.zeros([len(RS_array),grid_length,grid_length])
-    halo_masks = np.zeros([len(RS_array),int(log_bins-1),20*resolution,20*resolution]) # This should be the same as fine_mask_len in add_halos function
+    halo_masks = [] 
     halos_removed_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size]) # This should be the same as fine_mask_len in add_halos function
     
     for i in range(0, len(RS_array)):
@@ -1291,7 +1311,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         
         halos_subtraction_coarse[i,:,:] = halos_removed[1]
         halo_field[i,:,:] = conv_all_steps[2]
-        halo_masks[i,:,:,:]= conv_all_steps[3]
+        halo_masks.append(conv_all_steps[3])
         halos_removed_fields[i,:,:] =  halos_removed[0]
         
         
@@ -1731,7 +1751,7 @@ class Configuration:
                 ps = pstats.Stats(pr, stream=s).sort_stats('tottime')
                 ps.print_stats()
 
-                version = 4
+                version = 5
                 # TODO auto version incrementing
                 perf_file_path = os.path.join(VAR_DIR, 'perf_convo_' + filename + '_v%s.txt' % version)
                 with open(perf_file_path, 'w') as f:
