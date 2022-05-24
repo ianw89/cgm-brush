@@ -21,7 +21,6 @@ summary = ''
 configs[0]
 
 for c in configs:
-    c.datestamp = '2022-05-12' 
     c.run(load_from_files=True)
     std = DM_statistics(c.get_final_field()[0])
     summary = summary + "{} ({}):\t{}\n".format(c.addition_profile.pretty_name, c.resolution, std)

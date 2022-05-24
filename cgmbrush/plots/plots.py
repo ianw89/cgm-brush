@@ -99,8 +99,8 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
         var_STH_2 = 139
         var_STH2_2 = 99
         var_NFW_2 = 277
-        var_fire_2 = 356
-        var_P_2 = 375
+        var_fire_2 = 153
+        var_P_2 = 208
 
         sd_incl_host = np.sqrt(var_fire_2**2 + 300**2)
 
