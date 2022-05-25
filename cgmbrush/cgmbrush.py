@@ -772,7 +772,7 @@ class PrecipitationProfile(CGMProfile):
     Voit Perciptation limited model from Appendix A in https://arxiv.org/pdf/1811.04976.pdf.
     """
     
-    def __init__(self):
+    def __init__(self, XRvir=3, Z_METAL=0.3):
         super().__init__()
         self.name = "precipitation"
         self.pretty_name = "Precipitation"
@@ -804,14 +804,20 @@ class PrecipitationProfile(CGMProfile):
             [120, 3.2e11, 20, 0.1, 4.9,  0.71, 1.9e-3, 1.2, 2.7e-6, 2.2]
             ])
 
-        #Parameterization of percipitation model used in CGMBrush.  
-        self.XRvir = 3 # XRvir is how many virial radii to go out for extended profile (this makes it so integrates to total mass within this radius)
+        # Parameterization of percipitation model used in CGMBrush.  
+        # XRvir is how many virial radii to go out for extended profile (this makes it so integrates to total mass within this radius)
+        self.XRvir = XRvir 
 
-        #Zmetal is the metalicity; tratcrit is the coolin crieteria -- both of these don't need to change
-        self.Z_METAL = 0.3  #Table also has 0.1 and 0.5 options (although 0.1 is only for lower mass halos)
-        self.TRATCRIT = 10  #cooling time to dynamical time ratio that specifies model.  This is only option for below table.  See Voit et al 2018 for more options
+        # Zmetal is the metalicity
+        # 0.1 is only for lower mass halos, to use it will need to modify the code.
+        if (Z_METAL != 0.3 and Z_METAL != 0.5):
+            raise Exception("Invalid Z_METAL value, choose 0.3 or 0.5.")
+        self.Z_METAL = Z_METAL  
 
-        #chooses metalicity and cooling criterion parameters we will interpolate on
+        # cooling time to dynamical time ratio that specifies model. This is only option for below table. See Voit et al 2018 for more options.
+        self.TRATCRIT = 10  
+
+        # chooses metalicity and cooling criterion parameters we will interpolate on
         self.reducedarr = self.fitarray[(self.fitarray[:, 3] == self.Z_METAL) & (self.fitarray[:, 2] ==  self.TRATCRIT)]
         self.reducedarr = self.reducedarr[::-1] #reverses array       
 
@@ -894,7 +900,8 @@ class PrecipitationProfile(CGMProfile):
             for i in range(1, len(r_physkpc)):
                 mtotal += integrate.quad(rhointerp, np.log(r_physkpc[i-1]), np.log(r_physkpc[i]))[0]/conv
                 if mtotal > M_bary:
-                    #print(" Total mass fulfilled early")
+                    if self.debug:
+                        print(" Total mass fulfilled early")
                     rmax = r_physkpc[i]
                     break
             #print("mtot percip in 1e12 = ", mtotal/cosmo.fb/1e12, 10**(log10Mhalo-12))
@@ -903,7 +910,8 @@ class PrecipitationProfile(CGMProfile):
             if rmax > self.XRvir*rvir_physkpc:
                 neconst = (M_bary-mtotal) / (4.*np.pi/3.*(self.XRvir*rvir_physkpc)**3) * conv    
         
-            #print(" Mass fraction in non-tophat: {:.3f}".format(mtotal/M_bary))
+            if self.debug:
+                print(" Mass fraction in non-tophat: {:.3f}".format(mtotal/M_bary))
 
         return n1, n2, xi1, xi2, neconst, self.XRvir, rmax
         #return rkpc, rhoarr
