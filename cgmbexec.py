@@ -10,8 +10,7 @@ RS_values = RS_array_gen(1,provider.Lbox)
 # TODO having all the data for all the redshifts together is too big at large resolutions
 # TODO design an alternative
 
-precip = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**13.3)
-
+precip = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**14.6)
 configurations = [ 
     
     #Configuration(NFWProfile(), provider=provider, resolution=1),
