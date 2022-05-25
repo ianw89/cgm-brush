@@ -10,7 +10,7 @@ RS_values = RS_array_gen(1,provider.Lbox)
 # TODO having all the data for all the redshifts together is too big at large resolutions
 # TODO design an alternative
 
-precip = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**14.6)
+precip = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**13.3)
 configurations = [ 
     
     #Configuration(NFWProfile(), provider=provider, resolution=1),
@@ -37,7 +37,14 @@ configurations = [
     #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=16),
     #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=32),
 
-    # Not used in paper
+    #Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=1),
+    #Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=2),
+    #Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=4),
+    #Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=8),
+    #Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=16),
+    #Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=32),
+
     #Configuration(TophatProfile(), provider=provider, resolution=1),
     #Configuration(TophatProfile(), provider=provider, resolution=2),
     #Configuration(TophatProfile(), provider=provider, resolution=4),
@@ -67,6 +74,11 @@ configurations = [
     #Configuration(FireProfile(), provider=provider, resolution=32, den_grid_size=512),
     Configuration(precip, provider=provider, resolution=32, den_grid_size=512),
     #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=32, den_grid_size=512),
+
+    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**10.5), provider=provider, resolution=8, RS_array=RS_values),
+    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**11.5), provider=provider, resolution=8, RS_array=RS_values),
+    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**12.5), provider=provider, resolution=8, RS_array=RS_values),
+    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**13.5), provider=provider, resolution=8, RS_array=RS_values),
 ]
 
 for config in configurations:

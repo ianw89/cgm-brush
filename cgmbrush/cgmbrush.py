@@ -698,7 +698,7 @@ class FireProfile(CGMProfile):
         epsilon_cells = 0.5
         fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/effective_cellsize, Rinterp/effective_cellsize, rho0, epsilon_cells)
 
-        integration_bound = 4*rmax/effective_cellsize # The exponential cutoff introduces a factor of ~0.01 by this point anyway
+        integration_bound = 4*rmax/effective_cellsize # The exponential cutoff introduces a factor of ~0.01 by this point, hard cutoff here now.
         fine_mask = project_spherical_3Dto2D_optimized(fire_integral, x, y, integration_bound) 
         fine_mask = fine_mask.astype(float)
 
@@ -887,7 +887,8 @@ class PrecipitationProfile(CGMProfile):
 
             #Integrate to see how much mass is missed by this profile  (I've checked these seems reasonable)
             #     rhointerp = interp1d(np.log(rhoarr[0]), 4.*np.pi*rhoarr[0]**3*rhoarr[1], kind='cubic', fill_value='extrapolate')
-            rhointerp = interp1d(np.log(r_physkpc), 4/3*np.pi*r_physkpc**3*rhoarr, kind='cubic') 
+            # Logarithmic integral: 4 pi r^3 dlog(r) = 4 pi r^2 dr
+            rhointerp = interp1d(np.log(r_physkpc), 4*np.pi*r_physkpc**3*rhoarr, kind='cubic') 
 
             #print("n1 n2, xi1, xi2", n1, n2, xi1, xi2)
             #print("rhoarr at 10 kpc = ", rhointerp(np.log(10))/( 4.*np.pi*10**3))
