@@ -96,11 +96,11 @@ def make_DM_vs_Rad_profiles_plots(series, error: bool, plot_masks: bool, x_start
         ### For error bar plot 
         # Variances should be extracted from the redshift plots at redshift = 0.5. 
         # TODO would like to make this less error-prone and more user friendly
-        var_STH_2 = 139
+        var_STH_2 = 140
         var_STH2_2 = 99
         var_NFW_2 = 277
         var_fire_2 = 153
-        var_P_2 = 208
+        var_P_2 = 226
 
         sd_incl_host = np.sqrt(var_fire_2**2 + 300**2)
 
