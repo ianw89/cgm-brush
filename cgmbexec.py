@@ -61,24 +61,25 @@ configurations = [
     #Configuration(FireProfile(), provider=provider, resolution=16),
     #Configuration(FireProfile(), provider=provider, resolution=32),
 
-    Configuration(precip, provider=provider, resolution=1),
-    Configuration(precip, provider=provider, resolution=2),
-    Configuration(precip, provider=provider, resolution=4),
-    Configuration(precip, provider=provider, resolution=8),
-    Configuration(precip, provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(precip, provider=provider, resolution=16),
-    Configuration(precip, provider=provider, resolution=32),
+    #Configuration(precip, provider=provider, resolution=1),
+    #Configuration(precip, provider=provider, resolution=2),
+    #Configuration(precip, provider=provider, resolution=4),
+    #Configuration(precip, provider=provider, resolution=8),
+    #Configuration(precip, provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(precip, provider=provider, resolution=16),
+    #Configuration(precip, provider=provider, resolution=32),
 
     #Configuration(SphericalTophatProfile(), provider=provider, resolution=32, den_grid_size=512),
     #Configuration(NFWProfile(), provider=provider, resolution=32, den_grid_size=512),
     #Configuration(FireProfile(), provider=provider, resolution=32, den_grid_size=512),
-    Configuration(precip, provider=provider, resolution=32, den_grid_size=512),
+    #Configuration(precip, provider=provider, resolution=32, den_grid_size=512),
     #Configuration(SphericalTophatProfile(rvir_factor=2), provider=provider, resolution=32, den_grid_size=512),
+    Configuration(SphericalTophatProfile(rvir_factor=3), provider=provider, resolution=32, den_grid_size=512),
 
-    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**10.5), provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**11.5), provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**12.5), provider=provider, resolution=8, RS_array=RS_values),
-    Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**13.5), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**10.5), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**11.5), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**12.5), provider=provider, resolution=8, RS_array=RS_values),
+    #Configuration(MassDependentProfile(SphericalTophatProfile(rvir_factor=2), NFWProfile(), 10**13.5), provider=provider, resolution=8, RS_array=RS_values),
 ]
 
 for config in configurations:
