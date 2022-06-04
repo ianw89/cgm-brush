@@ -567,11 +567,9 @@ class TophatProfile(CGMProfile):
         # fine mask
         # fine mask size has to correspond to the size of the mask that I eventually trim
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
-        scale_down = 2  # making the grid coarser    
         
-        # TODO Why are we multiplying by scale_down
         r = (x**2+y**2)**.5
-        fine_mask = r <= (self.rvir_factor * scale_down * comoving_rvir / cellsize) 
+        fine_mask = r <= (self.rvir_factor * comoving_rvir / cellsize) 
         return fine_mask.astype(float)
 
 class SphericalTophatProfile(CGMProfile):
@@ -587,14 +585,13 @@ class SphericalTophatProfile(CGMProfile):
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
-        scale_down = 2  # making the grid coarser    
 
         r = (x**2+y**2)**.5
 
-        fine_mask = r <= (self.rvir_factor * scale_down * comoving_rvir / cellsize)
+        fine_mask = r <= (self.rvir_factor * comoving_rvir / cellsize)
         fine_mask=fine_mask.astype(float)
         
-        Rv = (self.rvir_factor * scale_down * comoving_rvir / cellsize)
+        Rv = (self.rvir_factor * comoving_rvir / cellsize)
         fine_mask = fine_mask * ((1-((r/Rv)**2))**(2))**(1./4.)
         return fine_mask
 
@@ -637,7 +634,6 @@ class NFWProfile(CGMProfile):
         # TODO ? add redshift to the function above ?
         R_s= comoving_rvir/(halo.halo_conc(cosmo, redshift,mass)*cellsize)  
         rho_nought = halo.rho_0(cosmo, redshift,mass,R_s)
-        scale_down = 2  # making the grid coarser    
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
         
@@ -646,13 +642,13 @@ class NFWProfile(CGMProfile):
                 print('R_s: {}, rho_0: {}, r/size: {}'.format(R_s, rho_nought, comoving_rvir / cellsize))
 
         # Integration bound is at the Rvir exactly because this is how the mass is defined
-        integration_bound = scale_down * comoving_rvir / cellsize
+        integration_bound = comoving_rvir / cellsize
         fine_mask = self.vec_NFW2D(x, y, rho_nought, R_s, integration_bound)
 
         r=np.sqrt(x*x+y*y) 
         
         fine_mask = fine_mask.astype(float)
-        fine_mask[r > scale_down * comoving_rvir / cellsize] = 0 # sets very small numbers to 0
+        fine_mask[r > comoving_rvir / cellsize] = 0 # sets very small numbers to 0
 
         return fine_mask
 
@@ -680,9 +676,6 @@ class FireProfile(CGMProfile):
     #This is the mask used to convolve the profile with halo postion
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
-        scale_down = 2
-        effective_cellsize =  cellsize / scale_down
-
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
          
         rmax,Rinterp,rho0 =   self.get_Fire_params(mass, comoving_rvir, redshift) 
@@ -696,9 +689,9 @@ class FireProfile(CGMProfile):
         # x, y, z are cells, the computed r is therefor also in cells. 
         # rmax and Rinterp are in Mpc as per above, so divide to convert to cells. Epsilon is half a cellsize.
         epsilon_cells = 0.5
-        fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/effective_cellsize, Rinterp/effective_cellsize, rho0, epsilon_cells)
+        fire_integral = lambda x, y, z: self.fire_func(((x**2+y**2+z**2)**.5), rmax/cellsize, Rinterp/cellsize, rho0, epsilon_cells)
 
-        integration_bound = 4*rmax/effective_cellsize # The exponential cutoff introduces a factor of ~0.01 by this point, hard cutoff here now.
+        integration_bound = 4*rmax/cellsize # The exponential cutoff introduces a factor of ~0.01 by this point, hard cutoff here now.
         fine_mask = project_spherical_3Dto2D_optimized(fire_integral, x, y, integration_bound) 
         fine_mask = fine_mask.astype(float)
 
@@ -920,7 +913,6 @@ class PrecipitationProfile(CGMProfile):
     #outputs mask; All length scales have to be converted into units of cellsize
     def get_mask(self, mass: float, comoving_rvir_Mpc: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
-        scale_down = 2 # TODO really gotta deal with this code smell
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)
 
         comoving_rvir_kpc = KPCINMPC * comoving_rvir_Mpc
@@ -934,7 +926,7 @@ class PrecipitationProfile(CGMProfile):
         #integrate to project to 2D
 
         epsilon = 0.5*cellsize_kpc
-        virial_radius = scale_down*comoving_rvir_kpc/(1+redshift)
+        virial_radius = comoving_rvir_kpc/(1+redshift)
         tophat_limit = XRvir*virial_radius
         func = lambda x, y, z: self.precipitation_func(np.sqrt(x**2+y**2+z**2)*cellsize_kpc/(1+redshift), n1, n2, xi1, xi2, neconstant, rmax, epsilon)
                             
@@ -955,7 +947,6 @@ def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile
     # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
     df = haloArray
     no_cells = provider.halofieldresolution # the resolution multiplier isn't used for subraction, only addition
-    cellsize = provider.Lbox/provider.halofieldresolution 
     chunks = len(bin_markers) - 1
     
     # array of halo masses and radii
@@ -970,6 +961,9 @@ def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile
     scale_down = 2  # making the grid coarser
     nbig = fine_mask_len*2
     nsmall = int(nbig/scale_down)
+
+    coarse_cellsize = provider.Lbox/provider.halofieldresolution 
+    fine_cellsize = coarse_cellsize / scale_down 
     
     # loops through the list of dataframes each ordered by ascending mass
     for j in range(0,chunks):
@@ -984,14 +978,14 @@ def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile
         Mvir_avg[j] = np.mean((df['Mvir'][bin_markers[j]:bin_markers[j+1]]))/cosmo.h
         conv_rad[j] = halo.comoving_rvir(cosmo, Mvir_avg[j], redshift) # comoving radius
 
-        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, 1, cellsize, fine_mask_len)
+        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, 1, fine_cellsize, fine_mask_len)
 
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
         coarse_mask = fine_mask.reshape([nsmall, nbig//nsmall, nsmall, nbig//nsmall]).mean(3).mean(1)
         
         # Area of cells needed for normalization
-        totalcellArea4 = sum(sum(coarse_mask))* ((cellsize)**2)
+        totalcellArea4 = sum(sum(coarse_mask))* ((coarse_cellsize)**2)
 
         # populate array with halos
         halo_cell_pos = np.zeros([no_cells,no_cells])   
@@ -1132,7 +1126,6 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
     """
     
     no_cells = provider.halofieldresolution * resolution
-    cellsize = provider.Lbox / no_cells
     bins = len(bin_markers) - 1
 
     # array of halo masses and radii
@@ -1148,6 +1141,9 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
     scale_down = 2  # making the grid coarser    
     nbig = fine_mask_len*2 # fine masks are 40*resolution by 40*resolution
     nsmall = nbig//scale_down # coarse masks are half wide and long
+
+    coarse_cellsize = provider.Lbox / no_cells
+    fine_cellsize = coarse_cellsize / scale_down
 
     # store all (coarse) profile masks
     addition_masks =np.zeros([bins,nsmall,nsmall])
@@ -1165,7 +1161,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         Mvir_avg[j] = np.mean((haloArray['Mvir'][bin_markers[j]:bin_markers[j+1]])) / cosmo.h  #Matt: Would be much better to put in h at time we read in file
         conv_rad[j] = halo.comoving_rvir(cosmo, Mvir_avg[j], redshift) # comoving radius
 
-        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, cellsize, fine_mask_len)
+        fine_mask = profile.get_mask(Mvir_avg[j], conv_rad[j], redshift, resolution, fine_cellsize, fine_mask_len)
 
         # Smoothing method: reshaping
         # Generating coarse grid from fine grid: reshape method
@@ -1184,7 +1180,7 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         halo_cell_pos[xy] += 1
 
         # convolve the mask and the halo positions
-        convolution, mask = per_bin_func(halo_cell_pos, coarse_mask, cellsize, Mvir_avg[j], redshift) 
+        convolution, mask = per_bin_func(halo_cell_pos, coarse_mask, coarse_cellsize, Mvir_avg[j], redshift) 
         
         convolution_summed += convolution
 
