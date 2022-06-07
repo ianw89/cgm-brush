@@ -757,10 +757,11 @@ class PrecipitationProfile(CGMProfile):
     Voit Perciptation limited model from Appendix A in https://arxiv.org/pdf/1811.04976.pdf.
     """
     
-    def __init__(self, XRvir=3, Z_METAL=0.3):
+    def __init__(self, XRvir=3, Z_METAL=0.3, epsilon=0.5):
         super().__init__()
         self.name = "precipitation"
         self.pretty_name = "Precipitation"
+        self.epsilon = epsilon
 
         #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
         self.fitarray = np.array([
@@ -917,7 +918,7 @@ class PrecipitationProfile(CGMProfile):
 
         #integrate to project to 2D
 
-        epsilon = 0.5*cellsize_kpc
+        epsilon = self.epsilon*cellsize_kpc
         virial_radius = comoving_rvir_kpc/(1+redshift)
         tophat_limit = XRvir*virial_radius
         func = lambda x, y, z: self.precipitation_func(np.sqrt(x**2+y**2+z**2)*cellsize_kpc/(1+redshift), n1, n2, xi1, xi2, neconstant, rmax, epsilon)
