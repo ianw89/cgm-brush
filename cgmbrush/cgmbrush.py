@@ -673,19 +673,16 @@ class FireProfile(CGMProfile):
         self.name = "fire"
         self.pretty_name = "FIRE"
 
-    #This is the mask used to convolve the profile with halo postion
     def get_mask(self, mass: float, comoving_rvir: float, redshift: float, resolution: int, cellsize: float, fine_mask_len: int):
 
         y,x = np.ogrid[-1*fine_mask_len: fine_mask_len, -1*fine_mask_len: fine_mask_len] # shape is (1,40*res) and (40*res,1)             
          
-        rmax,Rinterp,rho0 =   self.get_Fire_params(mass, comoving_rvir, redshift) 
+        rmax,Rinterp,rho0 = self.get_Fire_params(mass, comoving_rvir, redshift) 
         #with np.printoptions(precision=3, linewidth=1000, threshold=sys.maxsize):
         #    print("Mass {:.1e}".format(mass))
         #    print("Fire parameters: rmax={} Mpc or {} cells, Rinterp={} Mpc, rho0={}".format(rmax,rmax/cellsize,Rinterp,rho0))
 
-        ## creating a mask
-        # TODO perf bottleneck is here, shouldn't spherical symmetry make it possible to do this quicker?
-        
+        ## creating a mask        
         # x, y, z are cells, the computed r is therefor also in cells. 
         # rmax and Rinterp are in Mpc as per above, so divide to convert to cells. Epsilon is half a cellsize.
         epsilon_cells = 0.5
@@ -697,7 +694,7 @@ class FireProfile(CGMProfile):
 
         return fine_mask
 
-    #For testing:  outputs array showing analytic function for fire profile 
+    # For testing:  outputs array showing analytic function for fire profile 
     def get_analytic_profile(self, mass: float, redshift: float):
 
         comoving_rvir = halo.comoving_rvir(cosmo, mass, redshift) # comoving radius
@@ -712,27 +709,22 @@ class FireProfile(CGMProfile):
 
     def get_Fire_params(self, mass: float, comoving_rvir: float, redshift: float):
     
-
         # These are specifications taken from the fire simulations
         RinterpinRvir = 0.3  # this is the point where I read off the density nrmalization
 
-        #profile taken from https://arxiv.org/pdf/1811.11753.pdf as described in CGM bursh paper
+        #profile taken from https://arxiv.org/pdf/1811.11753.pdf as described in CGM brush paper
         MfbMh = np.array([0.1,0.2,0.3,0.5,0.8,1])
         Mh = msun*np.array([10**10,10**11,10**12,10**13,10**14,10**15]) # halo masses in grams
         rv = Mpc*np.array([halo.comoving_rvir(cosmo, 10**10,0), halo.comoving_rvir(cosmo, 10**11,0), halo.comoving_rvir(cosmo, 10**12,0), halo.comoving_rvir(cosmo, 10**13,0), halo.comoving_rvir(cosmo, 10**14,0), halo.comoving_rvir(cosmo, 10**15,0)]) # radii for the given mass bins
         
-        # rv = Mpc*np.array([halo.comoving_rvir(10**10,0),halo.comoving_rvir(10**11,0),halo.comoving_rvir(10**12,0)]) # radii for the given mass bins
         r0= .3*rv
-        nHarr = MfbMh*Mh*cosmo.fb /((np.pi*4*r0**2*rv*mean_molecular_weight_electrons*mprot))
+        nHarr = MfbMh*Mh*cosmo.fb /((np.pi*4*r0**2*rv*mean_molecular_weight_electrons*mprot)) # g / cm^3
+        #print(nHarr) # We give these in a footnote in the FIRE description in CGM brush paper
 
-        # use when higher masses included
         nHinterp = interp1d(np.array([10., 11., 12., 13., 14., 15.]), nHarr, fill_value="extrapolate")
-        
-        #nHinterp_old = np.array([0.5e-4, 0.8e-4, 1e-4])  # these are their number densities in cubic cm
-        #nHinterp_old = interp1d(logMinterp, nHinterp_old, fill_value="extrapolate")
+        if self.debug:
+            print("Mass: {}, Rvir: {} Mpc, Gas Density {} g/cm^3".format(np.log10(mass), comoving_rvir, nHinterp(np.log10(mass))))
 
-        # print(np.log10(mass),comoving_rvir, nHinterp(np.log10(mass)),nHinterp_old(np.log10(mass)),nHinterp(np.log10(mass))/nHinterp_old(np.log10(mass)))
-        
         rho0 = nHinterp(np.log10(mass)) #pivot density at r0
         Rinterp = RinterpinRvir * comoving_rvir #rvir(mass, z)
         
@@ -765,10 +757,11 @@ class PrecipitationProfile(CGMProfile):
     Voit Perciptation limited model from Appendix A in https://arxiv.org/pdf/1811.04976.pdf.
     """
     
-    def __init__(self, XRvir=3, Z_METAL=0.3):
+    def __init__(self, XRvir=3, Z_METAL=0.3, epsilon=0.5):
         super().__init__()
         self.name = "precipitation"
         self.pretty_name = "Precipitation"
+        self.epsilon = epsilon
 
         #Table taken from appendix in Voit et al (2018); https://arxiv.org/pdf/1811.04976.pdf; different entries vary metalicity; for z=0 but the above mass mapping corrects for this
         self.fitarray = np.array([
@@ -925,7 +918,7 @@ class PrecipitationProfile(CGMProfile):
 
         #integrate to project to 2D
 
-        epsilon = 0.5*cellsize_kpc
+        epsilon = self.epsilon*cellsize_kpc
         virial_radius = comoving_rvir_kpc/(1+redshift)
         tophat_limit = XRvir*virial_radius
         func = lambda x, y, z: self.precipitation_func(np.sqrt(x**2+y**2+z**2)*cellsize_kpc/(1+redshift), n1, n2, xi1, xi2, neconstant, rmax, epsilon)
