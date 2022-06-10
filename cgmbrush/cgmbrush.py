@@ -1292,7 +1292,7 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     
     halos_subtraction_coarse = np.zeros([len(RS_array),den_grid_size,den_grid_size])
     halo_field = np.zeros([len(RS_array),grid_length,grid_length])
-    halo_masks = [] 
+    halo_masks = [] # list (for each z) of lists of 2D arrays of masks (ragged sizes)
     halos_removed_fields = np.zeros([len(RS_array),den_grid_size,den_grid_size]) # This should be the same as fine_mask_len in add_halos function
     
     for i in range(0, len(RS_array)):
