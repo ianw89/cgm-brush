@@ -220,7 +220,7 @@ class SimulationProvider(metaclass=abc.ABCMeta):
     
     @abc.abstractmethod
     def get_density_field(self, redshift: float, resolution: int):
-        """Gets the density field (in pixels) for the given redshift and grid resolution."""
+        """Gets the 2D density field (in pixels) for the given redshift and grid resolution."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -1038,21 +1038,36 @@ def T_anisotropy(DM, T_vir, z):
     return dT
 
 
-def convolve_DM_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
-    
-    totalcellArea4 = sum(sum(mask)) * ((cellsize)**2)
-        
-    if totalcellArea4 != 0:
-        # Normalize and weight the results appropriately. TODO document this better
-        convolution = (Mvir_avg/totalcellArea4) * my_convolve(halo_cell_pos, mask)
-        
-        # store addition masks
-        final_mask = (Mvir_avg/totalcellArea4) * (Mpc**-3 * 10**6) * nPS * cosmo.fb * mask
+def normalize_and_convert_field(field, mass, mass_area):
+    """Normalizes a field so the hydrogen fraction adds up to the mass provided. Converts to [pc cm^-3] units."""
+    return (mass/mass_area) * (Mpc**-3 * 10**6) * nPS * cosmo.fb * field
 
-        return convolution, final_mask
+
+def normalize_and_convert_mask(mask, mass, cellsize):
+    """Normalizes a mask so the hydrogen fraction adds up to the mass provided. Converts to [pc cm^-3] units.
+    Returns the mask and the total mass of the summed, unnormalized mask."""
+    mass_area = sum(sum(mask)) * ((cellsize)**2)
+    if mass_area != 0:
+        return normalize_and_convert_field(mask, mass, mass_area), mass_area
+    return mask, mass_area
+
+
+def convolve_DM_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
+    """
+    Convolves a 2D field of halo positions and a 2D mask of weights for a given mass bin.
+    """
+    
+    # store addition masks
+    final_mask, mass_area = normalize_and_convert_mask(mask, Mvir_avg, cellsize)
+        
+    if mass_area != 0:
+        # Normalize and weight the results appropriately. 
+        convolved_field = normalize_and_convert_field(my_convolve(halo_cell_pos, mask), Mvir_avg, mass_area)
+
+        return convolved_field, final_mask
     else:
-        # If the mass bin is empty, then skip convolution and return 0's
-        return np.zeros(halo_cell_pos.shape), mask # BUG in this case the mask is not properly normalized
+        # Empty mask means mass bin is empty. Skip convolution and return 0's
+        return np.zeros(halo_cell_pos.shape), mask 
 
 def convolve_dT_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
 
@@ -1085,9 +1100,9 @@ def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, b
     redshift: redshift of halos
     """
 
-    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_DM_for_bin)
+    convolved_field, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_DM_for_bin)
             
-    return convolution*(Mpc**-3 *10**6)*nPS*cosmo.fb, conv_rad, addition_masks, Mvir_avg
+    return convolved_field, conv_rad, addition_masks, Mvir_avg
 
 def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float):
     """
@@ -1173,12 +1188,12 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         halo_cell_pos[xy] += 1
 
         # convolve the mask and the halo positions
-        convolution, mask = per_bin_func(halo_cell_pos, coarse_mask, coarse_cellsize, Mvir_avg[j], redshift) 
+        convolution, final_mask = per_bin_func(halo_cell_pos, coarse_mask, coarse_cellsize, Mvir_avg[j], redshift) 
         
         convolution_summed += convolution
 
         # store addition masks
-        addition_masks[j,:,:] = mask
+        addition_masks[j,:,:] = final_mask
         
     return convolution_summed, conv_rad, addition_masks, Mvir_avg
 

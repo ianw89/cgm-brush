@@ -24,6 +24,32 @@ plt.rc('ytick', labelsize=BIGGER_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=XBIG_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+def view_mask(profile: CGMProfile, mass):
+
+    provider = BolshoiProvider()
+
+    # pick some parameters
+    redshift = 0 
+    resolution = 16
+    cellsize = provider.Lbox / (provider.halofieldresolution * resolution)
+    #print("cellsize (kpc): %s" % (cellsize * 1000))
+    fine_mask_len = 20 * resolution
+    zs = fine_mask_len - fine_mask_len // 10
+    ze = fine_mask_len + fine_mask_len // 10
+
+    comoving_rvir = halo.comoving_rvir(cosmo, mass, redshift)
+    #print("co-moving virial radius (kpc): %s" % (comoving_rvir * 1000))
+
+    mask, area = normalize_and_convert_mask(profile.get_mask(mass, comoving_rvir, redshift, resolution, cellsize, fine_mask_len), mass, cellsize)
+    fig, ax = plt.subplots(1,2,figsize=(24, 12))
+    pos = ax[0].imshow(mask)
+    pos = ax[1].imshow(mask[zs:ze,zs:ze])
+    ax[0].title.set_text('{} Profile, M=${:.1e}$'.format(profile.name, mass))
+    ax[1].title.set_text('{} Profile (zoomed), M=${:.1e}$'.format(profile.name, mass))
+    cbar = fig.colorbar(pos, ax=ax)
+    cbar.set_label('DM [pc cm$^{-3}$]', rotation=270, size=XBIG_SIZE)
+
+
 def density_plot(axis, field, vmin: int, vmax: int, name: str):
     a = axis.imshow(field, vmin = vmin, vmax = vmax)
     axis.set_title(name, size='20')
