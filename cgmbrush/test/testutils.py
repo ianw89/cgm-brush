@@ -94,3 +94,42 @@ def force_load_npz(filename, folder=VAR_DIR):
         results[file] = npz[file] 
     npz.close()
     return results
+
+def add_cross(field, center_x, center_y, weight, falloff=3):
+    field[center_x][center_y] += weight
+    field[center_x - 1][center_y] += weight/falloff
+    field[center_x + 1][center_y] += weight/falloff
+    field[center_x][center_y - 1] += weight/falloff
+    field[center_x][center_y + 1] += weight/falloff
+
+def add_big_cross(field, center_x, center_y, weight):
+    field[center_x][center_y] += weight
+    field[center_x - 1][center_y] += weight/3
+    field[center_x + 1][center_y] += weight/3
+    field[center_x][center_y - 1] += weight/3
+    field[center_x][center_y + 1] += weight/3
+    field[center_x - 2][center_y] += weight/10
+    field[center_x + 2][center_y] += weight/10
+    field[center_x][center_y - 2] += weight/10
+    field[center_x][center_y + 2] += weight/10
+    field[center_x + 1][center_y + 1] += weight/10
+    field[center_x - 1][center_y + 1] += weight/10
+    field[center_x + 1][center_y - 1] += weight/10
+    field[center_x - 1][center_y - 1] += weight/10
+
+class FakeProvider(SimulationProvider): 
+
+    Lbox = 50 / cosmo.h # 50 Mpc/h fake box
+    halofieldresolution = 50 # unlike bolshoi making this match the original density field size
+    
+    def get_density_field(self, redshift: float, resolution: int):
+        return np.zeros((50,50)) # 50 x 50 cell original grid
+
+    def get_halos(self, redshift : int) -> pd.DataFrame:
+        d = {'x': [3,15,13,30,30], 'y': [3,10,13,37,40], 'Mvir': [10**12, 10**12, 10**12, 10**12, 10**13]} # x,y coords are in Mpc/h like Bolshoi
+        df = pd.DataFrame(data=d)
+        return df
+
+    def get_z_name(redshift: float) -> str:
+        """Gets the shorthand name associated with a given redshift, used in filenames."""
+        raise NotImplementedError

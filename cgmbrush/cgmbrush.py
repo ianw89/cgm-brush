@@ -1208,17 +1208,13 @@ def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass
     
     # convolve halos
     subtraction_profile = subtract_halos(provider, df,bin_markers,subtraction_halo_profile,redshift, halo)
-    assert not np.any(np.isnan(subtraction_profile))
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1, provider.halofieldresolution)
-    assert not np.any(np.isnan(subtraction_profile_smooth))
     
-    # create coarse grid
+    # Smooth from the resolution of the halo grid to the original density field resolution, N
     subtraction_coarse= smoothfield(subtraction_profile_smooth, provider.halofieldresolution, den_grid_size)
-    assert not np.any(np.isnan(subtraction_coarse))
     
     # remove halos from the density field
     halos_removed_coarse=removeConvolvedHalos(density_field,subtraction_coarse)
-    assert not np.any(np.isnan(halos_removed_coarse))
     
     return halos_removed_coarse,subtraction_coarse,subtraction_profile,subtraction_profile_smooth
 
