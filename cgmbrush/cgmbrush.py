@@ -189,6 +189,9 @@ def DM_statistics(field):
 ########################################
 # This section is the interface and code for extracting density fields and halos
 # from N-body simulations outputs for use in cgmbrush.
+
+# TODO update interface to support projecting along x or y axis instead of just z axis.
+# TODO the halo table returned should take this into account
 ########################################
 
 class SimulationProvider(metaclass=abc.ABCMeta):
@@ -327,6 +330,8 @@ class BolshoiProvider(SimulationProvider):
             result = loadArray(filename)
             # The rest of the code expects this to be a DataFrame, so convert it back
             # x,y,z are in Mpc/h
+            # Mvir and Mtot are in Msun/h
+            # Rvir is in Mpc/h
             result = pd.DataFrame(result, columns = ['row_id','x','y','z','Mvir','Mtot','Rvir','ix','iy','iz'])
         except IOError:
             pass 
@@ -1395,7 +1400,12 @@ def profile_of_masks(mask_array):
         prof_masks[i,:] = radial_profile(mask_array[i,:,:], mask_center,mask_center)
         
     return prof_masks
-    
+
+def random_flip_and_translate_field(field):
+    # TODO 50% chance to flip along x axis
+    # TODO 50% chance to flip along y axis
+    return translate_array(field)
+
 # Translate arrays by random number
 #def translate_array(array,seed_x,seed_y):
 def translate_array(array):
@@ -1433,8 +1443,7 @@ def translate_field_stack(halos_reAdded, RS_array, seed):
 
     # Translate all but the first z slice
     for i in range(1, len(RS_array)):
-        halos_reAdded_translated[i,:,:] = translate_array(halos_reAdded[i,:,:]) 
-        #halos_reAdded_translated[i,:,:] = redshifted_DM(translate_array(halos_reAdded[i,:,:]),RS_array[i])
+        halos_reAdded_translated[i,:,:] = random_flip_and_translate_field(halos_reAdded[i,:,:]) 
     
     return halos_reAdded_translated
 
