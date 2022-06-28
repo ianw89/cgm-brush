@@ -86,7 +86,7 @@ def make_DM_vs_Rad_profiles_plots(series, plot_masks: bool, x_start, x_end, reso
     M_chosen are mass bins
     '''
 
-    mean_DM = np.mean(provider.get_density_field(0, 256))
+    mean_DM = np.mean(provider.get_density_field(0, 256, 2))
 
     plots_to_make = len(M_chosen)
 

@@ -7,6 +7,7 @@
 
 from __future__ import print_function 
 from __future__ import division
+from multiprocessing.sharedctypes import Value
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
@@ -140,9 +141,14 @@ def RS_array_gen(z_max,Lbox):
 
     return RS_array
 
-# normalize DM  #Matt -- Understand this beetter
+# normalize DM  #Matt -- Understand this better
+# TODO we always set z to 0 when calling this even when it is not. Cleanup...
 def normDM(DM, z, resolution, Lbox):
-  return DM *PcinMpc* Lbox/resolution * cosmo.elecD(z) /(1+z)**2  # Psc cm-2  
+    """
+    Converts a 2D projected density value ratio (compared to critical density) into a dispersion measure. 
+    Works on single values or a field of values.
+    """
+    return DM * PcinMpc * Lbox/resolution * cosmo.elecD(z) / (1+z)**2  # Psc cm-2  
 
 
 def DM_statistics(field):
@@ -189,9 +195,6 @@ def DM_statistics(field):
 ########################################
 # This section is the interface and code for extracting density fields and halos
 # from N-body simulations outputs for use in cgmbrush.
-
-# TODO update interface to support projecting along x or y axis instead of just z axis.
-# TODO the halo table returned should take this into account
 ########################################
 
 class SimulationProvider(metaclass=abc.ABCMeta):
@@ -222,7 +225,7 @@ class SimulationProvider(metaclass=abc.ABCMeta):
         pass
     
     @abc.abstractmethod
-    def get_density_field(self, redshift: float, resolution: int):
+    def get_density_field(self, redshift: float, resolution: int, projection_axis: int):
         """Gets the 2D density field (in pixels) for the given redshift and grid resolution."""
         raise NotImplementedError
 
@@ -279,22 +282,24 @@ class BolshoiProvider(SimulationProvider):
     def get_z_name(self, redshift: float) -> str: 
         return self.z_to_filename[str(round(redshift, 2))]
 
-    def get_density_field(self, redshift: float, resolution: int):
+    def get_density_field(self, redshift: float, resolution: int, projection_axis: int):
         """Gets the density field for the given redshift and grid resolution."""
 
         #print("Density Field Specs: ", redshift, resolution, self.Lbox, cosmo.elecD(redshift))
         
+        if (projection_axis != 0 and projection_axis != 1 and projection_axis != 2):
+            raise ValueError("The projected axis must be 0, 1, or 2 (corresponding to x, y, z axis).")
         
         if str(round(redshift, 2)) not in self.z_to_filename:
             raise ValueError("There is no file associated with the z={}. Add an entry to the z_to_filname dictionary on this object.".format(redshift))
         z_name = self.get_z_name(redshift)
 
         # If in memory, use it
-        if (z_name, resolution) in self.density_fields:
-            return self.density_fields[(z_name, resolution)]
+        if (z_name, resolution, projection_axis) in self.density_fields:
+            return self.density_fields[(z_name, resolution, projection_axis)]
 
         # If not, try fast reading from saved off numpy array            
-        filename = "bol_den_field_" + z_name + '_' + str(resolution)
+        filename = "bol_den_field_" + z_name + '_' + str(resolution) + '_' + str(projection_axis)
         result = []
         try:
             result = loadArray(filename)
@@ -304,7 +309,7 @@ class BolshoiProvider(SimulationProvider):
         # Do the slow reading from the bolshoi file and save off fast copy
         if len(result) == 0:
             print("Reading from raw Bolshoi Files")
-            result = self.import_density_field(z_name, resolution)
+            result = self.import_density_field(z_name, resolution, projection_axis)
             if len(result) == 0:
                 raise IOError("There was a problem importing the Bolshoi density field for (" + str(redshift) + ", " + str(resolution) + ")")
             saveArray(filename, result)
@@ -346,15 +351,17 @@ class BolshoiProvider(SimulationProvider):
         self.halos[z_name] = result
         return result
 
-    def import_density_field(self, z_name, resolution):
+    def import_density_field(self, z_name: str, resolution: int, projection_axis: int):
         """Imports the density field for a given redshift and smooths it. Stores the result in a numpy file that is faster to access."""
         
         if resolution != 256 and resolution != 512:
-            raise ValueError("Only resolution 256 or 512 is supported.")
+            raise ValueError("Only resolution 256 or 512 is supported in the Bolshoi simulations.")
+
+        if resolution == 512 and z_name != '0':
+            raise ValueError("At resolution 512 z must be '0' in the Bolshoi Simulations.")
 
         resStr = str(resolution)
 
-  
         # Have to hardcode z=0 table because of the unique column names
         if z_name == '0':
             # reading density field and halos data
@@ -366,9 +373,12 @@ class BolshoiProvider(SimulationProvider):
 
             # 3D density array
             pdDensN=pdDensN.sort_values(['Bolshoi__Dens'+resStr+'_z0__ix','Bolshoi__Dens'+resStr+'_z0__iy','Bolshoi__Dens'+resStr+'_z0__iz'])
-            tden = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
-            tden2 = np.reshape(tden,(resolution,resolution,resolution))
-            return normDM((tden2+1).sum(2), 0, resolution, self.Lbox)
+            flat_den_values = pdDensN['Bolshoi__Dens'+resStr+'_z0__dens'].values
+            den_values_3d = np.reshape(flat_den_values,(resolution,resolution,resolution))
+
+            # The density values are overdensities in units of mean background density
+            den_values_2d = (den_values_3d + 1).sum(projection_axis) 
+            return normDM(den_values_2d, 0, resolution, self.Lbox)
 
         else:
             file_path = os.path.join(SIMS_DIR, 'dens'+resStr+'-z-{}.csv.gz'.format(z_name))
@@ -378,15 +388,12 @@ class BolshoiProvider(SimulationProvider):
             # 3D density array
             den_sorted=den2.sort_values(['Bolshoi__Dens'+resStr+'__ix','Bolshoi__Dens'+resStr+'__iy','Bolshoi__Dens'+resStr+'__iz'])
             den_vals = den_sorted['Bolshoi__Dens'+resStr+'__dens'].values
-            den = np.reshape(den_vals,(resolution,resolution,resolution))
-            
-            den = normDM((den+1).sum(2),0, resolution, self.Lbox) 
+            den_values_3d = np.reshape(den_vals,(resolution,resolution,resolution))
+            den_values_2d_DM = normDM((den_values_3d+1).sum(projection_axis), 0, resolution, self.Lbox) 
 
-            test_l= (np.repeat((np.repeat(den,4,axis=0)),4,axis=1))
-
+            # Must do smoothing to match z=0 boxes ourselves for z>0 boxes
+            test_l= (np.repeat((np.repeat(den_values_2d_DM,4,axis=0)),4,axis=1))
             test_sm =  gauss_sinc_smoothing(test_l,4,4,1, self.halofieldresolution)
-
-            assert resolution == 256
             smoothed_field = test_sm.reshape([256, 4, 256, 4]).mean(3).mean(1)
             return smoothed_field
 
@@ -937,13 +944,12 @@ class PrecipitationProfile(CGMProfile):
 # This function subtracts the halos from the density field
 
 # arguments: 
-# haloArray: dataframe of halos, sorted by mass.
+# df: dataframe of halos, sorted by mass.
 # bin_markers: array giving the indexes of halos at the edges of mass bins
-# profile: tophat, NFW etc
-def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile: CGMProfile, redshift: float, halo):
+# profile: CGMProfile object to use for subtraction
+def subtract_halos(provider: SimulationProvider, df: pd.DataFrame, bin_markers, profile: CGMProfile, redshift: float, halo, proj_axis: int):
     
     # TODO I think this is effectively hardcoded to the 256 Bolshoi grid size.
-    df = haloArray
     no_cells = provider.halofieldresolution # the resolution multiplier isn't used for subraction, only addition
     chunks = len(bin_markers) - 1
     
@@ -989,8 +995,9 @@ def subtract_halos(provider: SimulationProvider, haloArray, bin_markers, profile
         halo_cell_pos = np.zeros([no_cells,no_cells])   
         
         # Translate coordinates for comomving Mpc to halo grid coordinates.
-        ix = ((np.rint(no_cells*((df[bin_markers[j]:bin_markers[j+1]]['x'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
-        iy = ((np.rint(no_cells*((df[bin_markers[j]:bin_markers[j+1]]['y'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+        x_column, y_column = projected_axis_to_columns(proj_axis)
+        ix = ((np.rint(no_cells*((df[bin_markers[j]:bin_markers[j+1]][x_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+        iy = ((np.rint(no_cells*((df[bin_markers[j]:bin_markers[j+1]][y_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         xy=(ix,iy)
 
         # BUG issue: the method does not add repeated coordinates
@@ -1093,7 +1100,7 @@ def convolve_dT_for_bin(halo_cell_pos, mask, cellsize, Mvir_avg, redshift):
         return np.zeros(halo_cell_pos.shape), mask
 
 
-def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float):
+def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float, proj_axis: int):
     """
     Creates a map of dispersion measure.
 
@@ -1105,11 +1112,11 @@ def make_halo_DM_map(provider: SimulationProvider, haloArray, resolution: int, b
     redshift: redshift of halos
     """
 
-    convolved_field, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_DM_for_bin)
+    convolved_field, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_DM_for_bin, proj_axis)
             
     return convolved_field, conv_rad, addition_masks, Mvir_avg
 
-def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float):
+def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float, proj_axis: int):
     """
     Creates a map of CBM temperature anisotropy from the provided halos.
     
@@ -1121,13 +1128,13 @@ def make_halo_dT_map(provider: SimulationProvider, haloArray, resolution: int, b
     redshift: redshift of halos
     """
 
-    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_dT_for_bin)
+    convolution, conv_rad, addition_masks, Mvir_avg = add_halos(provider, haloArray, resolution, bin_markers, profile, redshift, convolve_dT_for_bin, proj_axis)
     Tvir_avg = T_vir(Mvir_avg, redshift) # TODO duplicate calculation 
 
     return convolution, conv_rad, addition_masks, Tvir_avg
 
 
-def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float, per_bin_func):
+def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_markers, profile: CGMProfile, redshift: float, per_bin_func, proj_axis: int):
     """
     Performs a convolution between halo positions (via the haloArray parameter) and profile (via the profile parameter).
 
@@ -1185,8 +1192,9 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         
         # Translate the x,y values from comoving coordinates to fine grid coordinates
         # The modulus just ensures that halos on the edge that are rounded up wrap around to the 0th index location
-        ix = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]]['x'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
-        iy = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]]['y'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+        x_column, y_column = projected_axis_to_columns(proj_axis)
+        ix = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]][x_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+        iy = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]][y_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         xy=(ix,iy)
 
         # Adnan: BUG issue: the method does not add repeated coordinates. Ian: Is that right?
@@ -1205,14 +1213,14 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
 # Halos removed field
 
 #This function combines many steps of subtraction and smoothing to yield a density field from which halos have been removed
-def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,resolution,sigma_gauss,width_sinc, halo):
+def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,resolution,sigma_gauss,width_sinc, halo, proj_axis: int):
     
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
     df= halo_array_for_convolution[0]
     bin_markers= halo_array_for_convolution[1]
     
     # convolve halos
-    subtraction_profile = subtract_halos(provider, df,bin_markers,subtraction_halo_profile,redshift, halo)
+    subtraction_profile = subtract_halos(provider, df,bin_markers,subtraction_halo_profile,redshift, halo, proj_axis)
     subtraction_profile_smooth = gauss_sinc_smoothing(subtraction_profile,sigma_gauss,width_sinc,1, provider.halofieldresolution)
     
     # Smooth from the resolution of the halo grid to the original density field resolution, N
@@ -1226,7 +1234,7 @@ def halos_removed_field(provider: SimulationProvider, current_halo_file,min_mass
 
 # Function subtracts and adds halos
 def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed_coarse,
-                       addition_halo_profile: CGMProfile,resolution,sigma_gauss,width_sinc):
+                       addition_halo_profile: CGMProfile,resolution, proj_axis: int):
     
     # setup inputs for convolution
     halo_array_for_convolution = create_halo_array_for_convolution(current_halo_file,min_mass,max_mass,log_bins)
@@ -1234,7 +1242,7 @@ def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,de
     bin_markers= halo_array_for_convolution[1]
     
     # convolve halos for adding back
-    addition_profile_initial=make_halo_DM_map(provider, df,resolution,bin_markers,addition_halo_profile,redshift)
+    addition_profile_initial=make_halo_DM_map(provider, df,resolution,bin_markers,addition_halo_profile,redshift,proj_axis)
     addition_profile = addition_profile_initial[0]
     addition_profile_masks=addition_profile_initial[2]
     
@@ -1252,7 +1260,7 @@ def convolution_all_steps_final(provider, current_halo_file,min_mass,max_mass,de
     
 
 def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS_array,min_mass,max_mass,log_bins,subtraction_halo_profile: CGMProfile,
-                             addition_profile: CGMProfile,resolution, halo):
+                             addition_profile: CGMProfile,resolution, halo, proj_axes):
     """
     This function runs the convolution code (subtraction and addition) and returns all the results. It will run for every redshift given serially.
 
@@ -1279,14 +1287,14 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
     for i in range(0, len(RS_array)):
         
         redshift = RS_array[i]
-        density_field = sim_provider.get_density_field(redshift, den_grid_size)
+        
+        density_field = sim_provider.get_density_field(redshift, den_grid_size, proj_axes[i])
         halos = sim_provider.get_halos(redshift)
 
-        halos_removed = halos_removed_field(sim_provider, halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,resolution,sigma_gauss,width_sinc, halo)
+        halos_removed = halos_removed_field(sim_provider, halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,subtraction_halo_profile,resolution,sigma_gauss,width_sinc, halo, proj_axes[i])
               
         conv_all_steps = convolution_all_steps_final(sim_provider, halos,min_mass,max_mass,density_field,den_grid_size,redshift,log_bins,halos_removed[0],
-                           addition_profile,resolution,sigma_gauss*resolution,width_sinc)
-        
+                           addition_profile,resolution, proj_axes[i])
         
         halos_reAdded[i,:,:] = conv_all_steps[0]
         
@@ -1295,10 +1303,24 @@ def halo_subtraction_addition(sim_provider : SimulationProvider,den_grid_size,RS
         halo_masks[i,:,:,:]= conv_all_steps[3]
         halos_removed_fields[i,:,:] =  halos_removed[0]
         
-        
     # returns halo array and masks used to add halos back
     return halos_reAdded,halo_masks,halos_subtraction_coarse,halo_field,halos_removed_fields, conv_all_steps[5],conv_all_steps[6],halos_removed[2],halos_removed[3]
 
+
+def projected_axis_to_columns(proj_axis: int):
+    if proj_axis == 2: 
+        x_column = 'x'
+        y_column = 'y'
+    elif proj_axis == 1:
+        x_column = 'x'
+        y_column = 'z'
+    elif proj_axis == 0:
+        x_column = 'y'
+        y_column = 'z'
+    else:
+        raise ValueError("Projected axis must be 0, 1, or 2.")
+        
+    return x_column, y_column
 
 
 ####################################
@@ -1335,7 +1357,7 @@ def make_halo_square(DM_field, ix, iy, crop_grid):
 
 
 # Single function for radial profile of DM for a given DM array and grid size
-def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider: SimulationProvider):    
+def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider: SimulationProvider, proj_axis: int):    
     """Creates radial profile of the DM for halos in the DM_field provided. Uses the halo_data_frame, which is a DataFrame and must be sorted in ascending mass order,
      alongside the bin_markers which provides the indexes where mass bins change in the halo_data_frame. crop_grid_dim is used to choose how large a square around the halo
      centers to cutout. """
@@ -1352,8 +1374,9 @@ def DM_vs_radius(DM_field, halo_data_frame, crop_grid_dim, bin_markers, provider
 
     no_cells=DM_field.shape[0]
     # Translate coordinates from comoving Mpc to fine grid coordinates
-    ix = ((np.rint(no_cells*((halo_data_frame['x'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
-    iy = ((np.rint(no_cells*((halo_data_frame['y'].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+    x_column, y_column = projected_axis_to_columns(proj_axis)
+    ix = ((np.rint(no_cells*((halo_data_frame[x_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
+    iy = ((np.rint(no_cells*((halo_data_frame[y_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
 
     #print("ix: {}".format(ix))
     #print("iy: {}".format(iy))
@@ -1402,8 +1425,11 @@ def profile_of_masks(mask_array):
     return prof_masks
 
 def random_flip_and_translate_field(field):
-    # TODO 50% chance to flip along x axis
-    # TODO 50% chance to flip along y axis
+    if random.choice([True, False]):
+        field = np.flip(field, axis=0)
+    if random.choice([True, False]):
+        field = np.flip(field, axis=1)
+
     return translate_array(field)
 
 # Translate arrays by random number
@@ -1436,10 +1462,15 @@ def translate_field_stack(halos_reAdded, RS_array, seed):
     halos_reAdded_translated = np.zeros(halos_reAdded.shape)
     halos_reAdded_translated[0] = halos_reAdded[0] # don't translate the 1st redshift's field, so just copy over
     
-    # We want to random translations for each of the blocks. But we want to be able to make the same translations from run to run
-    # so different CGM profiles can be compared. Thus, set the random seed here.
+    # We want to random translations for each of the blocks.
+    # However, we do this AFTER the convolutions are done, and thus need to
+    # replicate the the translations on each of the intermedaite and final fields.
+    # So we set the random number generator to the same value for subsequent calls of this.
     if seed is not None:
         random.seed(seed)
+    else:
+        # TODO fix this terrible design
+        raise Exception("In current implementation seed must be set manually or translation procedure will give meaningless results!")
 
     # Translate all but the first z slice
     for i in range(1, len(RS_array)):
@@ -1528,14 +1559,19 @@ class Configuration:
         self.provider = provider
         self.resolution = resolution # actual fine grids are generally this x provider.halofieldresolution
         self.folder = folder
-
-        # Resolution: choose between 256 and 512 grid TODO this is Bolshoi specific
-        if den_grid_size != 256 and den_grid_size != 512:
-            raise ValueError("Only resolutions 256 and 512 are allowed")
         self.den_grid_size = den_grid_size 
 
         # User provides a redshift array
         self.RS_array = RS_array # For a single box, we only use the redshift 0 box
+        
+        # Choose a random axes to project 3D to 2D density field.
+        # Choose consistently for z=0 boxes, though.
+        self.proj_axes = []       
+        for z in self.RS_array:
+            if z == 0:
+                self.proj_axes.append(2)
+            else:
+                self.proj_axes.append(random.randint(0, 2))
 
         # Profile used for subtracting halos from the density field
         self.subtraction_halo_profile = NFWProfile()
@@ -1724,7 +1760,7 @@ class Configuration:
 
             self.results = halo_subtraction_addition(self.provider, self.den_grid_size, self.RS_array, self.min_mass, 
                                                 self.max_mass, self.log_bins, self.subtraction_halo_profile, 
-                                                self.addition_profile, self.resolution, halo)
+                                                self.addition_profile, self.resolution, halo, self.proj_axes)
             
             self.convert_and_save()
             self.npz = np.load(file_path, allow_pickle=True)
@@ -1811,7 +1847,7 @@ class Configuration:
 
                 all_orig_fields = np.zeros((len(self.RS_array), self.den_grid_size, self.den_grid_size))
                 for i in range(0, len(self.RS_array)):
-                    all_orig_fields[i] = self.provider.get_density_field(self.RS_array[i], self.den_grid_size)
+                    all_orig_fields[i] = self.provider.get_density_field(self.RS_array[i], self.den_grid_size, self.proj_axes[i])
                 translated_field = translate_field_stack(all_orig_fields, self.RS_array, self.seed)
                 self.stacked_orig_field = np.zeros(translated_field.shape)
                 for i in range(0, len(self.RS_array)):
@@ -1871,7 +1907,7 @@ class Configuration:
 
             trim_dim = int(10*self.resolution)
 
-            self.DM_vs_R1 = DM_vs_radius(self.get_final_field()[index], df[0], trim_dim, df[1], self.provider) [0]
+            self.DM_vs_R1 = DM_vs_radius(self.get_final_field()[index], df[0], trim_dim, df[1], self.provider, self.proj_axes[index]) [0]
 
             saveArray(profile_file, self.DM_vs_R1, folder=self.folder)
   

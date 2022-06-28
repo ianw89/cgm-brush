@@ -33,7 +33,7 @@ def plot_grid_comparison_delta(new, baseline):
 
     fig, ax = plt.subplots(1,3,figsize=(36, 12))
 
-    if np.shape(new) is not np.shape(baseline):
+    if np.shape(new) != np.shape(baseline):
         print("Differing shapes. Baseline: {0}.  New: {1}.".format(np.shape(baseline), np.shape(new)))
 
     vmin = 0
@@ -42,6 +42,7 @@ def plot_grid_comparison_delta(new, baseline):
 
     pos = ax[0].imshow(new, norm=norm)
     ax[0].title.set_text('New Result')
+    fig.colorbar(pos, ax=ax[0])
     pos = ax[1].imshow(baseline, norm=norm)
     ax[1].title.set_text('Baseline')
     fig.colorbar(pos, ax=ax[1])
@@ -122,7 +123,7 @@ class FakeProvider(SimulationProvider):
     Lbox = 50 / cosmo.h # 50 Mpc/h fake box
     halofieldresolution = 50 # unlike bolshoi making this match the original density field size
     
-    def get_density_field(self, redshift: float, resolution: int):
+    def get_density_field(self, redshift: float, resolution: int, proj_axis: int):
         return np.zeros((50,50)) # 50 x 50 cell original grid
 
     def get_halos(self, redshift : int) -> pd.DataFrame:

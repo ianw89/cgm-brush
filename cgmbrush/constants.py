@@ -7,11 +7,11 @@
 import numpy as np
 
 kpc = 3.086*10**21
-"""Kiloparsec in centimeters."""
+"""How many centimeters in a Kiloparsec."""
 Mpc = 3.086*10**24
-"""Megaparsec in centimeters."""
+"""How many centimeters in a Megaparsec."""
 msun =1.9891 * 10**33 
-"""Solar mass in grams."""       
+"""How many grams in a Solar mass."""       
 mprot = 1.6726219 * 10**-24
 """Proton mass in grams."""       
 lightspeed = 2.99792e5
@@ -31,8 +31,9 @@ fhydrogen = (1-Yhe)/((1-Yhe) + Yhe/4)
 RadtoSec= 206265 
 """Radians to arsec."""
 PcinMpc = 1e6 
-"""Parsec in a Megaparsec."""
+"""How many parsecs in a Megaparsec."""
 KPCINMPC = 1e3
+"""How many kiloparsecs in a Megaparsec."""
 
 DEFAULT_MIN_MASS = 10**10
 DEFAULT_MAX_MASS = 8.3*10**14
