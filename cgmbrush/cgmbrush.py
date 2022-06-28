@@ -337,6 +337,7 @@ class BolshoiProvider(SimulationProvider):
             # x,y,z are in Mpc/h
             # Mvir and Mtot are in Msun/h
             # Rvir is in Mpc/h
+            # ix,iy,iz are coordinates on the 1024 halo resolution grid, but we don't use
             result = pd.DataFrame(result, columns = ['row_id','x','y','z','Mvir','Mtot','Rvir','ix','iy','iz'])
         except IOError:
             pass 
