@@ -6,7 +6,7 @@ import numpy as np
 provider = BolshoiProvider()
 date = '2022-06-28'
 resolutions = [4,8,16,32]
-precipProfile = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**13.3)
+precipProfile = MassDependentProfile(PrecipitationProfile(), NFWProfile(), 10**14.1)
 profiles = [(SphericalTophatProfile(), date), (SphericalTophatProfile(rvir_factor=2), date), (NFWProfile(), date), (FireProfile(), date), (precipProfile, date)]
 
 configs = []
