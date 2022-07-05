@@ -1426,6 +1426,8 @@ def profile_of_masks(mask_array):
     return prof_masks
 
 def random_flip_and_translate_field(field):
+    """Randomly mirrors and translates a 2D numpy array."""
+
     if random.choice([True, False]):
         field = np.flip(field, axis=0)
     if random.choice([True, False]):
@@ -1433,26 +1435,21 @@ def random_flip_and_translate_field(field):
 
     return translate_array(field)
 
-# Translate arrays by random number
-#def translate_array(array,seed_x,seed_y):
-def translate_array(array):
+def translate_array(field):
+    """Randomly translates a 2D numpy array."""
     
-    # Dimension of input array
-    dim1 = array.shape[0]
-    translated_array= np.zeros([dim1,dim1])
+    dim1 = field.shape[0]
+    translated_field= np.zeros([dim1,dim1])
     
     # Random number to translate the list by
-    #random.seed(seed_x)
     trans_x = random.randint(int(dim1/4),dim1)
-    #random.seed(seed_y)
     trans_y = random.randint(int(dim1/4),dim1)
-    
     
     for i in range(0,dim1):
         for j in range(0,dim1):
-                translated_array[i,j] = array[(i+trans_x)%dim1,(j+trans_y)%dim1]
+                translated_field[i,j] = field[(i+trans_x)%dim1,(j+trans_y)%dim1]
     
-    return translated_array
+    return translated_field
 
 def empty_stack(num_boxes,dim):
     empty_array = np.zeros([num_boxes,dim,dim])
@@ -1461,7 +1458,7 @@ def empty_stack(num_boxes,dim):
 def translate_field_stack(halos_reAdded, RS_array, seed):
 
     halos_reAdded_translated = np.zeros(halos_reAdded.shape)
-    halos_reAdded_translated[0] = halos_reAdded[0] # don't translate the 1st redshift's field, so just copy over
+    halos_reAdded_translated[0] = halos_reAdded[0] # don't translate/flip the 1st redshift's field, so just copy over
     
     # We want to random translations for each of the blocks.
     # However, we do this AFTER the convolutions are done, and thus need to
@@ -1473,7 +1470,7 @@ def translate_field_stack(halos_reAdded, RS_array, seed):
         # TODO fix this terrible design
         raise Exception("In current implementation seed must be set manually or translation procedure will give meaningless results!")
 
-    # Translate all but the first z slice
+    # Translate/flip all but the first z slice
     for i in range(1, len(RS_array)):
         halos_reAdded_translated[i,:,:] = random_flip_and_translate_field(halos_reAdded[i,:,:]) 
     
@@ -1544,6 +1541,30 @@ def loadArray(filename, folder = VAR_DIR):
         file_path = os.path.join(folder, filename + ".txt")
         return np.load(file_path, allow_pickle=True)
 
+def ensure_comparable(configs):
+    """Takes a list of configurations objects and ensures that results from running them will be comparable.
+    
+    This sets the random seeds to be the same across these configs (taking the seed from the first config if set),
+    and ensures that they all have the some proj_axes (again using the first configuration object).
+
+    This ensures that when a bunch of configuration objects are created, the final outputs will have performed random 
+    operations in the same manner.
+    """
+
+    if len(configs) < 2:
+        return
+
+    shared_seed = configs[0].seed
+    if shared_seed is None:
+        shared_seed = random.randint(0, 2**31)
+    
+    for c in configs:
+
+        if len(c.RS_array) != len(configs[0].RS_array):
+            raise Exception("List of configurations provided must have the length of RS_array to be comparable.")
+
+        c.seed = shared_seed
+        c.proj_axes = configs[0].proj_axes
 
 class Configuration:
     """
@@ -1828,6 +1849,17 @@ class Configuration:
         return self.stacked_final_field
 
     def generate_stacked_fields(self, results_in_memory=True, load_from_files=False):
+        """Generates 'stacked' fields from the original computations by randomly translating and flipping boxes and redshifting DM. 
+        These stacked fields are appropriate for summing over to simulate distances larger than the span of a single box, 
+        assuming the original box sizes are large enough to statistically sample structures well enough. 
+        This does not actually sum up the boxes.
+        
+        This operation is done is a self-consistent manner, so the original, removed, addition, and final fields are handled in the same way.
+        The random number generator is re-seeded to accomplish this. The seed field on the Configuration object must be set 
+        for this operation to work; otherwise an error will be raised.
+        
+        Note that this creates a copy of the fields on disk, which effectively doubles the space requirements of outputs.
+        """
 
         #translated_file = self.get_filename() + "_translated"
         stacked_file = self.get_filename() + "_stacked"
