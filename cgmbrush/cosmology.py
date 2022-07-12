@@ -21,14 +21,6 @@ class cosmology():
     #fd = 1 # fraction of baryons in diffuse ionized gas (FRB paper)
     fb = OmegaB/OmegaM #fraction of matter in baryons
     
-   
-    #def __init__(self):
-    #    z = 0  #this doesn't do anything...need to
-    #    #self.h = h
-        
-    ########################################
-    # Parameters, Constants, and Functions
-    ########################################
     @classmethod
     def rhoB(self, z):
         return self.OmegaB*self.rho_c*(1+z)**3
@@ -37,10 +29,11 @@ class cosmology():
     def rhoM(self, z):
         return self.OmegaM*self.rho_c*(1+z)**3
 
-    
-    # number of electrons per/cm^3 assuming helium contributes two electrons
     @classmethod
     def elecD(self, z):
+        """ 
+        Number of electrons per cm^3 assuming helium contributes two electrons.
+        """
         return self.rhoB(z)*(1-Yhe/2)/(mprot/msun)/Mpc**3
 
 
@@ -88,11 +81,8 @@ class halo():
     #    # z = 0
     #    self.whatthisfor = 0  #
 
-
-
-        
     # 3D NFW profile with r
-    #epsilon is a softening
+    # epsilon is a softening
     @classmethod
     def NFW_profile(self, r,rho_nought,R_s, epsilon=0):
         return rho_nought/(((epsilon+r)/R_s)*((1+(r/R_s))**2))    
@@ -113,7 +103,7 @@ class halo():
     # used to compute virial radius of a halo (important when dark energy is present)
     @classmethod
     def q(self, cosmo, z):
-        return cosmo.OmegaL/ ((cosmo.OmegaM*(1+z)**3)+ cosmo.OmegaL)  
+        return cosmo.OmegaL / ((cosmo.OmegaM*(1+z)**3)+ cosmo.OmegaL)  
 
     # Virial Radius is the critical density of the universe at the given redshift times an 
     # overdensity constant Delta_c using Bryan and Norman (1998), eqn 6, prescription

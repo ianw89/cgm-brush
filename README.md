@@ -4,17 +4,17 @@ CGM Brush is a python library for baryonic post-processing of N-body simulations
 
 This tool can be used for a variety of purposes, but the initial application is using fast radio bursts to study and constrain the CGM.
 
-Presently CGMBrush is hardcoded to work with data from the Bolshoi Simulations. In the near future it will be organized so that you can easily work with data from other N-body simulations.
+Presently CGMBrush has only been used to work with data from the Bolshoi Simulations, but it is organized so that you can work with data from other N-body simulations as well.
 
-CGMBrush is Tested on various versions of Python 3 and sci-py the latest scipy packages as of 2021. It is not tested on Python 2.
+CGMBrush is tested on various versions of Python 3 and sci-py the latest scipy packages as of 2021. It is not tested on Python 2.
 
 ## Installation Instructions
 
-CGMbrush is not yet available as a public package. For now, you can clone this repository and follow the developer instructions below.
+CGMbrush is not yet available as a public package (to pip install). For now we recommend you fork or clone this repository and follow the developer instructions below.
 
 
 ## Developer Instructions
-If you are forking this repo and intend on working directly with its sources, setup instruction are here. You want to install CGMBrush in editable mode (pip install -e path_to_cgmbrush) so that changes made to the sources are picked by files that import it. Because of this, you may want to use an virtual environment so later on if you install a non-developer CGMBrush to your system's python you do not run into issues.
+If you are forking or cloning this repo and intend on working directly with its sources, setup instruction are here. You want to install CGMBrush in editable mode (pip install -e path_to_cgmbrush) so that changes made to the sources are picked by files that import it. Because of this, you may want to use an virtual environment so later on if you install a non-developer CGMBrush to your system's python you do not run into issues.
 
 ### Setup without a virtual environment, using system python
 
@@ -39,7 +39,7 @@ This will setup a virtual environment in the root folder of the respository and 
 
 ## Input and Output Files
 
-By default, output files will be created in "\~/cgmbrush/var" and CGMBrush will look for input files (simulation halo tables, etc) from "\~/cgmbrush/sims". Unless this is desirable, you should set environment variables for CGMB_VAR_DIR and CGMB_SIMS_DIR. On linux or mac this could be done by adding "export CGMB_VAR_DIR='...'" to .bashrc, and on Windows via the System Properties / Environment Variables... dialog. Alternatively, you could update the values in settings.py of the cgmbrush library.
+By default, output files will be created in "\~/cgmbrush/var" and CGMBrush will look for input files (simulation halo tables, etc) from "\~/cgmbrush/sims". Unless this is desirable, you should set environment variables for CGMB_VAR_DIR and CGMB_SIMS_DIR. On linux or mac this could be done by adding "export CGMB_VAR_DIR='...'" to .bashrc, and on Windows via the System Properties / Environment Variables... dialog. Alternatively, you could update the values in settings.py of the cgmbrush library directly.
 
 
 ## Bolshoi Simulations Files
@@ -47,7 +47,7 @@ CGM Brush uses .csv.gz density field and halo table files from the Bolshoi simul
 ```
 SELECT * FROM Bolshoi.Dens256_z0
 ```
-to get the density field at 256x256 resolution for z=0. You also need the halo tables (BDMProf), which should be acquired and saved off seperatly for each redshift snapshot desired. After you queries complete, you can download a .csv file from the cosmosim job and then run gzip on it. These files should be saved off and renamed your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.0.csv.gz' and 'halo-z-0.0.csv.gz', for instance. Naming of higher reshift files is more complicated; see the comments in the BolshoiProvider class in the cgmbrush.py file. To get started we suggest ignoring higher redshift data (and the relevent tests).
+to get the density field at 256x256 resolution for z=0. You also need the halo tables (BDMProf), which should be acquired and saved off seperatly for each redshift snapshot desired. After your queries complete, you can download a .csv file from the cosmosim job and then run gzip on it. These files should be saved off and renamed your sims directory (see 'Input and Output Files' above) as 'dens256-z-0.0.csv.gz' and 'halo-z-0.0.csv.gz', for instance. Naming of higher reshift files is more complicated; see the comments in the BolshoiProvider class in the cgmbrush.py file. To get started we suggest ignoring higher redshift data (and the relevent tests).
 
 
 ## Checking your work

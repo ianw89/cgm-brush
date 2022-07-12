@@ -200,7 +200,17 @@ def DM_statistics(field):
 class SimulationProvider(metaclass=abc.ABCMeta):
     """Interface used by cgmbrush to access information from the N-body simulation.
     
-    Users are expected to subclass this interface. See examples."""
+    Users are expected to subclass this interface. See examples.
+    
+    This class is responsible for providing 2D density fields and a halo DataFrame (see pandas) 
+    to CGM Brush. Implementors may want this object to cache results intelligently as 
+    CGM Brush will all these methods multiple times and any expensive operations slow
+    the CGM Brush runtimes down somewhat.
+
+    Implementors must also specify a mapping from floating-point redshift values to 
+    short-hand names for these values that can be used in filenames and such (see get_z_name()
+    and the BolshoiProvider implementation).
+    """
 
     @classmethod
     def __subclasshook__(cls, subclass):
@@ -1610,7 +1620,6 @@ class Configuration:
 
         self.npz = None
         self.results = None
-        self.figure = None
         self.final_field = None
         self.add_masks = None
         self.addition_field = None
@@ -1978,15 +1987,15 @@ class Configuration:
         return self.mask_profiles
 
     def clear_results(self):
-        """Clears memory-intense results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
+        """Clears memory-intensive results from memory. Saved files are preserved. Results can be recovered quickly by running with load_from_files=True."""
         self.results = None
+        self.npz = None
+        self.stacked_npz = None
         self.final_field = None
         self.addition_field = None
         self.stacked_addition_field = None
         self.stacked_final_field = None
         self.stacked_removed_field = None
         self.stacked_orig_field = None
-        # TODO is calling del(...) better? 
-        #gc.collect()
         # should allow garbage collection to happen
         
