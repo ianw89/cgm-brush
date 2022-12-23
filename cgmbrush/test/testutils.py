@@ -119,18 +119,35 @@ def add_big_cross(field, center_x, center_y, weight):
     field[center_x - 1][center_y - 1] += weight/10
 
 class FakeProvider(SimulationProvider): 
+    """
+    Simulation provider with a small uniform density field and a few halos in the halo table.
+
+    The same data is used for all redshifts; improve this class if testing across redshifts is needed.
+    """
+
+    def __init__(self):
+        # Associative array of (redshift, resolution) => 3D numpy grid 
+        # This works very well with np.savez, which is much faster to read
+        # than the Bolshoi density files
+        self.halos = {}
+        self.raw_density_field = np.zeros((50,50)) # 50 x 50 cell original grid
 
     Lbox = 50 / cosmo.h # 50 Mpc/h fake box
     halofieldresolution = 50 # unlike bolshoi making this match the original density field size
     
     def get_density_field(self, redshift: float, resolution: int, proj_axis: int):
-        return np.zeros((50,50)) # 50 x 50 cell original grid
+        return self.raw_density_field
 
     def get_halos(self, redshift : int) -> pd.DataFrame:
-        d = {'x': [3,15,13,30,30], 'y': [3,10,13,37,40], 'Mvir': [10**12, 10**12, 10**12, 10**12, 10**13]} # x,y coords are in Mpc/h like Bolshoi
-        df = pd.DataFrame(data=d)
-        return df
+        z_name = self.get_z_name(redshift)
 
-    def get_z_name(redshift: float) -> str:
-        """Gets the shorthand name associated with a given redshift, used in filenames."""
-        raise NotImplementedError
+        if z_name in self.halos:
+            return self.halos[z_name]     
+        else:   
+            d = {'x': [3,15,13,30,30], 'y': [3,10,13,37,40], 'Mvir': [10**12, 10**12, 10**12, 10**12, 10**13]} # x,y coords are in Mpc/h like Bolshoi
+            df = pd.DataFrame(data=d)
+            self.halos[z_name] = df
+            return df
+
+    def get_z_name(self, redshift: float) -> str:
+        return str(round(redshift, 2))
