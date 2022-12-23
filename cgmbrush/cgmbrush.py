@@ -1011,12 +1011,8 @@ def subtract_halos(provider: SimulationProvider, df: pd.DataFrame, bin_markers, 
         iy = ((np.rint(no_cells*((df[bin_markers[j]:bin_markers[j+1]][y_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         xy=(ix,iy)
         
-        # BUG issue: the method does not add repeated coordinates
-        halo_cell_pos[xy] += 1
+        np.add.at(halo_cell_pos, xy, 1)
 
-        #print(ix)
-        #with np.printoptions(precision=1, linewidth=sys.maxsize, threshold=sys.maxsize):
-        #    print(halo_cell_pos)
 
         # convolve the mask and the halo positions
         convolution[j,:,:] = (Mvir_avg[j]/(totalcellArea4)) * my_convolve(halo_cell_pos,coarse_mask)    
@@ -1211,9 +1207,14 @@ def add_halos(provider: SimulationProvider, haloArray, resolution: int, bin_mark
         ix = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]][x_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         iy = ((np.rint(no_cells*((haloArray[bin_markers[j]:bin_markers[j+1]][y_column].values)/(provider.Lbox*cosmo.h))))%no_cells).astype(int)
         xy=(ix,iy)
-
-        # Adnan: BUG issue: the method does not add repeated coordinates. Ian: Is that right?
-        halo_cell_pos[xy] += 1
+        
+        #for i in range(0,len(ix)):
+        #    for k in range(i,len(ix)):
+        #        if (i is not k):
+        #            if ix[i] == ix[k] and iy[i] == iy[k]:
+        #                print("Duplicate found at ", ix[i], iy[i])
+        
+        np.add.at(halo_cell_pos, xy, 1)
 
         # convolve the mask and the halo positions
         convolution, final_mask = per_bin_func(halo_cell_pos, coarse_mask, coarse_cellsize, Mvir_avg[j], redshift) 
