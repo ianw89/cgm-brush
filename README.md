@@ -59,4 +59,5 @@ When you think you are ready, open tests.ipynb with the ipython kernel you setup
 ## Use and citations
 If you are using CGM Brush for scientific applications, we encourage you to contact ianw89@live.com, adnank@uw.edu, or mcquinn@uw.edu.
 
-The paper detailing the methods used in this library is not yet published under a peer-reviewed journal. Please check back later for details on how to cite your use of CGM Brush.
+The methods used here are detailed in https://doi.org/10.1093/mnras/stad293.
+
